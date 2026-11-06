@@ -1,0 +1,27 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "globalDependencies": ["packages/typescript-config/*.json"],
+  "tasks": {
+    "prepare": {
+      "outputs": ["styled-system/**"]
+    },
+    "dev": {
+      "dependsOn": ["^prepare"],
+      "cache": false,
+      "persistent": true
+    },
+    "build": {
+      "dependsOn": ["^build", "prepare"],
+      "outputs": [".next/**", "!.next/cache/**"]
+    },
+    "lint": {
+      "dependsOn": ["prepare"]
+    },
+    "typecheck": {
+      "dependsOn": ["prepare"]
+    },
+    "test": {
+      "dependsOn": ["prepare"]
+    }
+  }
+}

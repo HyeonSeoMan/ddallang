@@ -65,3 +65,14 @@ Read `.agents/governance.md` before every phase. Read the relevant approved upst
 ## 7. Required completion report
 
 Report: phase; upstream document IDs/versions; changed files; review attempts and latest verdict; verification evidence; unresolved issues; approval required; branch/PR status. Stop at the approval boundary.
+
+## 8. Context management and compaction proposals
+
+Long sessions lose detail when context is summarized. Compact at work boundaries, not at a fixed usage threshold.
+
+- Proactively propose `/compact` to the user (in one or two lines, as part of the completion report) when both hold: (a) a work unit has just ended at an approval boundary, and (b) context use is roughly 60% or more, or large outputs (full Spec text, Codex transcripts) have made the session heavy. Do not wait for automatic compaction, which can trigger mid-review.
+- Good moments: right after a gate approval and `main` merge (G1, G2 per Spec, G3, G5); after a review loop closes; before starting a new Spec, Plan, or feature.
+- Bad moments: during an open review attempt, while a PR awaits review or approval, in the middle of an unresolved user decision, or while a Codex terminal is running.
+- The proposal states: what is durable (documents on `main`, approval records, memory), what may blur (terminal handles, review details, session-only decisions), and where the next session should start reading (`.agents/governance.md`, `docs/specs/README.md`, the relevant PRD sections).
+- Before proposing, make sure no decision exists only in the conversation. Record it in the authoritative document (or memory for working state) first.
+- The user decides whether to compact. Do not compact or change settings on your own, and do not repeat the proposal if declined unless the context state changes materially.

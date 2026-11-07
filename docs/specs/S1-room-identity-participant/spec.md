@@ -1,12 +1,27 @@
 # S1 — 방·신원·참여자 공통 Spec
 
-- Spec ID / 버전: S1 / **0.2.3 (초안, 재검수 2/3 지적 R1~R3 반영)**
-- 상태: **초안. 0.1.0은 Codex 검수 1/3회 NEEDS_DECISION. 0.2.2는 재검수 2/3회 대상. 사용자 승인(G2) 전.** 승인 전에는 구현 기준으로 쓰지 않는다.
+- Spec ID / 버전: S1 / **0.2.3 (확정, 사용자 G2 승인 2026-11-07)**
+- 상태: **확정 (사용자 G2 승인, 2026-11-07).** 본문은 커밋 `448deec`의 v0.2.3과 같고, 이 기록 커밋은 상태와 승인 기록만 바꾼다. Codex 독립 검수 3/3회 PASS(`review.md`). 이후 의미 있는 변경은 재검수와 재승인이 필요하다. 구현은 승인된 Plan/Tasks(G3) 이후에 시작한다.
 - 기준 PRD: **v0.5.1** (확정, 사용자 G1 재승인 2026-11-07, `main` 병합 커밋 `ca2104d`). v0.5.0 대비 변경은 AC-PART-001-6(OQ-038 해소) 하나다
 - 기준 정책: 통합 정책 v1.0.0 (`docs/policies/ddallang-mvp-policy-consolidated.md`), 사용자 결정 `docs/prd/mvp/open-questions.md` 2.1절, 사용자 위임 Claude 결정 2.2절
 - 분할안: `docs/specs/README.md` (S1 → S2 → S3 → S5 → S4)
 - 적용 저장소: 프론트엔드 `ddallang`, 백엔드 `ddallang-server`. 이 문서가 공통 계약의 유일한 원본이다.
 - 이 Spec은 PRD의 FR·AC와 정책을 바꾸지 않는다. PRD가 정하지 않은 계약 세부는 §12에 "Spec 결정"으로 따로 표시했다.
+
+## 승인 기록
+
+| 항목 | 내용 |
+| --- | --- |
+| 승인 대상 | S1 Spec v0.2.3 (`docs/specs/S1-room-identity-participant/spec.md`) 전체: API 계약, 오류 체계, 동시성 요구, 추적표, PRD에 없던 계약 세부 결정 N-1~N-11 |
+| 기준 문서 | PRD v0.5.1 (`main` `ca2104d`), 통합 정책 v1.0.0 |
+| 본문 기준 커밋 | `448deec` (PR 브랜치). 병합 커밋은 병합 후 `main`에서 확인한다 |
+| 승인자 | 사용자 (제품 책임자, GitHub `HyeonSeoMan`) |
+| 승인 일자 | 2026-11-07 |
+| 승인 방식 | 대화에서 "s1 스펙 승인할게 main까지 병합해줘"라고 명시. 승인 전에 Codex 3/3회 PASS, 한계, 잔여 위험, S5 이관 결정을 안내했다 |
+| 독립 검수 | Codex G2 3회 사용: 1/3 NEEDS_DECISION, 2/3 REVISE, 3/3 PASS (`review.md`) |
+| 알고 승인한 사항 | Codex PASS는 한 검수자의 정적 검토다. 잔여 위험(Web Locks 지원 환경, 응답 유실 시 고아 방, 상태 변경 재시도 덮어쓰기, 슬롯 회수 불가, 신원 키 유출 영향)은 §13에 있다. SSE 인증은 S5에서 정한다 |
+| 이 기록 커밋의 변경 | 상태 표기와 이 승인 기록만 바꿨다. API·검증·권한·추적표 본문은 바꾸지 않았다 |
+| 변경 통제 | 확정 뒤 계약이나 AC 추적이 바뀌면 `.agents/governance.md` §5에 따라 하위(Plan·구현)의 영향 검토와 재승인이 필요하다. `ddallang-server`는 이 Spec을 버전 또는 `ddallang` 커밋으로 참조한다 |
 
 ## 1. 범위
 

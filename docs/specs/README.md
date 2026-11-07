@@ -26,3 +26,12 @@
 - `ddallang-server`는 승인된 Spec을 참조하고 Spec 버전 또는 `ddallang` 커밋을 명시한다 (`.agents/governance.md` §11).
 - PRD v0.5.0의 FR·AC와 확정 정책은 이 문서로 바꾸지 않는다.
 - Spec 파일 위치: `docs/specs/<id>-<name>/spec.md`.
+
+## Spec 승인 현황
+
+| Spec | 버전 | 상태 | 승인일 | 위치 |
+| --- | --- | --- | --- | --- |
+| S1 방·신원·참여자 | 0.2.3 | **확정 (G2 승인)** | 2026-11-07 | `docs/specs/S1-room-identity-participant/spec.md` |
+| S2~S5 | — | 미작성 | — | — |
+
+기준 PRD는 v0.5.1(`main` `ca2104d`)이다. S1 이후 Spec의 기준 PRD도 승인 시점의 확정 버전을 명시한다.

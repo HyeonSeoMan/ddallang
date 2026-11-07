@@ -1,4 +1,6 @@
-# 딸랑 MVP PRD — Codex 독립 검수 기록
+# 딸랑 MVP PRD — Codex 독립 검수 기록 (v0.1.0 기준)
+
+> **주의:** 이 문서는 PRD v0.1.0에 대한 기록이다. 이후 통합 정책 반영으로 PRD가 v0.2.0으로 개정되면서 일부 FR/AC 번호의 의미가 바뀌었다(`prd-self-review.md` SR-07). 아래 `AC-*` 참조는 v0.1.0 문서를 기준으로 읽어야 하며, v0.2.0에 대한 독립 검수는 아직 수행하지 않았다.
 
 - 대상: `prd.md` v0.1.0 (초안), `policy-traceability.md`, `open-questions.md`
 - 상위 정책: `docs/policies/ddallang-mvp-policy.md` v1.0.0

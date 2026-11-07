@@ -5,7 +5,8 @@ Scope: MVP PRD → Spec → Plan → Tasks → Implementation → PR
 
 ## 1. Authoritative sources
 
-- Product policy: `docs/policies/ddallang-mvp-policy.md` (source version 1.0.0, dated 2026-11-06; original Notion URL recorded in that file).
+- Product policy, priority 1: `docs/policies/ddallang-mvp-policy-consolidated.md` (treated as v1.0.0 by user decision 2026-11-07). Policy decisions made after it are recorded in `docs/prd/mvp/open-questions.md` sections 2.1 (user decisions) and 2.2 (user-delegated Claude decisions); these are authoritative where the policy file is silent.
+- Product policy, supplementary: `docs/policies/ddallang-mvp-policy.md` (source version 1.0.0, dated 2026-11-06; original Notion URL recorded in that file). It applies only where the consolidated policy is silent and does not conflict (see `docs/prd/mvp/policy-verification.md`).
 - Product policy is the authority for MVP scope; deferred features remain deferred.
 - PRD must map each applicable `POL-*` to one or more `FR-*` and acceptance criteria. Unresolved `OQ-*` items must remain visible.
 - Feature Specs must reference an approved PRD version and trace to its `FR-*` IDs.
@@ -81,7 +82,7 @@ For every gate record: gate name, artifact path and version, upstream versions/I
 1. [done] Existing `CLAUDE.md`, `AGENTS.md`, `.agents/`, and Orca configuration inspected: none existed on the branch; no overwrite or merge conflict.
 2. [done] Policy placed at `docs/policies/ddallang-mvp-policy.md` unchanged (byte-identical to the provided file).
 3. [done, with limitation] Orca Codex read-only enforcement verified empirically; see section 10.
-4. [pending] One PRD-only trial (G1) to verify the review loop and approval pause. Do not enable later gates before it succeeds.
+4. [done] One PRD-only trial (G1; PRD v0.5.0 approved 2026-11-07) to verify the review loop and approval pause. Do not enable later gates before it succeeds.
 
 ## 10. Codex read-only enforcement in Orca (verified 2026-11-06)
 
@@ -98,3 +99,18 @@ Rules:
 - A read-only worker cannot reach the Orca runtime (`runtime_access_denied`/EPERM), so it cannot send `worker_done` or `ask`. The coordinator reads the verdict with `orca orchestration worker-read --dispatch <id>` (or `terminal read`); a `stopReason=finished` escalation is expected, not a failure.
 - Before each review, confirm the session header shows `sandbox_mode=read-only`; otherwise treat the review as BLOCKED.
 - Residual limits: the sandbox restricts writes but not reads (secrets in readable paths stay exposed to the reviewer, so do not keep secrets in the worktree), and the guarantee depends on the Codex CLI flags, not on Orca. Re-verify after Orca or Codex upgrades.
+
+## 11. Common Spec and repository split
+
+- `ddallang` (frontend + shared docs) is the single source of truth for Policy, PRD, and feature Specs. Feature Specs live under `docs/specs/`.
+- `ddallang-server` (backend, not yet created; create only with user approval) references approved Specs from `ddallang`. It must not keep its own copy of shared Specs or decide API contracts or business rules independently.
+- Each Plan/Tasks/implementation records the Spec version or `ddallang` commit it follows. Reviewers check against that same Spec.
+- If the Spec is inaccessible, do not guess the contract; report to the user.
+- A material Spec change needs impact review on both repositories and re-review/re-approval under section 3.
+- Repositories have independent branches, commits, PRs, and deployments. Plan/Tasks are per repository.
+
+## 12. Technology decisions
+
+Confirmed backend stack (change only with user approval): TypeScript, Node.js LTS, NestJS, PostgreSQL, Prisma, REST (mutations), Server-Sent Events (server-to-client change notifications). Start as a single NestJS application with feature modules; no microservices; Redis or message queues only when a concrete need is shown.
+Frontend keeps the existing stack in `apps/web` (Next.js, React, TanStack Query, Jotai, Panda CSS, Vitest).
+Test framework, package manager, deployment, and API documentation tooling for the backend are undecided. Propose them in the backend Plan.

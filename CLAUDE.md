@@ -7,7 +7,7 @@ Role: Author, implementer, and orchestration coordinator
 
 Follow higher-priority platform instructions and safety requirements. For project decisions, use this order:
 1. Explicit current user instruction and recorded approvals (subject to higher-priority instructions).
-2. Approved MVP Policy (`docs/policies/ddallang-mvp-policy.md`, version 1.0.0).
+2. Approved MVP Policy: `docs/policies/ddallang-mvp-policy-consolidated.md` (v1.0.0 by user decision 2026-11-07) first, then the decisions in `docs/prd/mvp/open-questions.md` sections 2.1/2.2, then `docs/policies/ddallang-mvp-policy.md` (supplementary). See `.agents/governance.md` sections 1, 11, 12.
 3. Approved PRD for the current scope.
 4. Approved feature Spec.
 5. Reviewed Plan and Tasks.

@@ -121,7 +121,7 @@ ID(`id`)는 서버가 만드는 불투명 문자열이며 추측하기 어려워
 경로의 `{inviteCode}`는 초대 코드, `{roomId}`는 방 ID다. 모든 본문은 JSON(UTF-8)이다. 목록은 정렬 순서가 명시된 대로 반환한다.
 
 ### 4.1 `POST /rooms` — 방 생성 (FR-ROOM-001, 003, 007)
-- 인증: `Authorization: Bearer <새 신원 키>` 필수. 방과 최초 RoomMember가 이 키에 묶인다.
+- 인증: `Authorization: Bearer <이 생성 시도의 신원 키>` 필수. 방과 최초 RoomMember가 이 키에 묶인다.
 - 요청: `{ "name": string, "unit": string, "nickname": string }` 세 필드 모두 필수. `name`, `unit`, `nickname`은 §3.2를 따른다. `unit`의 목록 선택(`원`, `점수`, `칩`)과 직접 입력은 서버에서 구분하지 않는다. 같은 문자열 규칙을 쓴다.
 - 처리: 방, 최초 RoomMember(`isHost = true`), `status = IN_PROGRESS`, 초대 코드를 한 트랜잭션에서 만든다. 초대 코드는 추측하기 어려운 URL-safe 난수(128비트 이상)다.
 - 응답 `201`: `{ "room": Room 전체(inviteCode 포함), "me": RoomMember }`

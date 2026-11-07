@@ -1,10 +1,10 @@
 # 딸랑 MVP — 정책 추적표 (정책 → FR → 수용 기준)
 
-- 기준: 통합 정책 v1.0.0(`ddallang-mvp-policy-consolidated.md` 현행 내용 + 기존 정책에만 있던 규칙 7건, 사용자 결정 2026-11-07)(앵커 `C§x.y`), 기존 정책 `ddallang-mvp-policy.md` v1.0.0(`POL-*`), `prd.md` v0.4.3 (초안)
+- 기준: 통합 정책 v1.0.0(`ddallang-mvp-policy-consolidated.md` 현행 내용 + 기존 정책에만 있던 규칙 7건, 사용자 결정 2026-11-07)(앵커 `C§x.y`), 기존 정책 `ddallang-mvp-policy.md` v1.0.0(`POL-*`), `prd.md` v0.5.0 (초안)
 - `C§6.1`(지원 환경)은 NFR에, `C§7.x`(통합 정책이 Spec 이관·미결로 남긴 항목)는 질문 번호에 대응한다. 질문의 현재 상태는 행마다 "결정 완료 / 부분 결정 / 열림"으로 적었다(`open-questions.md`가 기준). `C§7.3`은 FR-ROOM-008이 직접 인용하므로 FR로 센다.
 - 이 표는 `prd.md`의 `- POL:`과 `- 통합:` 항목에서 스크립트로 생성했다. `C§x.y`는 통합 정책의 절 번호와 글머리표 순서이며 정책이 부여한 ID가 아니다(`policy-verification.md` 1.1절).
 - 기존 정책 ID 34개 중 FR에 연결된 ID: 34개, 누락: 0개.
-- 통합 정책 앵커 32개의 연결 현황: FR 26개, NFR 1개, 질문 번호 대응(OQ) 5개(결정 완료 2, 부분 결정 1, 열림 2), 연결 누락 0개 (없음).
+- 통합 정책 앵커 32개의 연결 현황: FR 26개, NFR 1개, 질문 번호 대응(OQ) 5개(결정 완료 3, 부분 결정 0, 열림 2), 연결 누락 0개 (없음).
 
 ## 1. 통합 정책 → FR → AC
 
@@ -12,9 +12,9 @@
 | --- | --- | --- | --- |
 | C§1.1 | 포함: 방 생성·초대 링크 입장, 익명 RoomMember, 참여자 등록·관리, 단건 거래 생성·수정·삭… | FR-ROOM-002, FR-SYS-003 | 13 |
 | C§1.2 | 제외: RoomMember–Participant 연결/해제, 일괄 입력, 정산 확정·버전, 종료 후 정정… | FR-ROOM-004, FR-ROOM-007, FR-SET-007, FR-SYS-002 | 16 |
-| C§2.1 | 방 이름: 필수, 1~12자, 한글·영문·숫자·중간 공백만 허용, 앞뒤 공백·특수문자·이모지 불가, 중복… | FR-ROOM-001 | 12 |
-| C§2.2 | 생성 시 원·점수·칩 등 정산 단위 선택; 이후 변경·환산 불가. | FR-ROOM-001, FR-ROOM-003 | 15 |
-| C§2.3 | 생성 브라우저에 익명 RoomMember 신원을 발급하고 서버가 최초 방장으로 지정. 회원가입·비밀번호 … | FR-ROOM-001, FR-ROOM-002, FR-ROOM-005, FR-ROOM-007 | 27 |
+| C§2.1 | 방 이름: 필수, 1~12자, 한글·영문·숫자·중간 공백만 허용, 앞뒤 공백·특수문자·이모지 불가, 중복… | FR-ROOM-001 | 14 |
+| C§2.2 | 생성 시 원·점수·칩 등 정산 단위 선택; 이후 변경·환산 불가. | FR-ROOM-001, FR-ROOM-003 | 17 |
+| C§2.3 | 생성 브라우저에 익명 RoomMember 신원을 발급하고 서버가 최초 방장으로 지정. 회원가입·비밀번호 … | FR-ROOM-001, FR-ROOM-002, FR-ROOM-005, FR-ROOM-007 | 29 |
 | C§2.4 | RoomMember와 Participant는 독립 개체이며 MVP에서 연결·해제 기능 없음 (OQ-001… | FR-ROOM-004 | 5 |
 | C§2.5 | 방별 RoomMember 최대 10명, Participant 최대 10명, 거래 최대 1,000건. 초과… | FR-ROOM-008 | 11 |
 | C§2.6 | RoomMember·Participant 닉네임 각각 1~12자, 한글·영문·숫자·중간 공백 허용. 앞뒤… | FR-ROOM-006, FR-PART-003 | 16 |
@@ -22,7 +22,7 @@
 | C§3.1 | 필수: 서로 다른 Participant ID의 지급자·수취자, 금액 1~999,999,999의 정수. 모… | FR-TXN-001, FR-TXN-002, FR-TXN-008 | 16 |
 | C§3.2 | 진행 중 모든 RoomMember가 거래 생성 가능. 수정·삭제는 작성자 또는 방장만 가능. 수정 필드는… | FR-ROOM-007, FR-PART-002, FR-TXN-001, FR-TXN-003, FR-TXN-004, FR-TXN-005 | 33 |
 | C§3.3 | 삭제 거래는 일반 목록·손익·정산에서 제외하며 최소 감사 데이터 보존. 상세 감사 UI는 후속 (OQ-0… | FR-TXN-005 | 8 |
-| C§3.4 | 거래 생성·수정·삭제에 idempotency key 적용. 동일 키·동일 내용 재시도는 최초 결과 재사용… | FR-TXN-007, FR-TXN-008 | 17 |
+| C§3.4 | 거래 생성·수정·삭제에 idempotency key 적용. 동일 키·동일 내용 재시도는 최초 결과 재사용… | FR-TXN-007, FR-TXN-008 | 18 |
 | C§3.5 | 동시 수정은 서버에서 마지막으로 성공한 저장이 최종값(LWW). 삭제된 거래 수정 불가. | FR-TXN-006 | 4 |
 | C§4.1 | 누적 손익은 순손익 내림차순, 동률은 참여자 등록 순서. | FR-VIEW-001, FR-VIEW-002 | 5 |
 | C§4.2 | 거래 목록은 원본 서버 생성 시각 내림차순 → 서버 생성 순번 내림차순. 수정해도 목록 순서 불변. 20… | FR-VIEW-003, FR-VIEW-004 | 15 |
@@ -37,7 +37,7 @@
 | C§5.6 | 수동 종료 후 일반 거래 생성·수정·삭제 불가. 자동 종료·재개·접근 만료·삭제는 후속 (OQ-003). | FR-TXN-009, FR-SET-001 | 14 |
 | C§6.1 | iOS Safari, Android Chrome, 데스크톱 Chrome·Safari·Edge. 모바일 중… | NFR-008 (OQ-032 열림) | - |
 | C§7.1 | OQ-019: 실시간 지연 목표 수치·측정 조건·수용 기준. | OQ-019 (열림) → NFR-006, FR-VIEW-005 | - |
-| C§7.2 | OQ-026: 검증 실패와 서버 처리 불명확 상태별 idempotency key 보관·재사용 정책. | OQ-026 (부분 결정, 잔여 열림) → FR-TXN-007 | - |
+| C§7.2 | OQ-026: 검증 실패와 서버 처리 불명확 상태별 idempotency key 보관·재사용 정책. | OQ-026 (결정 완료: 일부 사용자 결정 2.1절, 잔여는 Claude 위임 결정 2.2절) → FR-TXN-007 | - |
 | C§7.3 | OQ-004: 삭제 거래를 1,000건 한도에 포함하는지. | FR-ROOM-008 | 11 |
 | C§7.4 | OQ-008: 유니코드 정규화·중간 반복 공백 처리. | OQ-008 (결정 완료, open-questions 2.1절) → FR-ROOM-001, FR-ROOM-006 | - |
 | C§7.5 | OQ-009: 선택 사유·라운드의 길이·형식. | OQ-009 (결정 완료, 허용 문자 잔여 OQ-039 열림) → FR-TXN-001 | - |
@@ -48,7 +48,7 @@
 | POL | 정책 요약 | FR | 수용 기준 |
 | --- | --- | --- | --- |
 | POL-ROOM-001 | 회원가입 없이 닉네임으로 초대 링크를 통해 입장한다. 방 코드와 최근 방 목록은 없다. | FR-ROOM-002 | AC-ROOM-002-1, AC-ROOM-002-2, AC-ROOM-002-3, AC-ROOM-002-4, AC-ROOM-002-5 |
-| POL-ROOM-002 | 방 생성 시 정산 단위(원·점수·칩 등)를 정하며 이후 변경할 수 없다. 단위 간 환산은 … | FR-ROOM-001, FR-ROOM-003 | AC-ROOM-001-1, AC-ROOM-001-2, AC-ROOM-001-3, AC-ROOM-001-4, AC-ROOM-001-5, AC-ROOM-001-6, AC-ROOM-001-7, AC-ROOM-001-8, AC-ROOM-001-9, AC-ROOM-001-10, AC-ROOM-001-11, AC-ROOM-001-12, AC-ROOM-003-1, AC-ROOM-003-2, AC-ROOM-003-3 |
+| POL-ROOM-002 | 방 생성 시 정산 단위(원·점수·칩 등)를 정하며 이후 변경할 수 없다. 단위 간 환산은 … | FR-ROOM-001, FR-ROOM-003 | AC-ROOM-001-1, AC-ROOM-001-2, AC-ROOM-001-3, AC-ROOM-001-4, AC-ROOM-001-5, AC-ROOM-001-6, AC-ROOM-001-7, AC-ROOM-001-8, AC-ROOM-001-9, AC-ROOM-001-10, AC-ROOM-001-11, AC-ROOM-001-12, AC-ROOM-001-13, AC-ROOM-001-14, AC-ROOM-003-1, AC-ROOM-003-2, AC-ROOM-003-3 |
 | POL-ROOM-003 | RoomMember(접속자)와 Participant(게임 참여자)는 서로 다른 개념이다. … | FR-ROOM-004 | AC-ROOM-004-1, AC-ROOM-004-2, AC-ROOM-004-3, AC-ROOM-004-4, AC-ROOM-004-5 |
 | POL-ROOM-004 | 익명 신원은 동일 브라우저 재접속 시 복원한다. 브라우저 식별자를 잃으면 새 RoomMem… | FR-ROOM-005 | AC-ROOM-005-1, AC-ROOM-005-2, AC-ROOM-005-3, AC-ROOM-005-4, AC-ROOM-005-5, AC-ROOM-005-6, AC-ROOM-005-7 |
 | POL-ROOM-005 | RoomMember 및 Participant 닉네임은 각각 같은 방 내에서 대소문자 구분 … | FR-ROOM-006 | AC-ROOM-006-1, AC-ROOM-006-2, AC-ROOM-006-3, AC-ROOM-006-4, AC-ROOM-006-5, AC-ROOM-006-6, AC-ROOM-006-7, AC-ROOM-006-8, AC-ROOM-006-9, AC-ROOM-006-10, AC-ROOM-006-12, AC-ROOM-006-13, AC-ROOM-006-11 |
@@ -63,7 +63,7 @@
 | POL-TXN-004 | 거래 수정·삭제는 거래 작성자 또는 현재 방장만 할 수 있다. 서버에서 권한을 검증한다. | FR-ROOM-007, FR-TXN-004 | AC-ROOM-007-1, AC-ROOM-007-2, AC-ROOM-007-3, AC-TXN-004-1, AC-TXN-004-2, AC-TXN-004-3, AC-TXN-004-4 |
 | POL-TXN-005 | 수정은 별도 확인 없이 저장한다. 삭제는 확인 절차를 거치며 손익 집계에서 제외하되 최소한… | FR-TXN-005 | AC-TXN-005-1, AC-TXN-005-2, AC-TXN-005-3, AC-TXN-005-4, AC-TXN-005-5, AC-TXN-005-6, AC-TXN-005-7, AC-TXN-005-8 |
 | POL-TXN-006 | 동일 거래에 대한 동시 수정은 서버에서 마지막으로 성공한 저장을 최종값으로 삼는다. 삭제된… | FR-TXN-006 | AC-TXN-006-1, AC-TXN-006-2, AC-TXN-006-3, AC-TXN-006-4 |
-| POL-TXN-007 | 저장 중 중복 제출을 방지하고, 서버는 동일 요청 ID의 중복 생성을 막는다. 내용이 같은… | FR-TXN-007 | AC-TXN-007-1, AC-TXN-007-2, AC-TXN-007-3, AC-TXN-007-4, AC-TXN-007-5, AC-TXN-007-6, AC-TXN-007-7, AC-TXN-007-8, AC-TXN-007-9, AC-TXN-007-10, AC-TXN-007-11, AC-TXN-007-12 |
+| POL-TXN-007 | 저장 중 중복 제출을 방지하고, 서버는 동일 요청 ID의 중복 생성을 막는다. 내용이 같은… | FR-TXN-007 | AC-TXN-007-1, AC-TXN-007-2, AC-TXN-007-3, AC-TXN-007-4, AC-TXN-007-5, AC-TXN-007-6, AC-TXN-007-7, AC-TXN-007-8, AC-TXN-007-9, AC-TXN-007-10, AC-TXN-007-11, AC-TXN-007-12, AC-TXN-007-13 |
 | POL-TXN-008 | 저장 실패 시 성공한 것처럼 표시하지 않는다. 입력값은 현재 화면에서 유지하며 사용자가 수… | FR-TXN-008 | AC-TXN-008-1, AC-TXN-008-2, AC-TXN-008-3, AC-TXN-008-4, AC-TXN-008-5 |
 | POL-TXN-009 | 게임 종료 후에는 일반 거래 추가·수정·삭제가 불가능하다. 서버에서 처리 시점의 게임 상태… | FR-TXN-009 | AC-TXN-009-1, AC-TXN-009-2, AC-TXN-009-3, AC-TXN-009-4, AC-TXN-009-5 |
 | POL-VIEW-001 | '누적 손익'과 '거래 내역'을 구분한다. | FR-VIEW-001 | AC-VIEW-001-1, AC-VIEW-001-2 |
@@ -86,7 +86,7 @@
 
 | FR | 제목 | POL | 통합 | AC 수 |
 | --- | --- | --- | --- | --- |
-| FR-ROOM-001 | 방 생성 | POL-ROOM-002 | C§2.1, C§2.2, C§2.3 | 12 |
+| FR-ROOM-001 | 방 생성 | POL-ROOM-002 | C§2.1, C§2.2, C§2.3 | 14 |
 | FR-ROOM-002 | 초대 링크 입장 | POL-ROOM-001 | C§1.1, C§2.3, C§2.7 | 5 |
 | FR-ROOM-003 | 정산 단위 불변 | POL-ROOM-002 | C§2.2 | 3 |
 | FR-ROOM-004 | RoomMember와 Participant 독립 | POL-ROOM-003 | C§2.4, C§1.2 | 5 |
@@ -104,7 +104,7 @@
 | FR-TXN-004 | 거래 수정·삭제 권한 | POL-TXN-004 | C§3.2 | 4 |
 | FR-TXN-005 | 수정·삭제 동작 | POL-TXN-005 | C§3.2, C§3.3 | 8 |
 | FR-TXN-006 | 동시 수정과 삭제된 거래 | POL-TXN-006 | C§3.5 | 4 |
-| FR-TXN-007 | 중복 요청 방지 (멱등 키) | POL-TXN-007 | C§3.4 | 12 |
+| FR-TXN-007 | 중복 요청 방지 (멱등 키) | POL-TXN-007 | C§3.4 | 13 |
 | FR-TXN-008 | 저장 실패 처리 | POL-TXN-008 | C§3.1, C§3.4, C§4.5 | 5 |
 | FR-TXN-009 | 종료 후 일반 거래 잠금 | POL-TXN-009 | C§5.6, C§5.1 | 5 |
 | FR-VIEW-001 | 누적 손익과 거래 내역 구분 | POL-VIEW-001 | C§4.1, C§4.3 | 2 |

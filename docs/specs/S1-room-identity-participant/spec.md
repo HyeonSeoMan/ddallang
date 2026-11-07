@@ -1,6 +1,6 @@
 # S1 — 방·신원·참여자 공통 Spec
 
-- Spec ID / 버전: S1 / **0.2.2 (초안, 기준 PRD v0.5.1 반영)**
+- Spec ID / 버전: S1 / **0.2.3 (초안, 재검수 2/3 지적 R1~R3 반영)**
 - 상태: **초안. 0.1.0은 Codex 검수 1/3회 NEEDS_DECISION. 0.2.2는 재검수 2/3회 대상. 사용자 승인(G2) 전.** 승인 전에는 구현 기준으로 쓰지 않는다.
 - 기준 PRD: **v0.5.1** (확정, 사용자 G1 재승인 2026-11-07, `main` 병합 커밋 `ca2104d`). v0.5.0 대비 변경은 AC-PART-001-6(OQ-038 해소) 하나다
 - 기준 정책: 통합 정책 v1.0.0 (`docs/policies/ddallang-mvp-policy-consolidated.md`), 사용자 결정 `docs/prd/mvp/open-questions.md` 2.1절, 사용자 위임 Claude 결정 2.2절

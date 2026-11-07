@@ -1,6 +1,6 @@
 # 딸랑 MVP — 열린 질문과 해결 내역
 
-- 대상: `prd.md` v0.5.0 (초안)
+- 대상: `prd.md` v0.5.0 (확정, 사용자 승인 2026-11-07. `prd.md`의 "승인 기록" 참조)
 - 기준: 통합 정책 `docs/policies/ddallang-mvp-policy-consolidated.md`의 OQ-001~026 결정 결과(Notion 기준 번호). 번호와 주제는 PRD v0.1.0의 OQ와 일치함을 확인했다(`policy-verification.md` 1절).
 - 원칙: Claude는 어떤 열린 질문도 임의로 확정하지 않았다. 결정이 나면 상위 문서(정책)에 먼저 기록하고 PRD를 갱신한 뒤 해당 게이트를 다시 실행한다. (`.agents/governance.md` §4)
 - "권장"은 Claude의 제안일 뿐 결정이 아니다. 분류가 **Spec 이관**인 항목은 정책 결정이 아니라 Spec에서 정해도 되는 세부 사항이다.

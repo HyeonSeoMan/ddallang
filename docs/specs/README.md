@@ -32,7 +32,7 @@
 | Spec | 버전 | 상태 | 승인일 | 위치 |
 | --- | --- | --- | --- | --- |
 | S1 방·신원·참여자 | 0.2.3 | **확정 (G2 승인)** | 2026-11-07 | `docs/specs/S1-room-identity-participant/spec.md` |
-| S2 거래 CRUD | 0.1.0 | 초안 (사용자 결정 T-5·T-6 대기, Codex 검수 전) | — | `docs/specs/S2-transaction-crud/spec.md` |
+| S2 거래 CRUD | 0.2.0 | 초안 (T-5·T-6 사용자 승인 반영, Codex 검수 전) | — | `docs/specs/S2-transaction-crud/spec.md` |
 | S3~S5 | — | 미작성 | — | — |
 
 기준 PRD는 v0.5.1(`main` `ca2104d`)이다. S1 이후 Spec의 기준 PRD도 승인 시점의 확정 버전을 명시한다.

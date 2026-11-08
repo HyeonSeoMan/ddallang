@@ -34,7 +34,7 @@
 | S1 방·신원·참여자 | 0.2.3 | **확정 (G2 승인)** | 2026-11-07 | `docs/specs/S1-room-identity-participant/spec.md` |
 | S2 거래 CRUD | 0.2.2 | **확정 (G2 승인)** | 2026-11-08 | `docs/specs/S2-transaction-crud/spec.md` |
 | S3 조회·손익 | 0.2.4 | **확정 (G2 승인)** | 2026-11-08 | `docs/specs/S3-view-balance/spec.md` |
-| S5 실시간·연결 | 0.2.1 | 초안 (Codex 1/3 REVISE 반영, 재검수 전) | — | `docs/specs/S5-realtime-connection/spec.md` |
+| S5 실시간·연결 | 0.2.2 | 초안 (Codex 2/3 REVISE 반영, 재검수 전) | — | `docs/specs/S5-realtime-connection/spec.md` |
 | S4 | — | 미작성 | — | — |
 
 기준 PRD는 v0.5.1(`main` `ca2104d`)이다. S1 이후 Spec의 기준 PRD도 승인 시점의 확정 버전을 명시한다.

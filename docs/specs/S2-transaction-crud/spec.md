@@ -1,7 +1,7 @@
 # S2 — 거래 CRUD 공통 Spec
 
-- Spec ID / 버전: S2 / **0.2.2 (초안, Codex 2/3 REVISE 반영, 재검수 전)**
-- 상태: **초안.** 사용자 G2 승인 전에는 확정하지 않는다. Codex 독립 검수 2/3회 사용(1/3 REVISE, 2/3 REVISE, `review.md`). 사용자가 2026-11-08에 T-5(OQ-039)와 T-6(OQ-030)을 승인했다(§12.2). 이 승인은 Spec 본문 G2 승인이 아니다.
+- Spec ID / 버전: S2 / **0.2.2 (Codex 3/3 PASS, 사용자 G2 승인 대기)**
+- 상태: **G2 승인 대기.** Codex 독립 검수 3/3회 사용(1/3 REVISE, 2/3 REVISE, 3/3 PASS, `review.md`). PASS는 품질 판정이며 사용자 G2 승인이 아니다. 승인 전에는 확정하지 않는다. 사용자가 2026-11-08에 T-5(OQ-039)와 T-6(OQ-030)을 승인했다(§12.2). 이 승인은 Spec 본문 G2 승인이 아니다.
 - 기준 PRD: **v0.5.1** (확정, 사용자 G1 재승인 2026-11-07, `main` 병합 커밋 `ca2104d`)
 - 기준 정책: 통합 정책 v1.0.0 (`docs/policies/ddallang-mvp-policy-consolidated.md`), 사용자 결정 `docs/prd/mvp/open-questions.md` 2.1절, 사용자 위임 Claude 결정 2.2절
 - 기준 Spec: S1 v0.2.3 (확정, `docs/specs/S1-room-identity-participant/spec.md`, 본문 커밋 `448deec`). 신원 키 인증(§3.1), 검사 순서(§3.3), 오류 형식(§3.4), 개체(§2.1), 한도 슬롯(§6.4), 참여자 상태(§5.3)를 그대로 쓴다.

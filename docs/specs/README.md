@@ -21,10 +21,10 @@
 
 ## 운영 원칙
 
-- 개별 Spec 본문은 아직 승인되지 않았다. 각 Spec은 작성 → Codex 독립 검수 → 사용자 승인(G2)을 거친다.
+- 각 Spec은 작성 → Codex 독립 검수 → 사용자 승인(G2)을 거쳐 확정된다. 확정 여부는 아래 "Spec 승인 현황"이 기준이다.
 - 모든 Spec은 프론트엔드·백엔드 공통 계약이며 `ddallang`이 원본을 관리한다. 양쪽용 Spec을 따로 만들지 않는다.
 - `ddallang-server`는 승인된 Spec을 참조하고 Spec 버전 또는 `ddallang` 커밋을 명시한다 (`.agents/governance.md` §11).
-- PRD v0.5.0의 FR·AC와 확정 정책은 이 문서로 바꾸지 않는다.
+- 확정 PRD(현재 v0.5.1)의 FR·AC와 확정 정책은 이 문서로 바꾸지 않는다.
 - Spec 파일 위치: `docs/specs/<id>-<name>/spec.md`.
 
 ## Spec 승인 현황
@@ -34,7 +34,7 @@
 | S1 방·신원·참여자 | 0.2.3 | **확정 (G2 승인)** | 2026-11-07 | `docs/specs/S1-room-identity-participant/spec.md` |
 | S2 거래 CRUD | 0.2.2 | **확정 (G2 승인)** | 2026-11-08 | `docs/specs/S2-transaction-crud/spec.md` |
 | S3 조회·손익 | 0.2.4 | **확정 (G2 승인)** | 2026-11-08 | `docs/specs/S3-view-balance/spec.md` |
-| S5 실시간·연결 | 0.2.3 | Codex 3/3 PASS, **사용자 G2 승인 대기** | — | `docs/specs/S5-realtime-connection/spec.md` |
+| S5 실시간·연결 | 0.2.3 | **확정 (G2 승인)** | 2026-11-08 | `docs/specs/S5-realtime-connection/spec.md` |
 | S4 | — | 미작성 | — | — |
 
 기준 PRD는 v0.5.1(`main` `ca2104d`)이다. S1 이후 Spec의 기준 PRD도 승인 시점의 확정 버전을 명시한다.

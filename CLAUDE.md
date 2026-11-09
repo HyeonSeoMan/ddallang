@@ -76,3 +76,13 @@ Long sessions lose detail when context is summarized. Compact at work boundaries
 - The proposal states: what is durable (documents on `main`, approval records, memory), what may blur (terminal handles, review details, session-only decisions), and where the next session should start reading (`.agents/governance.md`, `docs/specs/README.md`, the relevant PRD sections).
 - Before proposing, make sure no decision exists only in the conversation. Record it in the authoritative document (or memory for working state) first.
 - The user decides whether to compact. Do not compact or change settings on your own, and do not repeat the proposal if declined unless the context state changes materially.
+
+## 9. Token efficiency (experiment 1)
+
+Short principles. Details are in `.claude/token-optimization.md`; read it only when first applying the experiment, changing the rules, or analyzing results — not on every task and not merely because a task is large (do not `@import` it).
+- Read selectively: list headings, then read the sections tied to the current Task (AC, Spec, API contract). Read a whole document when judgment or editing needs it. Never omit required evidence, and keep reading `.agents/governance.md` in full before each phase (§1).
+- Keep terminal output short by default, but never cut errors or evidence needed for analysis or review.
+- Do not re-read a file you know is unchanged. When unsure, check `git status`/`git diff --stat` first. Do not skip validation after a change.
+- Before compaction or `/clear`, preserve unresolved decisions and review state in files or memory (§8). Prefer `/clear` over `/compact` only when everything durable is recorded; the user runs it, Claude only proposes (checklist in `.claude/token-optimization.md` I-5).
+- Chat reports stay concise and follow §7: lead with changes, verification results, unresolved issues, and approvals needed; include the other §7 items (documents/versions, review attempts and verdict, branch/PR status) when changed or relevant, never dropping them when a review or PR is involved. Do not repeat what is already in files.
+- Never shrink or delete review evidence, approval records, Specs, ACs, or API contracts.

@@ -1,0 +1,48 @@
+{
+ "schema": "tokstat/1",
+ "kind": "whole-session baseline",
+ "warning": "This is an aggregate over a whole multi-task session (PRD amendment, backend G3 plan and its reviews, frontend G3 plan, with context compactions in between). Do NOT compare it directly with a single-task result. Use it only as context for trends; compare like-with-like tasks measured with scripts/tokstat.py.",
+ "measured_with": "scripts/tokstat.py (counting rules in its docstring); numbers reproduced from the original session log on 2026-11-09",
+ "model": "claude-sonnet-5-5",
+ "period_utc": {
+  "from": "2026-11-07T13:26:39Z",
+  "to": "2026-11-09T09:29:12Z"
+ },
+ "filter": {
+  "to": "2026-11-09T09:29:12.256Z"
+ },
+ "calls": 456,
+ "tokens": {
+  "input_tokens": 1090,
+  "cache_creation_input_tokens": 1559281,
+  "cache_read_input_tokens": 116648929,
+  "output_tokens": 804514,
+  "thinking_tokens": 197576
+ },
+ "cache_write_split": {
+  "1h": 1559281,
+  "5m": 0
+ },
+ "context_per_call": {
+  "avg": 259230,
+  "max": 486857
+ },
+ "tool_result_chars": {
+  "Bash:document-dump": 443987,
+  "Read": 201618,
+  "Bash:orca": 86647,
+  "Bash:git/gh": 61632,
+  "Bash:other": 3496,
+  "Write": 2824,
+  "Edit": 511,
+  "AskUserQuestion": 269
+ },
+ "tool_result_chars_total": 800984,
+ "notes": [
+  "cache_read_input_tokens is about 98% of all tokens; cost scales with context size x number of calls.",
+  "thinking_tokens are part of output_tokens.",
+  "Bash categories use the full command text. An earlier ad-hoc run that looked only at the first 200 characters of each command gave a different Bash split (document dump 416,455 / other 40,595 / orca 76,755 chars); the total was identical.",
+  "Codex review sessions run in separate Orca terminals and are not included; only this Claude Code session is measured.",
+  "Sub-agent usage, if any, is logged separately and is not included."
+ ]
+}

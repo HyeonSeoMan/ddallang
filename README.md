@@ -67,6 +67,7 @@ pnpm test
 - `docs/policies` — 제품 정책
 - `docs/prd` — PRD와 열린 질문, 검수 기록
 - `docs/specs` — 기능별 공통 Spec (방·신원·참여자, 거래 CRUD, 조회·손익, 실시간·연결, 정산·종료)
+- `docs/plans` — 저장소별 Plan/Tasks (백엔드 초안은 `docs/plans/server/`, 백엔드 저장소 생성 전 임시 위치)
 - `.agents` — 에이전트 공통 거버넌스
 
 ## 문서 체계

@@ -1,10 +1,10 @@
 # 백엔드 AC 매핑표 (`ddallang-server`)
 
-- 문서 버전: 0.1.2 (**초안, Codex G3 검수 2/3 대기**). 짝 문서: `plan.md`(§8 검증 전략), `tasks.md`
+- 문서 버전: 0.1.3 (**초안, 사용자 결정 D2 대기, Codex G3 검수 3/3 전**). 짝 문서: `plan.md`(§8 검증 전략), `tasks.md`
 - **기준은 각 Spec의 §11 추적표**다. 이 표는 그 표(AC, 담당 절, 검증 방법)에서 만든 파생물이며 AC 의미를 바꾸지 않는다. 표와 Spec이 다르면 Spec이 우선하고 이 표를 고친다.
 - 대상: S1 82개, S2 53개, S3 25개, S5 26개, S4 39개 = 225개 행(PRD의 AC 225개와 일치, 각 AC는 담당 Spec의 §11에 한 번씩 있다)
 - 구분: **BE** 서버가 자동 시험으로 증명, **BE+FE** 서버(API)와 화면(UI) 양쪽, **FE** 화면만(프론트엔드 Plan이 맡음, 이 표에서는 완전성을 위해 나열), **참조** 다른 Spec이 계약을 정의하거나 해당 없음
-- 구분 합계: BE 146, BE+FE 45, FE 31, 참조 3
+- 구분 합계: BE 146, BE+FE 42, FE 34, 참조 3
 - 규칙: BE·BE+FE·참조 행의 AC는 `BE-F8` 검사 스크립트가 `[AC-…]` 태그가 달린 시험의 존재를 확인한다(참조 행은 계약을 정의한 Spec 쪽 시험으로 확인). 공통 AC(예: 동시성)는 해당 Spec의 동시성 시험 Task가 함께 맡는다.
 - "검증" 열은 Spec §11의 서술을 줄여 옮긴 것이다(150자 초과는 생략 표시).
 
@@ -32,13 +32,13 @@
 | AC-ROOM-003-1 | S1 | FE | 프론트엔드 Plan | UI: 변경 UI 없음 |
 | AC-ROOM-003-2 | S1 | BE | BE-S1-6 | API: 방장·비방장, `IN_PROGRESS`·`ENDED` 모든 조합에서 `PATCH`/`PUT`/`DELETE /rooms/{id}` → 405 `NOT_SUPPORTED` |
 | AC-ROOM-003-3 | S1 | BE+FE | BE-S1-2 (+프론트엔드 Plan: 표시) | 통합: 금액·정산이 방 단위로만 표시, 환산 없음 |
-| AC-ROOM-004-1 | S1 | BE | BE-S1-6 | 통합: 참여자와 무관한 RoomMember가 거래 등록 |
-| AC-ROOM-004-2 | S1 | BE | BE-S1-6 | 통합: 접속자 없는 참여자가 거래 당사자가 됨 |
+| AC-ROOM-004-1 | S1 | BE | BE-S2-2 | 통합: 참여자와 무관한 RoomMember가 거래 등록 |
+| AC-ROOM-004-2 | S1 | BE | BE-S2-2 | 통합: 접속자 없는 참여자가 거래 당사자가 됨 |
 | AC-ROOM-004-3 | S1 | BE | BE-S1-6 | API: 입장 후 참여자 수 불변 |
 | AC-ROOM-004-4 | S1 | BE | BE-S1-6 | API: 참여자 등록 후 RoomMember 수 불변 |
 | AC-ROOM-004-5 | S1 | BE+FE | BE-S1-6 (+프론트엔드 Plan) | API: 연결·해제 경로 없음. UI: 컨트롤 없음 |
 | AC-ROOM-005-1 | S1 | BE+FE | BE-S1-3 (+프론트엔드 Plan) | API: `GET /invites`가 `isMember=true`, 같은 키 재입장 → 200 같은 `me.id`. UI: 닉네임 재입력 없음 |
-| AC-ROOM-005-2 | S1 | BE | BE-S1-3 | 통합: 복원된 멤버가 이전 작성 거래를 수정·삭제 |
+| AC-ROOM-005-2 | S1 | BE | BE-S2-3, BE-S2-4 | 통합: 복원된 멤버가 이전 작성 거래를 수정·삭제 |
 | AC-ROOM-005-3 | S1 | BE | BE-S1-3 | API: 새 키로 입장 → 새 RoomMember, 이전 거래 작성자 아님 |
 | AC-ROOM-005-4 | S1 | BE | BE-S1-3 | API: 새 키 이전 방장 → `isHost = false` |
 | AC-ROOM-005-5 | S1 | BE | BE-S1-3 | API: 다른 키 → 새 RoomMember |
@@ -78,19 +78,19 @@
 | AC-PART-001-5 | S1 | BE | BE-S1-7, BE-S1-5 | 동시성: 서로 다른 닉네임 동시 등록 → `order` 모두 다르고, `order`가 서버 처리 순서(저장 순서)와 일치 |
 | AC-PART-001-6 | S1 | BE+FE | BE-S1-5 (+프론트엔드 Plan) | API: 재등록 → 409 `NICKNAME_TAKEN`. UI: 목록 재조회 후 같은 닉네임(대소문자 무시)이 있으면 "이미 등록되어 있습니다"로 안내하되 유실된 요청의 성공을 단정하는 문구("등록되었습니다" 등)를 쓰지 않음 |
 | AC-PART-002-1 | S1 | BE | BE-S1-5 | API: 비활성화·재활성화 |
-| AC-PART-002-2 | S1 | BE | BE-S1-5 | API: 전후 과거 거래·손익 불변 (손익 산출은 S3) |
+| AC-PART-002-2 | S1 | BE | BE-S3-1 | API: 전후 과거 거래·손익 불변 (손익 산출은 S3) |
 | AC-PART-002-3 | S1 | BE+FE | BE-S2-2 (+프론트엔드 Plan) | 통합: 비활성 참여자 지정 신규 거래 서버 거부. UI: 선택지 제외 |
-| AC-PART-002-4 | S1 | BE | BE-S1-5 | 통합: 재활성화 후 거래 당사자 가능 |
+| AC-PART-002-4 | S1 | BE+FE | BE-S2-2 (+프론트엔드 Plan) | 통합: 재활성화 후 거래 당사자 가능 |
 | AC-PART-002-5 | S1 | BE | BE-S1-5 | API: 비방장 → 403 |
 | AC-PART-002-6 | S1 | BE | BE-S3-1, BE-S4-2 | 통합: 비활성 참여자 손익이 목록·정산에 포함 |
 | AC-PART-002-7 | S1 | BE | BE-S2-3 | 통합: 비활성 참여자 포함 거래 수정 가능 |
-| AC-PART-002-8 | S1 | BE | BE-S1-7, BE-S1-5 | 동시성: 비활성화와 거래 생성 동시 도착 → 처리 시점 상태 |
+| AC-PART-002-8 | S1 | BE | BE-S2-6 | 동시성: 비활성화와 거래 생성 동시 도착 → 처리 시점 상태 |
 | AC-PART-002-9 | S1 | BE | BE-S1-5 | API: 상태 변경 후 `order` 불변 |
 | AC-PART-003-1 | S1 | BE+FE | BE-S1-6 (+프론트엔드 Plan) | API: 이름 변경 경로·필드 없음. UI: 없음 |
 | AC-PART-003-2 | S1 | BE | BE-S1-6 | API: 거래 일괄 이전 경로 없음 |
 | AC-PART-003-3 | S1 | BE | BE-S1-6 | API: 비활성화 후 다른 닉네임 새 참여자 등록 성공 |
-| AC-PART-004-1 | S1 | BE | BE-S1-5 | API: `ENDED`에서 등록 → 409 `GAME_ENDED` |
-| AC-PART-004-2 | S1 | BE | BE-S1-5 | API: `ENDED`에서 상태 변경 → 409 |
+| AC-PART-004-1 | S1 | BE | BE-S4-5 | API: `ENDED`에서 등록 → 409 `GAME_ENDED` |
+| AC-PART-004-2 | S1 | BE | BE-S4-5 | API: `ENDED`에서 상태 변경 → 409 |
 | AC-PART-004-3 | S1 | FE | 프론트엔드 Plan | UI: 종료 후 컨트롤 숨김/비활성 |
 | AC-TXN-001-1 | S2 | BE | BE-S2-2 | API: 유효 입력 → 201 |
 | AC-TXN-001-2 | S2 | BE | BE-S2-2 | API: 사유·라운드 없이 → 201, 둘 다 `null` |
@@ -112,15 +112,15 @@
 | AC-TXN-004-4 | S2 | BE | BE-S2-3, BE-S2-4 | API: UI 우회 요청도 서버가 판정 |
 | AC-TXN-005-1 | S2 | FE | 프론트엔드 Plan | UI: 확인 대화상자 없이 저장 |
 | AC-TXN-005-2 | S2 | FE | 프론트엔드 Plan | UI: 삭제 확인 전 요청 없음, 취소 시 불변 |
-| AC-TXN-005-3 | S2 | BE | BE-S2-3, BE-S2-4 | API: 삭제 후 목록·손익·정산에서 제외. 통합 |
+| AC-TXN-005-3 | S2 | BE | BE-S3-1, BE-S3-2, BE-S4-2 | API: 삭제 후 목록·손익·정산에서 제외. 통합 |
 | AC-TXN-005-4 | S2 | BE | BE-S2-3, BE-S2-4 | API/DB: 삭제 후 행·원본 값·작성자 보존, 조회 경로 없음 |
-| AC-TXN-005-5 | S2 | BE | BE-S2-3, BE-S2-4 | 통합: 수정 후 손익·정산이 새 금액 기준. 반영 지연 수치는 OQ-019 |
+| AC-TXN-005-5 | S2 | BE | BE-S3-1, BE-S4-2 | 통합: 수정 후 손익·정산이 새 금액 기준. 반영 지연 수치는 OQ-019 |
 | AC-TXN-005-6 | S2 | BE+FE | BE-S2-3, BE-S2-4 (+프론트엔드 Plan) | API: 수정 본문에 `payerId`·`payeeId`·`id`·`authorId`·`createdAt` → 422, 불변. UI: 입력 없음 |
 | AC-TXN-005-7 | S2 | BE | BE-S2-3, BE-S2-4 | API: 삭제 후 올바른 당사자로 새 거래, 새 `id`·`createdAt` |
 | AC-TXN-005-8 | S2 | BE | BE-S2-3, BE-S2-4 | API: 새 키의 반복 삭제 → 409 `TRANSACTION_DELETED`, 손익 불변 |
 | AC-TXN-006-1 | S2 | BE | BE-S2-6, BE-S2-3, BE-S2-6 | 동시성: 동시 수정 → 나중에 성공한 값이 최종값 |
 | AC-TXN-006-2 | S2 | BE | BE-S2-3, BE-S2-6 | API: 삭제된 거래 수정(새 키) → 409 `TRANSACTION_DELETED` |
-| AC-TXN-006-3 | S2 | BE | BE-S2-3, BE-S2-6 | 속성 기반: 동시 수정 후 손익 합 0 |
+| AC-TXN-006-3 | S2 | BE | BE-S3-1 | 속성 기반: 동시 수정 후 손익 합 0 |
 | AC-TXN-006-4 | S2 | BE | BE-S2-6, BE-S2-3, BE-S2-6 | 동시성: 수정·삭제 동시 → 일관된 하나의 결과 |
 | AC-TXN-007-1 | S2 | FE | 프론트엔드 Plan | UI: 진행 중 저장 컨트롤 비활성 |
 | AC-TXN-007-2 | S2 | BE | BE-S2-6, BE-F6, BE-S2-5 | API/동시성: 같은 키·내용 N회 → 거래 1건, 같은 결과. 영구 거부는 같은 거부 결과. 수정·삭제도 1회 부작용 |
@@ -144,7 +144,7 @@
 | AC-TXN-009-2 | S2 | BE | BE-S2-6, BE-S2-7 | 동시성: 종료 직전 시작 요청이 종료 후 처리되면 거부 |
 | AC-TXN-009-3 | S2 | FE | 프론트엔드 Plan | UI: 종료 후 컨트롤 숨김·비활성 |
 | AC-TXN-009-4 | S2 | BE+FE | BE-S2-7 (+프론트엔드 Plan) | API: 정정 경로 없음. UI: 없음 |
-| AC-TXN-009-5 | S2 | BE | BE-S2-6, BE-S2-7 | 동시성: 저장·종료 동시 → 직렬 순서대로 판정(앞선 거래는 최종 정산에 포함, 뒤의 거래는 거부). 같은 DB에 서버 인스턴스 2개 이상을 붙여 검증 |
+| AC-TXN-009-5 | S2 | BE | BE-S4-4 | 동시성: 저장·종료 동시 → 직렬 순서대로 판정(앞선 거래는 최종 정산에 포함, 뒤의 거래는 거부). 같은 DB에 서버 인스턴스 2개 이상을 붙여 검증 |
 | AC-VIEW-001-1 | S3 | FE | 프론트엔드 Plan | UI: 누적 손익 영역과 거래 내역 영역이 한 화면에서 구분 |
 | AC-VIEW-001-2 | S3 | BE+FE | BE-S3-1 (+프론트엔드 Plan) | API: `balances`에 거래 항목 없음, 참여자별 값만. UI: 손익 영역에 거래 항목 없음 |
 | AC-VIEW-002-1 | S3 | BE | BE-S3-1 | API: +300, +100, −400 순서 |
@@ -177,7 +177,7 @@
 | AC-VIEW-005-5 | S5 | BE+FE | BE-S5-3 (+프론트엔드 Plan) | 통합: 거래 변경으로 예상 정산이 바뀌면 B의 예상 정산 갱신 |
 | AC-VIEW-005-6 | S5 | FE | 프론트엔드 Plan | UI: 토스트 없이도 통과 |
 | AC-VIEW-005-7 | S5 | FE | 프론트엔드 Plan | UI: 필터 선택 유지, 새 순회로 정렬 규칙대로 교체 |
-| AC-VIEW-005-8 | S5 | BE+FE | BE-S5-4 (+프론트엔드 Plan) | 통합 측정: 이벤트 전달·화면 반영·유실 시 수렴 지연의 95백분위·최댓값 보고 |
+| AC-VIEW-005-8 | S5 | BE | BE-S5-4, BE-S4-7 | 통합 측정: 이벤트 전달·화면 반영·유실 시 수렴 지연의 95백분위·최댓값 보고 |
 | AC-SYS-001-1 | S5 | FE | 프론트엔드 Plan | UI: 네트워크 차단 시 연결 끊김 상태와 오류 안내 |
 | AC-SYS-001-2 | S5 | FE | 프론트엔드 Plan | UI: 끊김 중 손익·목록·정산 영역 미표시(이전 값, "최신 아님" 표시 포함 불가) |
 | AC-SYS-001-3 | S5 | FE | 프론트엔드 Plan | UI: 끊김 중 거래 등록·수정·삭제·종료 조작 불가, 큐잉 없음 |
@@ -218,8 +218,8 @@
 | AC-SET-004-4 | S4 | BE | BE-S4-1 | 단위: A→E 50·B→E 50 → A→E, B→E. A→D 50·A→E 50(D 먼저 등록) → A→D, A→E |
 | AC-SET-005-1 | S4 | BE | BE-S4-2 | API: 종료된 방에서 모든 RoomMember(종료 후 입장자 포함)가 `FINAL` 조회. 비멤버는 404 |
 | AC-SET-005-2 | S4 | FE | 프론트엔드 Plan | UI: 복사 버튼 → 클립보드에 일반 텍스트 |
-| AC-SET-005-3 | S4 | BE+FE | BE-S4-2 (+프론트엔드 Plan) | UI·단위: 방 이름, `게임 종료`, 각 항목의 지급자→수취자·금액, 정산 단위 포함. 형식은 §6.5와 정확히 일치 |
-| AC-SET-005-4 | S4 | BE+FE | BE-S4-2 (+프론트엔드 Plan) | UI·단위: 사유·라운드·작성자·확정 상태·버전·`kind` 표기 없음 |
+| AC-SET-005-3 | S4 | FE | 프론트엔드 Plan | UI·단위: 방 이름, `게임 종료`, 각 항목의 지급자→수취자·금액, 정산 단위 포함. 형식은 §6.5와 정확히 일치 |
+| AC-SET-005-4 | S4 | FE | 프론트엔드 Plan | UI·단위: 사유·라운드·작성자·확정 상태·버전·`kind` 표기 없음 |
 | AC-SET-005-5 | S4 | FE | 프론트엔드 Plan | UI: 클립보드 실패(권한·미지원) 모의 → 실패 안내, 성공 미표시 |
 | AC-SET-005-6 | S4 | FE | 프론트엔드 Plan | UI: `IN_PROGRESS`에서 복사 버튼 없음·비동작, `게임 종료` 텍스트 생성 불가 |
 | AC-SET-006-1 | S4 | BE+FE | BE-S4-2 (+프론트엔드 Plan) | UI·API: 거래 0건, 상쇄로 모든 순손익 0 → `items: []`, 정확히 `정산할 내역이 없습니다.` |
@@ -234,7 +234,7 @@
 | AC-SET-008-4 | S4 | BE | BE-S4-2 | 속성: 같은 거래 집합에서 종료 전 `EXPECTED.items` = 종료 후 `FINAL.items` |
 | AC-SET-008-5 | S4 | FE | 프론트엔드 Plan | UI: 예상 정산이 진행 중임을 구분해 표시하고 최종 결과로 오인되지 않음 |
 | AC-SET-008-6 | S4 | BE+FE | BE-S4-2 (+프론트엔드 Plan) | API·UI: 필터 선택 전후 정산 동일, 정산 API는 쿼리 거부(`NOT_ALLOWED_FIELD`) |
-| AC-SET-008-7 | S4 | BE+FE | BE-S4-2 (+프론트엔드 Plan) | UI·API: 예상 정산 복사 불가 |
+| AC-SET-008-7 | S4 | FE | 프론트엔드 Plan | UI·API: 예상 정산 복사 불가 |
 
 ## 비기능 요구(NFR)의 백엔드 대응
 

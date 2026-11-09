@@ -12,12 +12,12 @@
 | AC-ROOM-001-1 | S1 | BE+FE | FE-S1-1, FE-F3 | M | API: 유효 입력 → 201, `IN_PROGRESS`, 초대 코드, `me`. UI: 신원 키 저장 |
 | AC-ROOM-001-12 | S1 | FE | FE-S1-1 | M | UI: 정산 단위 목록(`원`,`점수`,`칩`) 선택 가능 |
 | AC-ROOM-001-13 | S1 | BE+FE | FE-S1-1 | M | UI: 정산 단위 직접 입력 필드 제공. API: "포인트", "Chip 10" 허용. 길이 0·13, 앞뒤·연속 공백, 특수문자, 이모지 거부. 우회 요청 포함 |
-| AC-ROOM-001-14 | S1 | BE+FE | FE-S3-1, FE-S4-2, FE-S4-3 | R | API: 저장된 `unit` 반환. 표시·복사 반영은 S3·S4와 함께 통합 확인 |
+| AC-ROOM-001-14 | S1 | BE+FE | FE-S3-1, FE-S3-2, FE-S4-2, FE-S4-3 | R | API: 저장된 `unit` 반환. 표시·복사 반영은 S3·S4와 함께 통합 확인 |
 | AC-ROOM-002-2 | S1 | BE+FE | FE-S1-5 | M | API: 방 코드 입장 경로 없음. UI: 입력 화면 없음 |
 | AC-ROOM-002-3 | S1 | FE | FE-S1-5 | M | UI: 최근 방 목록 화면 없음 |
 | AC-ROOM-002-4 | S1 | BE+FE | FE-S1-2 | M | API: 없는·잘못된 코드 → 404 `INVITE_NOT_FOUND`. UI: 오류 표시 |
 | AC-ROOM-003-1 | S1 | FE | FE-S1-5 | M | UI: 변경 UI 없음 |
-| AC-ROOM-003-3 | S1 | BE+FE | FE-S3-1, FE-S4-2 | R | 통합: 금액·정산이 방 단위로만 표시, 환산 없음 |
+| AC-ROOM-003-3 | S1 | BE+FE | FE-S3-1, FE-S3-2, FE-S4-2 | R | 통합: 금액·정산이 방 단위로만 표시, 환산 없음 |
 | AC-ROOM-004-5 | S1 | BE+FE | FE-S1-5 | M | API: 연결·해제 경로 없음. UI: 컨트롤 없음 |
 | AC-ROOM-005-1 | S1 | BE+FE | FE-S1-2 | M | API: `GET /invites`가 `isMember=true`, 같은 키 재입장 → 200 같은 `me.id`. UI: 닉네임 재입력 없음 |
 | AC-ROOM-006-8 | S1 | BE+FE | FE-S1-5 | M | API: 닉네임 변경 시도(`PATCH` `nickname`, RoomMember 수정) 거부, UI 없음 |

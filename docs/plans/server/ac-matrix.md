@@ -1,10 +1,10 @@
 # 백엔드 AC 매핑표 (`ddallang-server`)
 
-- 문서 버전: 0.1.7 (**초안, 자체 점검 반영, 두 번째 예외 검수 대기**). 짝 문서: `plan.md`(§8 검증 전략), `tasks.md`
+- 문서 버전: 0.1.8 (**초안, 두 번째 예외 검수 REVISE 반영, 검수 한도 소진**). 짝 문서: `plan.md`(§8 검증 전략), `tasks.md`
 - **기준은 각 Spec의 §11 추적표**다. 이 표는 그 표(AC, 담당 절, 검증 방법)에서 만든 파생물이며 AC 의미를 바꾸지 않는다. 표와 Spec이 다르면 Spec이 우선하고 이 표를 고친다.
 - 대상: S1 82개, S2 53개, S3 25개, S5 26개, S4 39개 = 225개 행(PRD의 AC 225개와 일치, 각 AC는 담당 Spec의 §11에 한 번씩 있다)
 - 구분: **BE** 서버가 자동 시험으로 증명, **BE+FE** 서버(API)와 화면(UI) 양쪽, **FE** 화면만(프론트엔드 Plan이 맡음, 이 표에서는 완전성을 위해 나열), **참조** 다른 Spec이 계약을 정의하거나 해당 없음
-- 구분 합계: BE 144, BE+FE 44, FE 34, 참조 3
+- 구분 합계: BE 146, BE+FE 45, FE 34, 참조 0
 - 규칙: BE·BE+FE·참조 행의 AC는 `BE-F8` 검사 스크립트가 `[AC-…]` 태그가 달린 시험의 존재를 확인한다(참조 행은 계약을 정의한 Spec 쪽 시험으로 확인). 공통 AC(예: 동시성)는 해당 Spec의 동시성 시험 Task가 함께 맡는다.
 - "검증" 열은 Spec §11의 서술을 줄여 옮긴 것이다(150자 초과는 생략 표시).
 
@@ -28,7 +28,7 @@
 | AC-ROOM-002-2 | S1 | BE+FE | BE-S1-3 (+프론트엔드 Plan) | API: 방 코드 입장 경로 없음. UI: 입력 화면 없음 |
 | AC-ROOM-002-3 | S1 | FE | 프론트엔드 Plan | UI: 최근 방 목록 화면 없음 |
 | AC-ROOM-002-4 | S1 | BE+FE | BE-S1-3 (+프론트엔드 Plan) | API: 없는·잘못된 코드 → 404 `INVITE_NOT_FOUND`. UI: 오류 표시 |
-| AC-ROOM-002-5 | S1 | BE | BE-S1-3 | API: `ENDED` 방에서 조회·입장 성공, 참여자 변경 `GAME_ENDED`. 통합: 종료 후 입장자가 거래 변경 불가(S2) |
+| AC-ROOM-002-5 | S1 | BE | BE-S1-3, BE-S4-5 | API: `ENDED` 방에서 조회·입장 성공, 참여자 변경 `GAME_ENDED`. 통합: 종료 후 입장자가 거래 변경 불가(S2) |
 | AC-ROOM-003-1 | S1 | FE | 프론트엔드 Plan | UI: 변경 UI 없음 |
 | AC-ROOM-003-2 | S1 | BE | BE-S1-6 | API: 방장·비방장, `IN_PROGRESS`·`ENDED` 모든 조합에서 `PATCH`/`PUT`/`DELETE /rooms/{id}` → 405 `NOT_SUPPORTED` |
 | AC-ROOM-003-3 | S1 | BE+FE | BE-S1-2 (+프론트엔드 Plan: 표시) | 통합: 금액·정산이 방 단위로만 표시, 환산 없음 |
@@ -58,18 +58,18 @@
 | AC-ROOM-006-12 | S1 | BE | BE-F5, BE-S1-3, BE-S1-5 | API: "Kim  Min" 거부 |
 | AC-ROOM-006-13 | S1 | BE | BE-F5, BE-S1-3, BE-S1-5 | API: 조합형·분해형 한글이 NFC 후 같은 값·같은 길이, 서로 중복. 호환 자모와 조합용 자모는 서로 다른 값 |
 | AC-ROOM-007-1 | S1 | BE | BE-S1-6 | API: 새 입장자 `isHost = false`. 방장 복원은 005-6 |
-| AC-ROOM-007-2 | S1 | BE | BE-S1-6 | API: 비방장의 참여자 추가·상태 변경 → 403 `HOST_ONLY`. 통합: 타인 거래 수정, 종료 |
+| AC-ROOM-007-2 | S1 | BE | BE-S1-6, BE-S2-7, BE-S4-3 | API: 비방장의 참여자 추가·상태 변경 → 403 `HOST_ONLY`. 통합: 타인 거래 수정, 종료 |
 | AC-ROOM-007-3 | S1 | BE | BE-S1-6 | API: 이전·퇴장·재발급 경로 없음 → 404 `ROUTE_NOT_FOUND` |
 | AC-ROOM-008-1 | S1 | BE+FE | BE-S1-3, BE-S1-5 (+프론트엔드 Plan) | API: 10번째 성공, 11번째 409. UI: 닉네임 유지·초과 안내 |
 | AC-ROOM-008-2 | S1 | BE+FE | BE-S1-7 (+프론트엔드 Plan) | API: 11번째 참여자 409. UI: 닉네임 유지 |
-| AC-ROOM-008-3 | S1 | 참조 | BE-S2-6 (S2 계약, S1은 참조) | 거래 1,001번째 새 생성 요청 거부, 거래 한도 초과 안내, 입력값 유지(UI). S2 Spec이 계약·화면 동작을 정의 |
+| AC-ROOM-008-3 | S1 | BE+FE | BE-S2-2 (+프론트엔드 Plan: 한도 안내·입력 유지) | 거래 1,001번째 새 생성 요청 거부, 거래 한도 초과 안내, 입력값 유지(UI). S2 Spec이 계약·화면 동작을 정의 |
 | AC-ROOM-008-4 | S1 | BE | BE-S1-7 | API: RoomMember·Participant 한도 거부 후 데이터 불변 |
 | AC-ROOM-008-5 | S1 | BE | BE-S1-7, BE-S2-6 | 동시성: 마지막 슬롯에 입장 N개·등록 N개 → 슬롯 소비 1 |
 | AC-ROOM-008-6 | S1 | BE | BE-S1-7 | API: 비활성·소실 신원이 한도에 포함 |
 | AC-ROOM-008-7 | S1 | BE | BE-S1-7 | API: 10명 중 1명 비활성화 후 11번째 거부 |
 | AC-ROOM-008-8 | S1 | BE | BE-S1-7 | API: 비접속 RoomMember도 한도에 포함 |
-| AC-ROOM-008-9 | S1 | 참조 | BE-S2-6 (S2 계약, S1은 참조) | 삭제된 거래 포함 1,000건 |
-| AC-ROOM-008-10 | S1 | 참조 | BE-S2-6 (S2 계약, S1은 참조) | 마지막 슬롯 성공 후 같은 키 재전송 |
+| AC-ROOM-008-9 | S1 | BE | BE-S2-4 | 삭제된 거래 포함 1,000건 |
+| AC-ROOM-008-10 | S1 | BE | BE-S2-5 | 마지막 슬롯 성공 후 같은 키 재전송 |
 | AC-ROOM-008-11 | S1 | BE | BE-S1-3, BE-S1-5 | API: 10명 방에서 기존 신원 재접속 성공 |
 | AC-PART-001-1 | S1 | BE | BE-S1-5 | API: 방장 등록 → `ACTIVE` |
 | AC-PART-001-2 | S1 | BE | BE-S1-5 | API: `IN_PROGRESS` 중 추가 성공 |
@@ -162,7 +162,7 @@
 | AC-VIEW-004-4 | S3 | BE | BE-S3-2, BE-S3-3 | API: 필터 적용 상태에서도 20건 단위 |
 | AC-VIEW-004-5 | S3 | FE | 프론트엔드 Plan | UI: 해제하면 새 순회로 전체 목록 |
 | AC-VIEW-004-6 | S3 | BE | BE-S3-2, BE-S3-3 | API: 비활성 참여자 필터 허용 |
-| AC-VIEW-004-7 | S3 | BE | BE-S3-2, BE-S3-3 | API: 필터 요청 전후 `balances`가 같음, `balances`에 쿼리 매개변수는 §3.3 표의 `NOT_ALLOWED_FIELD`. 통합: 예상 정산도 필터와 무관(S4) |
+| AC-VIEW-004-7 | S3 | BE | BE-S3-2, BE-S3-3, BE-S4-2 | API: 필터 요청 전후 `balances`가 같음, `balances`에 쿼리 매개변수는 §3.3 표의 `NOT_ALLOWED_FIELD`. 통합: 예상 정산도 필터와 무관(S4) |
 | AC-VIEW-004-8 | S3 | BE+FE | BE-S3-2, BE-S3-3 (+프론트엔드 Plan) | API: 다른 필터의 커서 사용 → §3.3 표의 `cursor` / `INVALID_VALUE`. UI: 필터 변경 시 페이지 폐기 후 새 첫 페이지(새 순회) |
 | AC-VIEW-004-9 | S3 | BE | BE-S3-2, BE-S3-3 | API: 삭제 거래가 섞여도 마지막 페이지를 제외하고 모든 페이지가 20건 |
 | AC-SET-002-1 | S3 | BE | BE-S3-1 | API: A→B 100 → A −100, B +100 |

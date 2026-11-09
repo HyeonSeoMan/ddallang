@@ -14,6 +14,6 @@
 | G3-04 | MEDIUM | 동적 초대 경로와 정적 호스팅 가정이 양립하지 않음 | FD-17(c) 수정(Next 런타임 전제, 정적 내보내기 미가정), `FE-F6`에 `next start` 직접 접속 스모크 시험 |
 | G3-05 | MEDIUM | 거래 금액의 단위 표시(S3 §9, AC-ROOM-001-14·003-3)가 담당에서 빠짐 | `FE-S3-2`에 표시·시험 추가, 매핑표 수정 |
 | G3-06 | LOW | F3만 저장소에 접근한다면서 F4 검사에 F3 API·선행이 없음 | F3가 검사 함수를 소유, F4가 소비, 선행에 F3 추가 |
-| Q-01 | MEDIUM(사용자 확인) | U-2: fast-check 사용 범위(속성 시험·일반 CI 허용 여부)와 Playwright 도입 여부 | **사용자 확인 대기.** Playwright는 쓰지 않도록 설계를 바꿔 의존을 없앴다. fast-check 범위는 `open-questions.md` 2.11절 대기 항목 |
+| Q-01 | MEDIUM(사용자 확인) | U-2: fast-check 사용 범위(속성 시험·일반 CI 허용 여부)와 Playwright 도입 여부 | **해결(사용자 결정 2026-11-09): (a) fast-check는 속성 기반 테스트에 사용, Playwright 미도입.** `open-questions.md` 2.11절에 기록 |
 
-다음 검수(2/3)는 Q-01 답을 `open-questions.md`에 기록한 뒤 시작한다.
+다음 검수(2/3)는 Q-01 결정을 기록한 뒤 시작한다.

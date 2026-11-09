@@ -7,7 +7,7 @@
 | 승인 대상 | Spec 분할안 5개와 작성 순서 (개별 Spec 본문은 대상이 아니다) |
 | 승인자 | 사용자 (제품 책임자, GitHub `HyeonSeoMan`) |
 | 승인일 | 2026-11-07 |
-| 기준 PRD | v0.5.0 (확정, `main`) |
+| 기준 PRD | v0.5.2 (확정, 사용자 G1 재승인 2026-11-09, `main` 병합 커밋 `94b7914`). 각 Spec의 기준 PRD 표기는 승인 시점의 확정 버전(v0.5.1)이다 |
 
 | Spec | 범위 | 담당 FR | 작성 순서 |
 | --- | --- | --- | --- |
@@ -24,7 +24,7 @@
 - 각 Spec은 작성 → Codex 독립 검수 → 사용자 승인(G2)을 거쳐 확정된다. 확정 여부는 아래 "Spec 승인 현황"이 기준이다.
 - 모든 Spec은 프론트엔드·백엔드 공통 계약이며 `ddallang`이 원본을 관리한다. 양쪽용 Spec을 따로 만들지 않는다.
 - `ddallang-server`는 승인된 Spec을 참조하고 Spec 버전 또는 `ddallang` 커밋을 명시한다 (`.agents/governance.md` §11).
-- 확정 PRD(현재 v0.5.1)의 FR·AC와 확정 정책은 이 문서로 바꾸지 않는다.
+- 확정 PRD(현재 v0.5.2)의 FR·AC와 확정 정책은 이 문서로 바꾸지 않는다.
 - Spec 파일 위치: `docs/specs/<id>-<name>/spec.md`.
 
 ## Spec 승인 현황
@@ -37,4 +37,4 @@
 | S5 실시간·연결 | 0.2.3 | **확정 (G2 승인)** | 2026-11-08 | `docs/specs/S5-realtime-connection/spec.md` |
 | S4 정산·종료 | 0.2.0 | **확정 (G2 승인)** | 2026-11-09 | `docs/specs/S4-settlement-end/spec.md` |
 
-기준 PRD는 v0.5.1(`main` `ca2104d`)이다. S1 이후 Spec의 기준 PRD도 승인 시점의 확정 버전을 명시한다.
+Spec 작성 당시의 기준 PRD는 v0.5.1(`main` `ca2104d`)이고, 현재 확정 PRD는 v0.5.2(`94b7914`)이다. S1 이후 Spec의 기준 PRD도 승인 시점의 확정 버전을 명시한다.

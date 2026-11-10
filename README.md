@@ -68,6 +68,7 @@ pnpm test
 - `docs/prd` — PRD와 열린 질문, 검수 기록
 - `docs/specs` — 기능별 공통 Spec (방·신원·참여자, 거래 CRUD, 조회·손익, 실시간·연결, 정산·종료)
 - `.agents` — 에이전트 공통 거버넌스
+- `.claude` — Claude Code 프로젝트 설정(Hook, Skill, 토큰 최적화 가이드)
 
 ## 문서 체계
 
@@ -103,5 +104,13 @@ Claude Code가 작성·구현하고 Codex가 독립적으로 검수한다. 역�
 - `CLAUDE.md` — Claude Code 작성·구현·조율 규칙
 - `AGENTS.md` — Codex 독립 리뷰 규칙 (읽기 전용)
 - `.agents/governance.md` — 두 에이전트가 공통으로 참조하는 거버넌스와 게이트
+
+### Claude Code Hook·Skill (`.claude/`)
+
+- `.claude/hooks/pretool_guard.py` — 실수 방지 장치다. `git push`, `git reset --hard`, main 브랜치 커밋·병합, `gh pr merge`, `sudo`, 명백히 파괴적인 `rm -r`, 민감 파일(`.env`, 키 등) 읽기·쓰기처럼 **명확하게 적힌 단순 명령**만 차단한다. **샌드박스나 보안 경계가 아니며**, 변수·`bash -c`·`env` 같은 wrapper·glob·스크립트 등으로 우회할 수 있다. 알려진 한계는 [`.claude/hooks/README.md`](.claude/hooks/README.md)에 정리되어 있다. 승인 게이트(push, 병합, 저장소 생성)는 hook 유무와 관계없이 사용자가 별도 터미널에서 실행한다.
+- `.claude/hooks/posttool_track.py` — 수정한 파일의 저장소 상대 경로만 기록한다(내용·명령은 저장하지 않음).
+- `.claude/skills/token-audit` — `scripts/tokstat.py`로 한 작업 구간의 토큰 사용량을 집계한다.
+- 테스트: `python3 -B .claude/hooks/test_hooks.py`. 통과는 문서에 적힌 동작을 한다는 뜻이며 안전 보장이 아니다.
+- 검수 기록: Codex 독립 검수 3회(REVISE → BLOCKED → REVISE) 후 한도에 도달했고, 이후 수정(R3-01, R3-02)은 자체 검증만 거쳤다. Codex PASS는 없다.
 
 Codex 검수 통과는 사용자 승인이 아니다. PRD 확정, 각 Spec 확정, `main` 병합은 사용자가 승인한다.

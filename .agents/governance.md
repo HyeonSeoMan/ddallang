@@ -103,7 +103,7 @@ Rules:
 ## 11. Common Spec and repository split
 
 - `ddallang` (frontend + shared docs) is the single source of truth for Policy, PRD, and feature Specs. Feature Specs live under `docs/specs/`.
-- `ddallang-server` (backend, not yet created; create only with user approval) references approved Specs from `ddallang`. It must not keep its own copy of shared Specs or decide API contracts or business rules independently.
+- `ddallang-server` (backend; GitHub repository created 2026-11-11 at `HyeonSeoMan/ddallang-server`) references approved Specs from `ddallang`. It must not keep its own copy of shared Specs or decide API contracts or business rules independently.
 - Each Plan/Tasks/implementation records the Spec version or `ddallang` commit it follows. Reviewers check against that same Spec.
 - If the Spec is inaccessible, do not guess the contract; report to the user.
 - A material Spec change needs impact review on both repositories and re-review/re-approval under section 3.

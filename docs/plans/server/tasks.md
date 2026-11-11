@@ -4,7 +4,8 @@
 - 기준 Spec: S1 v0.2.3, S2 v0.2.2, S3 v0.2.4, S5 v0.2.3, S4 v0.2.0(커밋은 `plan.md` §1.1)
 - 표기: `PD-n`은 `plan.md` §2.2의 결정, `RK-n`은 §6의 위험. Spec 절은 `S2 §5.4`처럼 쓴다. "완료 기준"은 Task가 끝났다고 판정하는 조건이며 모두 자동 시험으로 증명한다. 시험 제목은 `[AC-…]` 태그를 쓴다.
 - 소유: 공통 기반(F) Task가 해당 기능의 **유일한 구현 위치**다. 다른 Task는 소비만 하고 다시 만들지 않는다(`plan.md` §3).
-- 구현은 승인된 G3와 `ddallang-server` 생성 승인 뒤에 시작한다.
+- 구현은 승인된 G3, `ddallang-server` 저장소 생성(2026-11-11 완료), 그리고 `plan.md` v1.1.0의 사용자 승인(2026-11-11 완료) 뒤에 시작한다. 배포 환경(PD-16)은 전제가 아니다.
+- 문서 버전 1.1.0 (**사용자 판단 승인 2026-11-11**, 병합 커밋은 병합 후 `main`에서 확인한다). 변경: `BE-F1`(Swagger 부트스트랩·`GET /health`), `BE-F3`(라우트 레지스트리 예외), `BE-Z1`(증거), §H. 근거는 `plan.md` "변경 기록 v1.1.0"과 PD-19·PD-20.
 
 ## 수행 순서
 
@@ -16,10 +17,10 @@
 
 | ID | 제목 | 선행 | 근거 | 내용 | 완료 기준 |
 | --- | --- | --- | --- | --- | --- |
-| BE-F1 | 프로젝트 골격·도구체인 | — | PD-1, PD-18, plan §2.1 | NestJS(Express) 앱, TypeScript strict, pnpm, 린트·포맷, 환경 변수 검증(누락 시 기동 실패), 구조적 로깅(`Authorization`·신원 키 마스킹), Docker Compose PostgreSQL, 스크립트(`typecheck`·`lint`·`test`·`build`), 모듈 뼈대(`common`·`rooms`·`participants`·`transactions`·`idempotency`·`balances`·`realtime`·`settlement`)와 의존 방향 검사 | 빈 앱이 기동하고 스크립트가 모두 통과한다. 로그에 `Authorization` 값이 남지 않는 시험. 순환 의존 검사 통과 |
+| BE-F1 | 프로젝트 골격·도구체인 | — | PD-1, PD-18, PD-19, PD-20, plan §2.1 | NestJS(Express) 앱, TypeScript strict, pnpm, 린트·포맷, 환경 변수 검증(누락 시 기동 실패), 구조적 로깅(`Authorization`·신원 키 마스킹), Docker Compose PostgreSQL, 스크립트(`typecheck`·`lint`·`test`·`build`), 모듈 뼈대(`common`·`rooms`·`participants`·`transactions`·`idempotency`·`balances`·`realtime`·`settlement`)와 의존 방향 검사, `GET /health`(PD-20, 인증·DB 조회 없음), Swagger 부트스트랩(PD-19: `/api-docs`·`/api-docs-json`, 개발 환경에서만, Bearer·`Idempotency-*` 헤더 입력 정의), `.env.example`(필요한 키만)과 `.env` Git 제외 | 빈 앱이 기동하고 스크립트가 모두 통과한다. 로그에 `Authorization` 값이 남지 않는 시험. 순환 의존 검사 통과. `GET /health`가 `200 {"status":"ok"}`인 시험. OpenAPI 문서의 (경로, 메서드) 집합이 앱에 정의된 컨트롤러 경로(`/api-docs*` 제외, 현재 `GET /health`)와 같다는 시험(레지스트리 없이 성립한다. 이 시험은 이후 모든 Task에서 `test`로 계속 실행되고 `BE-F3`이 레지스트리까지 확장한다, PD-19 (g)). 개발 환경(`NODE_ENV=development`)에서만 `/api-docs`가 열리고 정상 기동한 `production`·`test`에서는 등록되지 않는 시험, `NODE_ENV` 미설정·허용 밖 값은 기동 실패하는 시험(404 시험과 분리). 환경 변수 누락 시 기동 실패 시험 |
 | BE-F2 | DB 기반·방 단위 직렬화 | F1 | PD-2~PD-4, PD-11, S2 §7 1, S3 §3.2 | Prisma 연결·마이그레이션 규율(CHECK·부분 인덱스는 SQL 마이그레이션), `withRoomLock(roomId, fn)`(방 행 `FOR UPDATE`, 커밋까지 유지, `lock_timeout`·`statement_timeout`), DB 시각 헬퍼(`clock_timestamp()`), 읽기 전용 `REPEATABLE READ` 헬퍼, 연결 풀 설정 | 두 연결이 같은 방에서 직렬로 실행되는 시험, 다른 방은 서로 막지 않는 시험, 잠금 대기 중 `statement_timeout` 동작 시험 |
 | BE-F8 | 시험 기반 | F2 | OQ-033 G, plan §8 | 실 PostgreSQL 시험 DB(스키마 격리), 요청 도우미(`supertest`), **서버 인스턴스를 별도 프로세스 2개 이상 기동하는 하네스**, 계약 시험 도우미(Spec 절·AC 태그), `ac-matrix.md`와 시험 태그를 대조하는 검사 스크립트(백엔드 담당 AC에 시험이 없으면 실패) | 하네스가 같은 DB에 프로세스 2개를 띄워 서로의 변경을 보는 시험. 검사 스크립트가 누락 AC를 실제로 실패시키는 시험 |
-| BE-F3 | 오류·라우트·CORS 기반 | F1, F8 | S1 §3.3 0, §3.4, §4.8, PD-8, PD-9, PD-15 | 오류 형식 `{ error: { code, message, details[] } }`와 코드 레지스트리(S1 §3.4, S2 §3.6, S5 §3.3), 전역 예외 필터(**본문 파서 미들웨어가 JSON 오류를 try/catch로 잡아 요청에 "본문 파싱 실패"를 표시하고 `next()`로 정상 흐름을 계속한다**(예외를 던져 전역 필터로 보내지 않는다 — 던지면 서비스 실행이 중단되어 재개되지 않는다). 각 서비스가 정해진 검사 차례(S1 §3.3 7번, S2 §3.4 10번, S4 §3.3 8번)에서 표시를 보고 `422 VALIDATION_FAILED`로 판정), 라우트 레지스트리 미들웨어(`404 ROUTE_NOT_FOUND`·`405 NOT_SUPPORTED`+`Allow`, 인증보다 앞), CORS 설정(허용 헤더·노출 헤더) | 정의되지 않은 경로·메서드가 방·참여자 존재와 무관하게 같은 응답을 주는 시험, 오류 형식 시험, CORS 사전 요청 시험, **잘못된 JSON 본문 + 무인증이면 401, + 비방장이면 403 `HOST_ONLY`, + 종료된 방이면 `GAME_ENDED`, + 멤버·방장이 정상일 때만 422**임을 확인하는 순서 시험 |
+| BE-F3 | 오류·라우트·CORS 기반 | F1, F8 | S1 §3.3 0, §3.4, §4.8, PD-8, PD-9, PD-15 | 오류 형식 `{ error: { code, message, details[] } }`와 코드 레지스트리(S1 §3.4, S2 §3.6, S5 §3.3), 전역 예외 필터(**본문 파서 미들웨어가 JSON 오류를 try/catch로 잡아 요청에 "본문 파싱 실패"를 표시하고 `next()`로 정상 흐름을 계속한다**(예외를 던져 전역 필터로 보내지 않는다 — 던지면 서비스 실행이 중단되어 재개되지 않는다). 각 서비스가 정해진 검사 차례(S1 §3.3 7번, S2 §3.4 10번, S4 §3.3 8번)에서 표시를 보고 `422 VALIDATION_FAILED`로 판정), 라우트 레지스트리 미들웨어(`404 ROUTE_NOT_FOUND`·`405 NOT_SUPPORTED`+`Allow`, 인증보다 앞), CORS 설정(허용 헤더·노출 헤더) | 정의되지 않은 경로·메서드가 방·참여자 존재와 무관하게 같은 응답을 주는 시험, 오류 형식 시험, CORS 사전 요청 시험, **잘못된 JSON 본문 + 무인증이면 401, + 비방장이면 403 `HOST_ONLY`, + 종료된 방이면 `GAME_ENDED`, + 멤버·방장이 정상일 때만 422**임을 확인하는 순서 시험. **비-Spec 항목(PD-20·PD-19)**: 레지스트리에 `GET /health`와(켜진 경우) `/api-docs`·`/api-docs/*`·`/api-docs-json`을 `GET` 전용으로 명시 등록한다. 그 밖의 미정의 경로는 그대로 404인 시험, `/health`의 `POST`·`HEAD`는 `405 NOT_SUPPORTED`+`Allow: GET`인 시험, 정상 기동한 `production`·`test`에서 `/api-docs`가 `404 ROUTE_NOT_FOUND`인 시험, 레지스트리가 Swagger 라우트보다 먼저 실행되는 순서 시험, 기본 YAML 경로(`/api-docs-yaml`)가 `404`인 시험, 레지스트리 집합·컨트롤러 집합·문서 집합이 같다는 시험(PD-19 (g) 확장) |
 | BE-F4 | 신원 키 인증·방 멤버 컨텍스트 | F3, S1-1 | S1 §3.1, §3.3 1~3, PD-14 | `Authorization: Bearer` 파싱과 형식 검사(43자 base64url), SHA-256 해시, (방, 해시)로 RoomMember 조회, 비멤버·없는 방을 같은 `404 ROOM_NOT_FOUND`로 응답, 키 누락·형식 오류 `401 UNAUTHENTICATED`, 인증된 컨텍스트 주입 | 401·404 동일 응답 시험(비멤버 vs 없는 방), 다른 방 키 거부(AC-SYS-003-6, -7), 키가 로그·응답에 나오지 않는 시험 |
 | BE-F5 | 문자열·금액 검증 라이브러리 | F1 | S1 §3.2, S2 §3.2 T-5, §3.3, PD-10 | `common/validation`: NFC 정규화, 코드 포인트 길이, 허용 문자(완성형·호환 자모·영문·숫자·공백), 공백 규칙, 사유 코드 모음 수집(`REQUIRED`·`LENGTH_OUT_OF_RANGE`·`INVALID_CHARACTER`·`LEADING_OR_TRAILING_SPACE`·`CONSECUTIVE_SPACES`·`INVALID_TYPE`), 닉네임 비교 키, 사유·라운드 규칙(T-5), 금액 규칙. S1과 S2가 함께 쓴다 | 단위·속성 시험: NFC 동치(조합형·분해형), 64 코드 포인트 상한, 금액 경계(1, 999,999,999, 0, 1,000,000,000, 소수), 사유 코드 전수 |
 | BE-F7 | 변경 트랜잭션 파이프라인 | F2, F3, S1-1 | S5 §6.1, §8.1, PD-3~PD-5 | `withRoomMutation`: 방 잠금 → 호출자 변경 → **변경이 실제로 있을 때만** `Room.revision`+1 → 같은 트랜잭션에서 `pg_notify`(이벤트 종류·식별자, S5 §4.2 형식) → 커밋. 거부·멱등 재전송·값이 같은 변경은 `revision`을 소비하지 않는다. `Room.revision` 컬럼 추가 마이그레이션 소유(`Room` 테이블 자체는 S1-1이 만든다) | 변경 N건 뒤 `revision`이 빠짐없이 1씩 증가, 롤백 시 증가·통지 없음, no-op은 불변, 통지가 커밋 전에 수신되지 않는 시험(리스너로 확인) |
@@ -85,7 +86,7 @@
 
 | ID | 제목 | 선행 | 근거 | 내용 | 완료 기준 |
 | --- | --- | --- | --- | --- | --- |
-| BE-Z1 | 통합 검증·G4 증거 묶음 | 전부 | plan §8 | 전체 시험·타입 검사·린트·빌드 실행, AC 매핑 검사 통과, 다중 인스턴스 시험 결과, 지연 측정 결과, 의존성 이행표(§7) 증거, 남은 위험·미실행 검증 목록, README(참조 Spec 버전·커밋) | 증거 묶음이 문서로 남는다. 실행하지 못한 검증은 명시한다 |
+| BE-Z1 | 통합 검증·G4 증거 묶음 | 전부 | plan §8 | 전체 시험·타입 검사·린트·빌드 실행, AC 매핑 검사 통과, 다중 인스턴스 시험 결과, 지연 측정 결과, 의존성 이행표(§7) 증거, 남은 위험·미실행 검증 목록, README(참조 Spec 버전·커밋), Swagger에 문서화된 경로와 구현된 경로가 같다는 확인(PD-19) | 증거 묶음이 문서로 남는다. 실행하지 못한 검증은 명시한다 |
 
 ## H. 공통 기반 소유·의존 점검
 
@@ -93,6 +94,7 @@
 - 마이그레이션 소유는 `plan.md` §3 "스키마 소유"를 따른다. 다른 Task가 같은 테이블 마이그레이션을 만들지 않는다.
 - `BE-F6`의 선행에 `S1 완료`를 둔 이유: `IdempotencyRecord`가 `Room`·`RoomMember`를 참조하기 때문이다. 시험은 S2에서 한다.
 - 스키마 소유에 `StreamLease`(BE-S5-6)를 더했다.
+- 추가 범위의 소유(v1.1.0): `GET /health`와 Swagger 부트스트랩은 `BE-F1`만 만들고, `/health`·`/api-docs*`의 라우트 레지스트리 예외는 `BE-F3`만 구현한다. 각 기능 엔드포인트의 Swagger 데코레이터는 그 엔드포인트를 구현하는 Task가 쓰며 별도 Task를 만들지 않는다. 엔드포인트를 추가하는 Task는 `BE-F1`의 문서·레지스트리 일치 시험(PD-19 (g))이 통과해야 끝난 것으로 본다(Task별 완료 기준을 따로 고치지 않고 이 규칙으로 적용한다). 이 추가 범위에는 AC가 없다(Spec에 없음).
 - 시험 Task(`S1-7`, `S2-5~6`, `S3-3`, `S5-3~5`, `S4-4~7`)는 구현 Task와 다른 ID로 분리해 완료 기준을 독립적으로 판정한다.
 
 ## I. 횡단 시험 이관표

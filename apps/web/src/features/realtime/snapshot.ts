@@ -11,7 +11,6 @@ import {
   type Transaction,
 } from "@/lib/api";
 import type { RoomSnapshot } from "@/features/room/state";
-import { isInaccessibleError } from "./access";
 
 export interface SnapshotRequest {
   roomId: string;
@@ -37,34 +36,45 @@ export async function fetchRoomSnapshot(
 ): Promise<SnapshotResult> {
   const base = `/rooms/${encodeURIComponent(request.roomId)}`;
   const headers = bearerHeader(request.identityKey);
-  const get = <T>(path: string, query?: Record<string, string | undefined>) =>
-    api.request<T>({ method: "GET", path: `${base}${path}`, query, headers, signal });
+  // 하나라도 실패하면 그 즉시 실패를 알리고(나머지를 기다리지 않는다) 남은 요청을 중단한다.
+  // 실패를 늦게 알리면 그동안 이전 스냅샷과 `connected`가 유지되어 오래된 데이터가 보인다(S5 §6.5).
+  const inner = new AbortController();
+  const forward = () => inner.abort();
+  if (signal?.aborted) inner.abort();
+  else signal?.addEventListener("abort", forward, { once: true });
+  const getInner = <T>(path: string, query?: Record<string, string | undefined>) =>
+    api.request<T>({ method: "GET", path: `${base}${path}`, query, headers, signal: inner.signal });
 
-  const results = await Promise.allSettled([
-    get<{ room: Room; me: RoomMember }>(""),
-    get<{ participants: Participant[] }>("/participants"),
-    get<{ balances: Balance[] }>("/balances"),
-    get<{ transactions: Transaction[]; nextCursor: string | null }>("/transactions", {
-      participantId: request.participantId ?? undefined,
-    }),
-    get<{ settlement: Settlement }>("/settlement"),
-  ]);
-
-  // 하나라도 실패했으면 일부도 반영하지 않고 오류를 던진다. 접근 불가(401·404)가 섞여 있으면 그것을 우선한다.
-  const rejected = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
-  if (rejected.length > 0) {
-    throw (rejected.find((r) => isInaccessibleError(r.reason)) ?? rejected[0]!).reason;
+  let responses: [
+    ApiResponse<{ room: Room; me: RoomMember }>,
+    ApiResponse<{ participants: Participant[] }>,
+    ApiResponse<{ balances: Balance[] }>,
+    ApiResponse<{ transactions: Transaction[]; nextCursor: string | null }>,
+    ApiResponse<{ settlement: Settlement }>,
+  ];
+  try {
+    responses = await Promise.all([
+      getInner<{ room: Room; me: RoomMember }>(""),
+      getInner<{ participants: Participant[] }>("/participants"),
+      getInner<{ balances: Balance[] }>("/balances"),
+      getInner<{ transactions: Transaction[]; nextCursor: string | null }>("/transactions", {
+        participantId: request.participantId ?? undefined,
+      }),
+      getInner<{ settlement: Settlement }>("/settlement"),
+    ]);
+  } catch (error) {
+    inner.abort();
+    throw error;
+  } finally {
+    signal?.removeEventListener("abort", forward);
   }
-  const [roomResult, participantsResult, balancesResult, transactionsResult, settlementResult] = results;
-  const room = (roomResult as PromiseFulfilledResult<ApiResponse<{ room: Room; me: RoomMember }>>).value.data;
-  const participants = (participantsResult as PromiseFulfilledResult<ApiResponse<{ participants: Participant[] }>>).value.data;
-  const balances = (balancesResult as PromiseFulfilledResult<ApiResponse<{ balances: Balance[] }>>).value.data;
-  const transactions = (
-    transactionsResult as PromiseFulfilledResult<
-      ApiResponse<{ transactions: Transaction[]; nextCursor: string | null }>
-    >
-  ).value.data;
-  const settlement = (settlementResult as PromiseFulfilledResult<ApiResponse<{ settlement: Settlement }>>).value.data;
+  const [room, participants, balances, transactions, settlement] = responses.map((r) => r.data) as [
+    { room: Room; me: RoomMember },
+    { participants: Participant[] },
+    { balances: Balance[] },
+    { transactions: Transaction[]; nextCursor: string | null },
+    { settlement: Settlement },
+  ];
 
   const expectedKind = room.room.status === "ENDED" ? "FINAL" : "EXPECTED";
   if (settlement.settlement.kind !== expectedKind) return { ok: false, reason: "status-mismatch" };

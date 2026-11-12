@@ -374,6 +374,40 @@ describe("연결 제어·재연결", () => {
       expect(h.streams).toHaveLength(1);
     });
 
+    it("[Codex F01] 429 대기 중 offline→online이 와도 Retry-After 이전에는 다시 연결하지 않는다", async () => {
+      const h = harness();
+      h.connection.start();
+      await h.end({
+        kind: "rejected",
+        error: new ApiError({ status: 429, code: "CONNECTION_LIMIT_EXCEEDED", message: "m", retryAfterSeconds: 30 }),
+      });
+      await clock.advance(1000);
+      h.setOnline(false);
+      await clock.advance(1000);
+      h.setOnline(true);
+      expect(h.streams).toHaveLength(1); // 즉시 두 번째 연결을 시도하면 안 된다
+      expect(h.lastPhase()).toBe("limit");
+      await clock.advance(27_999); // 총 29.999초
+      expect(h.streams).toHaveLength(1);
+      await clock.advance(1);
+      expect(h.streams).toHaveLength(2);
+    });
+
+    it("429 대기 시간이 오프라인 중에 끝나면 연결하지 않고 기다리다 online에서 바로 연결한다", async () => {
+      const h = harness();
+      h.connection.start();
+      await h.end({
+        kind: "rejected",
+        error: new ApiError({ status: 429, code: "X", message: "m", retryAfterSeconds: 30 }),
+      });
+      h.setOnline(false);
+      await clock.advance(31_000);
+      expect(h.streams).toHaveLength(1);
+      expect(h.lastPhase()).toBe("offline");
+      h.setOnline(true);
+      expect(h.streams).toHaveLength(2);
+    });
+
     it("Retry-After가 없어도 기본 30초를 지키고, 더 긴 값은 그대로 따른다", async () => {
       const h = harness();
       h.connection.start();

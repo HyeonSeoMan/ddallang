@@ -131,6 +131,21 @@ describe("초대 링크 화면", () => {
     expect(post!.body).toEqual({}); // 닉네임을 보내지 않는다
   });
 
+  it("[AC-ROOM-005-1] 복원 응답이 늦게 와도(실서버 지연) 입장 중에서 멈추지 않고 방 화면으로 간다", async () => {
+    storage.setItem(`ddallang:identity:${CODE}`, STORED_KEY);
+    server.use(
+      inviteHandler({ isMember: true }),
+      http.post(apiUrl(`/invites/${CODE}/members`), async ({ request }) => {
+        record(request, await request.json());
+        await delay(150);
+        return joined(200);
+      }),
+    );
+    renderApp(<InviteScreen inviteCode={CODE} />);
+    expect(await screen.findByText("입장 중…")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "누적 손익" }, { timeout: 2000 })).toBeInTheDocument();
+  });
+
   it("[AC-ROOM-008-1] 인원 한도를 넘으면 서버 안내를 보이고 입력한 닉네임을 유지한다", async () => {
     server.use(
       inviteHandler(),

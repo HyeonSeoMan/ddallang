@@ -223,6 +223,74 @@ describe("방 생성 화면", () => {
     await fillAndSubmit();
     expect(await screen.findByText(/방은 만들어졌지만/)).toBeInTheDocument();
     expect(push).not.toHaveBeenCalled();
+    // 새 방을 또 만들 수 있는 제출 버튼은 없고, 연결만 다시 시도할 수 있다.
+    expect(screen.queryByRole("button", { name: "방 만들기" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "신원 정보 저장 다시 시도" })).toBeInTheDocument();
+  });
+
+  it("연결 실패 뒤 저장을 다시 시도하면 새 방을 만들지 않고 같은 키를 초대 코드에 연결한다", async () => {
+    useCreateHandler(() => {
+      storage.options.failOnSet = true;
+      return createdResponse();
+    });
+    renderApp(<CreateRoomForm />);
+    const user = await fillAndSubmit();
+    await screen.findByText(/방은 만들어졌지만/);
+    storage.options.failOnSet = false;
+    await user.click(screen.getByRole("button", { name: "신원 정보 저장 다시 시도" }));
+    expect(push).toHaveBeenCalledWith("/invite/created-code");
+    expect(requests).toHaveLength(1); // 방 생성 요청은 한 번뿐
+    const key = requests[0]!.authorization?.replace("Bearer ", "");
+    expect(storage.getItem("ddallang:identity:created-code")).toBe(key);
+  });
+
+  it("목록에서 고른 정산 단위를 서버가 거부하면 목록 아래에 사유를 보인다", async () => {
+    useCreateHandler(() =>
+      errorResponse("VALIDATION_FAILED", { details: [{ field: "unit", code: "INVALID_CHARACTER" }] }),
+    );
+    renderApp(<CreateRoomForm />);
+    await fillAndSubmit();
+    await waitFor(() =>
+      expect(screen.getByLabelText("정산 단위")).toHaveAccessibleDescription(/한글, 영문, 숫자/),
+    );
+    expect(screen.getByLabelText("정산 단위")).toBeInvalid();
+  });
+
+  it("결과 불명 중에는 입력을 잠가 재시도가 처음 보낸 내용과 어긋나지 않게 한다", async () => {
+    useCreateHandler(() => HttpResponse.error());
+    renderApp(<CreateRoomForm />);
+    const user = await fillAndSubmit();
+    await screen.findByText(CREATE_UNKNOWN_NOTICE);
+    expect(screen.getByLabelText("방 이름")).toBeDisabled();
+    expect(screen.getByLabelText("정산 단위")).toBeDisabled();
+    expect(screen.getByLabelText("내 닉네임")).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "취소" }));
+    expect(screen.getByLabelText("방 이름")).toBeEnabled();
+  });
+
+  it("다른 탭이 대기 항목을 지웠다면 새 키로 재전송하지 않고 처음부터 다시 하게 한다", async () => {
+    useCreateHandler(() => HttpResponse.error());
+    renderApp(<CreateRoomForm />);
+    const user = await fillAndSubmit();
+    await screen.findByText(CREATE_UNKNOWN_NOTICE);
+    for (const key of storage.keys()) storage.removeItem(key); // 다른 탭의 정리
+    await user.click(screen.getByRole("button", { name: "다시 시도" }));
+    expect(await screen.findByText(/이전 시도 정보를 찾을 수 없습니다/)).toBeInTheDocument();
+    expect(requests).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "방 만들기" })).toBeInTheDocument();
+  });
+
+  it("응답이 오기 전에 화면을 떠나면 이동·세션 갱신을 하지 않는다", async () => {
+    useCreateHandler(async () => {
+      await delay(40);
+      return createdResponse();
+    });
+    const { unmount, store } = renderApp(<CreateRoomForm />);
+    await fillAndSubmit();
+    unmount();
+    await delay(120);
+    expect(push).not.toHaveBeenCalled();
+    expect(store.get(sessionAtom)).toBeNull();
   });
 
   it("요청이 진행 중이면 컨트롤이 비활성화되어 중복 제출되지 않는다", async () => {

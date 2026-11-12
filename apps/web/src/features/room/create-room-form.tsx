@@ -3,7 +3,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { useSetAtom } from "jotai";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useId, useRef, useState } from "react";
+import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 import { css } from "styled-system/css";
 import {
   ApiError,
@@ -18,6 +18,7 @@ import {
   type CreateAttempt,
   completeCreateAttempt,
   discardCreateAttempt,
+  getCreateAttempt,
 } from "@/lib/identity";
 import { validateRoomText } from "@/lib/validation/room-text";
 import { Banner } from "@/ui/banner";
@@ -41,6 +42,12 @@ interface CreateBody {
 interface Sent {
   attempt: CreateAttempt;
   body: CreateBody;
+}
+
+interface Created {
+  attemptId: string;
+  room: Room;
+  me: RoomMember;
 }
 
 const STORAGE_FAILURE_MESSAGES = {
@@ -68,6 +75,15 @@ export function CreateRoomForm() {
   const [unknown, setUnknown] = useState(false);
   /** 결과를 알 수 없는 시도. 재시도는 같은 시도의 키·내용을 쓴다. */
   const sentRef = useRef<Sent | null>(null);
+  /** 방은 만들어졌지만 키 연결에 실패한 시도. 새 방을 또 만들지 않고 연결만 다시 시도한다(F05). */
+  const [linkPending, setLinkPending] = useState<Created | null>(null);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   const mutation = useMutation({
     mutationFn: ({ attempt, body }: Sent) =>
@@ -80,6 +96,8 @@ export function CreateRoomForm() {
     retry: false,
   });
   const pending = mutation.isPending;
+  /** 결과 불명·연결 대기 중에는 입력을 잠가 재시도가 처음 보낸 내용과 어긋나지 않게 한다. */
+  const locked = pending || unknown || linkPending !== null;
 
   async function send(sent: Sent) {
     setNotice(null);
@@ -88,16 +106,10 @@ export function CreateRoomForm() {
     try {
       const { data } = await mutation.mutateAsync(sent);
       sentRef.current = null;
-      const linked = completeCreateAttempt(sent.attempt.attemptId, data.room.inviteCode);
-      if (!linked.ok) {
-        setNotice(
-          `방은 만들어졌지만 이 브라우저에 신원 정보를 저장하지 못했습니다. ${STORAGE_FAILURE_MESSAGES[linked.reason]}`,
-        );
-        return;
-      }
-      setSession({ inviteCode: data.room.inviteCode, roomId: data.room.id, me: data.me });
-      router.push(`/invite/${encodeURIComponent(data.room.inviteCode)}`);
+      if (!mounted.current) return;
+      link({ attemptId: sent.attempt.attemptId, room: data.room, me: data.me });
     } catch (error) {
+      if (!mounted.current) return;
       const resultUnknown =
         error instanceof NetworkError ||
         (error instanceof ApiError && (error.status >= 500 || (error.status >= 200 && error.status < 300)));
@@ -124,9 +136,25 @@ export function CreateRoomForm() {
     }
   }
 
+  /** 키를 초대 코드에 연결하고 방 화면으로 간다. 실패하면 새 방을 만들지 않고 연결만 다시 시도하게 한다. */
+  function link(created: Created) {
+    const linked = completeCreateAttempt(created.attemptId, created.room.inviteCode);
+    if (!linked.ok) {
+      setLinkPending(created);
+      setNotice(
+        `방은 만들어졌지만 이 브라우저에 신원 정보를 저장하지 못했습니다. ${STORAGE_FAILURE_MESSAGES[linked.reason]}`,
+      );
+      return;
+    }
+    setLinkPending(null);
+    setNotice(null);
+    setSession({ inviteCode: created.room.inviteCode, roomId: created.room.id, me: created.me });
+    router.push(`/invite/${encodeURIComponent(created.room.inviteCode)}`);
+  }
+
   function onSubmit(event: FormEvent) {
     event.preventDefault();
-    if (pending) return;
+    if (pending || linkPending) return;
 
     const unitRaw = unitChoice === CUSTOM_UNIT ? customUnit : unitChoice;
     const checks = {
@@ -156,7 +184,16 @@ export function CreateRoomForm() {
   }
 
   function retry() {
-    if (sentRef.current && !pending) void send(sentRef.current);
+    const sent = sentRef.current;
+    if (!sent || pending) return;
+    // 다른 탭이 대기 항목을 지웠다면 같은 키를 쓸 수 없다. 새 키로 몰래 재전송하지 않고 처음부터 다시 하게 한다.
+    if (!getCreateAttempt(sent.attempt.attemptId)) {
+      sentRef.current = null;
+      setUnknown(false);
+      setNotice("이전 시도 정보를 찾을 수 없습니다. 입력을 확인하고 처음부터 다시 만들어 주세요.");
+      return;
+    }
+    void send(sent);
   }
 
   function cancelRetry() {
@@ -176,7 +213,7 @@ export function CreateRoomForm() {
         value={name}
         onChange={(e) => setName(e.target.value)}
         errors={errors.name}
-        disabled={pending}
+        disabled={locked}
         autoComplete="off"
       />
 
@@ -188,7 +225,9 @@ export function CreateRoomForm() {
           id={unitSelectId}
           value={unitChoice}
           onChange={(e) => setUnitChoice(e.target.value)}
-          disabled={pending}
+          disabled={locked}
+          aria-invalid={unitChoice !== CUSTOM_UNIT && errors.unit ? true : undefined}
+          aria-describedby={unitChoice !== CUSTOM_UNIT && errors.unit ? `${unitSelectId}-error` : undefined}
           className={css({
             minH: "touch",
             px: "3",
@@ -206,6 +245,14 @@ export function CreateRoomForm() {
           ))}
           <option value={CUSTOM_UNIT}>직접 입력</option>
         </select>
+        {/* 목록에서 고른 단위를 서버가 거부하면(예: 허용 규칙 변경) 여기에 사유를 보인다. */}
+        {unitChoice !== CUSTOM_UNIT && errors.unit ? (
+          <div id={`${unitSelectId}-error`} aria-live="polite" className={css({ color: "errorText" })}>
+            {errors.unit.map((message) => (
+              <p key={message}>{message}</p>
+            ))}
+          </div>
+        ) : null}
       </div>
       {unitChoice === CUSTOM_UNIT ? (
         <TextField
@@ -213,7 +260,7 @@ export function CreateRoomForm() {
           value={customUnit}
           onChange={(e) => setCustomUnit(e.target.value)}
           errors={errors.unit}
-          disabled={pending}
+          disabled={locked}
           autoComplete="off"
         />
       ) : null}
@@ -223,7 +270,7 @@ export function CreateRoomForm() {
         value={nickname}
         onChange={(e) => setNickname(e.target.value)}
         errors={errors.nickname}
-        disabled={pending}
+        disabled={locked}
         autoComplete="off"
       />
 
@@ -231,7 +278,9 @@ export function CreateRoomForm() {
 
       {notice ? <Banner tone="error">{notice}</Banner> : null}
 
-      {unknown ? (
+      {linkPending ? (
+        <Button onClick={() => link(linkPending)}>신원 정보 저장 다시 시도</Button>
+      ) : unknown ? (
         <>
           <Banner tone="warning">{CREATE_UNKNOWN_NOTICE}</Banner>
           <div className={css({ display: "flex", gap: "2" })}>

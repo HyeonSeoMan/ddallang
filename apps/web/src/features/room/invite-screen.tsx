@@ -55,6 +55,8 @@ export function InviteScreen({ inviteCode }: { inviteCode: string }) {
   const [nicknameErrors, setNicknameErrors] = useState<string[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  /** 이미 멤버라 닉네임 없이 복원 입장 중인가. */
+  const [restoring, setRestoring] = useState(false);
 
   const api = getApiClient();
 
@@ -76,7 +78,7 @@ export function InviteScreen({ inviteCode }: { inviteCode: string }) {
     dispatch({ type: "JOINED" });
   }
 
-  // 초대 링크 조회. 저장된 키가 있으면 Authorization을 실어 isMember를 확인한다.
+  // 1) 초대 링크 조회. 저장된 키가 있으면 Authorization을 실어 isMember를 확인한다.
   useEffect(() => {
     if (state.stage !== "checking") return;
     let cancelled = false;
@@ -90,16 +92,8 @@ export function InviteScreen({ inviteCode }: { inviteCode: string }) {
         });
         if (cancelled) return;
         setPreview(data.room);
+        setRestoring(data.isMember);
         dispatch({ type: "CHECKED", isMember: data.isMember });
-        if (!data.isMember) return;
-        // 이미 입장한 브라우저: 닉네임 없이 복원한다(AC-ROOM-005-1).
-        try {
-          const joined = await join(undefined);
-          if (!cancelled) enterRoom(joined);
-        } catch (error) {
-          if (!cancelled) dispatch({ type: "RESTORE_FAILED", code: errorCode(error) });
-          if (!cancelled) setNotice(errorMessage(error));
-        }
       } catch (error) {
         if (cancelled) return;
         dispatch({ type: "CHECK_FAILED", code: errorCode(error) });
@@ -109,8 +103,31 @@ export function InviteScreen({ inviteCode }: { inviteCode: string }) {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `join`·`enterRoom`은 같은 렌더의 값이며 단계 전환 때만 실행한다.
-  }, [state.stage, inviteCode, attempt]);
+  }, [state.stage, inviteCode, attempt, api]);
+
+  // 2) 이미 입장한 브라우저는 닉네임 없이 복원한다(AC-ROOM-005-1). 조회 effect와 분리해야 한다:
+  //    CHECKED로 단계가 바뀌면 조회 effect가 정리되므로, 복원 응답이 늦게 오면 결과가 버려진다.
+  useEffect(() => {
+    if (state.stage !== "joining" || !restoring) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const joined = await join(undefined);
+        if (cancelled) return;
+        setRestoring(false);
+        enterRoom(joined);
+      } catch (error) {
+        if (cancelled) return;
+        setRestoring(false);
+        dispatch({ type: "RESTORE_FAILED", code: errorCode(error) });
+        setNotice(errorMessage(error));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `join`·`enterRoom`은 매 렌더의 같은 로직이며 단계 전환 때만 실행한다.
+  }, [state.stage, restoring, inviteCode]);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();

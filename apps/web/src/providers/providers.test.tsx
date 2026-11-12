@@ -1,25 +1,24 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { atom, useAtomValue } from "jotai";
 import { describe, expect, it } from "vitest";
-import { Counter } from "@/components/counter";
 import { Providers } from "./providers";
 
-function QueryProbe() {
-  return <span>{useQueryClient() ? "connected" : "missing"}</span>;
+const probeAtom = atom("jotai-ok");
+
+function Probe() {
+  const value = useAtomValue(probeAtom);
+  return <span>{useQueryClient() ? `connected ${value}` : "missing"}</span>;
 }
 
 describe("Providers", () => {
-  it("Jotai와 QueryClient를 함께 제공한다", async () => {
+  it("Jotai와 QueryClient를 함께 제공한다", () => {
     render(
       <Providers>
-        <QueryProbe />
-        <Counter />
+        <Probe />
       </Providers>,
     );
 
-    expect(screen.getByText("connected")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "딸랑 0" }));
-    expect(screen.getByRole("button", { name: "딸랑 1" })).toBeInTheDocument();
+    expect(screen.getByText("connected jotai-ok")).toBeInTheDocument();
   });
 });

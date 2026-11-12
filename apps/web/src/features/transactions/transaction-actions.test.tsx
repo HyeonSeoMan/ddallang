@@ -2,7 +2,7 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createStore } from "jotai";
 import { delay, http, HttpResponse } from "msw";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { RoomMember, Transaction } from "@/lib/api";
 import { expectNoA11yViolations } from "@/test/a11y";
 import { primeServerClock } from "@/test/clock-prime";
@@ -265,6 +265,47 @@ describe("거래 수정·삭제 컨트롤 (FE-S2-3)", () => {
       expect(screen.queryByText("이미 종료된 게임입니다")).not.toBeInTheDocument();
       await user.click(screen.getByRole("button", { name: /수정/ }));
       expect(screen.getByLabelText("금액")).toHaveValue("100"); // 서버 값에서 새로 시작
+    });
+
+    it("[상태 조합] 닫힌 상태에서 24시간이 지난 불명 수정은 확인 버튼으로만 새 키로 보내고 자동 재전송하지 않는다", async () => {
+      let calls = 0;
+      handle("put", `${base}/t-own`, () => (++calls === 1 ? HttpResponse.error() : HttpResponse.json({ transaction: own })));
+      seedRoom(store, { me: fixtures.guestMember });
+      renderRow();
+      const user = userEvent.setup();
+      await closedUnknown(user);
+      vi.useFakeTimers({ toFake: ["Date"], now: Date.now() + 24 * 60 * 60 * 1000 + 1000 });
+      try {
+        await user.click(screen.getByRole("button", { name: "다시 시도" }));
+        expect(await screen.findByText(/첫 시도 후 24시간이 지났습니다/)).toBeInTheDocument();
+        expect(seen).toHaveLength(1); // 자동으로 새 키를 만들어 보내지 않았다
+        await user.click(screen.getByRole("button", { name: /새로 저장/ }));
+        await waitFor(() => expect(seen).toHaveLength(2));
+        expect(seen[1]!.key).not.toBe(seen[0]!.key);
+        expect(seen[1]!.body).toEqual(seen[0]!.body); // 보냈던 입력 그대로
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("[상태 조합] 저장 중에는 취소할 수 없고(초안 유지), 거부된 수정은 재마운트 뒤에도 사유와 입력이 남는다", async () => {
+      handle("put", `${base}/t-own`, async () => {
+        await delay(60);
+        return errorResponse("NOT_AUTHOR_OR_HOST", { message: "작성자 또는 방장만 수정할 수 있습니다" });
+      });
+      seedRoom(store, { me: fixtures.guestMember });
+      const first = renderRow();
+      const user = userEvent.setup();
+      await user.click(screen.getByRole("button", { name: /수정/ }));
+      await user.clear(screen.getByLabelText("금액"));
+      await user.type(screen.getByLabelText("금액"), "350");
+      await user.click(screen.getByRole("button", { name: "저장" }));
+      expect(screen.getByRole("button", { name: "취소" })).toBeDisabled(); // 전송 중 취소 불가
+      await screen.findByText("작성자 또는 방장만 수정할 수 있습니다");
+      first.unmount();
+      renderRow();
+      expect(screen.getByLabelText("금액")).toHaveValue("350");
+      expect(screen.getByText("작성자 또는 방장만 수정할 수 있습니다")).toBeInTheDocument();
     });
 
     it("수정에 성공하면 초안이 사라지고, 응답을 기다리는 사이 바꾼 입력은 보존한다", async () => {

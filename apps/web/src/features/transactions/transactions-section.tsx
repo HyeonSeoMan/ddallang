@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useId, useState } from "react";
 import { css } from "styled-system/css";
 import { ApiError, bearerHeader, getApiClient, type RoomMember, type Room, type Transaction } from "@/lib/api";
 import { formatDateTime, formatMoney } from "@/lib/format";
@@ -54,6 +54,7 @@ export function TransactionsSection({
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const store = useStore();
+  const filterId = useId();
 
   if (!snapshot || !session) return null;
   const { room, me, participants } = snapshot;
@@ -112,11 +113,11 @@ export function TransactionsSection({
   return (
     <div className={css({ display: "flex", flexDirection: "column", gap: "3" })} aria-busy={switching}>
       <div className={css({ display: "flex", flexDirection: "column", gap: "1" })}>
-        <label htmlFor="participant-filter" className={css({ fontWeight: "semibold" })}>
+        <label htmlFor={filterId} className={css({ fontWeight: "semibold" })}>
           참여자 필터
         </label>
         <select
-          id="participant-filter"
+          id={filterId}
           value={filter ?? ALL}
           onChange={(e) => onFilterChange(e.target.value)}
           className={css({ minH: "touch", px: "3", borderWidth: "2px", borderColor: "line", borderRadius: "md", bg: "paper", color: "ink" })}

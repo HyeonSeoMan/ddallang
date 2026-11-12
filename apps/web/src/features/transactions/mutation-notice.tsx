@@ -16,6 +16,7 @@ export function MutationNotice({
   onRetry,
   onConfirmNew,
   disabled,
+  messages,
 }: {
   state: MutationUi | null;
   /** 결과 불명 뒤 같은 키로 다시 시도한다. */
@@ -23,6 +24,8 @@ export function MutationNotice({
   /** 24시간이 지난 시도를 거래 내역 확인 뒤 새 키로 다시 저장한다. */
   onConfirmNew: () => void;
   disabled?: boolean;
+  /** 문구 바꾸기(거래 저장이 아닌 작업, 예: 게임 종료). 없으면 거래 저장 문구를 쓴다. */
+  messages?: { unknown?: string; unknownAfterRecovery?: string; expired?: string; confirmNew?: string };
 }) {
   const currentEpoch = useAtomValue(epochAtom);
   if (!state) return null;
@@ -37,7 +40,9 @@ export function MutationNotice({
       const recovered = currentEpoch > state.epoch;
       return (
         <>
-          <Banner tone="warning">{recovered ? UNKNOWN_AFTER_RECOVERY : UNKNOWN_RESULT}</Banner>
+          <Banner tone="warning">
+            {recovered ? (messages?.unknownAfterRecovery ?? UNKNOWN_AFTER_RECOVERY) : (messages?.unknown ?? UNKNOWN_RESULT)}
+          </Banner>
           <Button variant="secondary" onClick={onRetry} disabled={disabled}>
             다시 시도
           </Button>
@@ -47,9 +52,9 @@ export function MutationNotice({
     case "needs-confirmation":
       return (
         <>
-          <Banner tone="warning">{`첫 시도 후 24시간이 지났습니다. ${EXPIRED_GUIDE} ${CLOCK_HINT}`}</Banner>
+          <Banner tone="warning">{`첫 시도 후 24시간이 지났습니다. ${messages?.expired ?? EXPIRED_GUIDE} ${CLOCK_HINT}`}</Banner>
           <Button variant="secondary" onClick={onConfirmNew} disabled={disabled}>
-            저장되지 않았음을 확인했습니다. 새로 저장
+            {messages?.confirmNew ?? "저장되지 않았음을 확인했습니다. 새로 저장"}
           </Button>
         </>
       );

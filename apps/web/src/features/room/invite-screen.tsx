@@ -24,6 +24,7 @@ import { BalancesSection } from "@/features/balances/balances-section";
 import { TransactionActions } from "@/features/transactions/transaction-actions";
 import { TransactionForm } from "@/features/transactions/transaction-form";
 import { TransactionsSection } from "@/features/transactions/transactions-section";
+import { EndGame } from "@/features/settlement/end-game";
 import { SettlementSection } from "@/features/settlement/settlement-section";
 import { ParticipantsSection } from "@/features/participants/participants-section";
 import { initialInviteStage, type InviteStage, inviteReducer } from "./invite-stage";
@@ -253,7 +254,12 @@ function RoomBody() {
       banner={<ConnectionBanner />}
       titles={titles}
       slots={{
-        info: <RoomInfo />,
+        info: (
+          <>
+            <RoomInfo />
+            <EndGame />
+          </>
+        ),
         balances: <BalancesSection />,
         settlement: <SettlementSection />,
         entry: <TransactionForm />,

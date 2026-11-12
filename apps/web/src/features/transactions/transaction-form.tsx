@@ -1,7 +1,7 @@
 "use client";
 
 import { atom, useAtom, useAtomValue } from "jotai";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useId, useState } from "react";
 import { css } from "styled-system/css";
 import { useCanMutate } from "@/features/room/server-data-gate";
 import { snapshotAtom } from "@/features/room/state";
@@ -60,14 +60,16 @@ function ParticipantSelect({
   errors: string[] | undefined;
   disabled: boolean;
 }) {
-  const errorId = `${label}-error`;
+  // 같은 화면에 폼이 둘 이상 있어도 id가 겹치지 않게 한다(중복 id는 라벨 연결을 깨뜨린다).
+  const id = useId();
+  const errorId = `${id}-error`;
   return (
     <div className={css({ display: "flex", flexDirection: "column", gap: "1" })}>
-      <label htmlFor={`${label}-select`} className={css({ fontWeight: "semibold" })}>
+      <label htmlFor={`${id}-select`} className={css({ fontWeight: "semibold" })}>
         {label}
       </label>
       <select
-        id={`${label}-select`}
+        id={`${id}-select`}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}

@@ -1,10 +1,9 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { useState } from "react";
 import { css } from "styled-system/css";
 import { snapshotAtom } from "@/features/room/state";
-import { copyText } from "@/lib/copy";
+import { useCopyFeedback } from "@/lib/use-copy-feedback";
 import { buildSettlementText } from "@/lib/settlement-text";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
@@ -23,7 +22,7 @@ const COPY_FAILED = "복사하지 못했습니다. 정산 내용을 직접 선�
  */
 export function SettlementSection() {
   const snapshot = useAtomValue(snapshotAtom);
-  const [message, setMessage] = useState<string | null>(null);
+  const { copy, status } = useCopyFeedback({ success: COPIED, failure: COPY_FAILED });
   if (!snapshot) return null;
   const { settlement, room } = snapshot;
   const final = settlement.kind === "FINAL" && room.status === "ENDED";
@@ -32,8 +31,7 @@ export function SettlementSection() {
   async function onCopy() {
     if (!snapshot || !final || items.length === 0) return;
     // 현재 표시 중인 최종 정산 응답과 방 이름·단위로만 만든다. 쓰기가 끝난 뒤에만 성공을 표시한다(FD-14).
-    const result = await copyText(buildSettlementText(room.name, items, room.unit));
-    setMessage(result.ok ? COPIED : COPY_FAILED);
+    await copy(buildSettlementText(room.name, items, room.unit));
   }
 
   return (
@@ -67,7 +65,7 @@ export function SettlementSection() {
             정산 복사
           </Button>
           <p aria-live="polite" className={css({ color: "inkMuted", fontSize: "sm" })}>
-            {message}
+            {status}
           </p>
         </>
       ) : null}

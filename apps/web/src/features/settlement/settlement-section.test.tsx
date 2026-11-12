@@ -94,6 +94,36 @@ describe("정산 영역 (FE-S4-2·S4-3)", () => {
       ]);
     });
 
+    it("[Codex F01] 복사를 다시 시작하면 이전 성공 문구가 지워지고, 반복 성공도 새 변경으로 안내된다", async () => {
+      const user = userEvent.setup(); // user-event가 클립보드 스텁을 붙이므로 모의는 그 뒤에 만든다
+      const clipboard = mockClipboard({ manual: true });
+      seed("ENDED", finalItems);
+      render();
+      await user.click(screen.getByRole("button", { name: "정산 복사" }));
+      act(() => clipboard.resolve());
+      const first = await screen.findByText("정산 내용을 복사했습니다.");
+
+      await user.click(screen.getByRole("button", { name: "정산 복사" })); // 두 번째 시도(쓰기 대기 중)
+      expect(screen.queryByText("정산 내용을 복사했습니다.")).not.toBeInTheDocument(); // 현재 시도 완료 전 성공 표시 없음
+      act(() => clipboard.resolve());
+      const second = await screen.findByText("정산 내용을 복사했습니다.");
+      expect(second).not.toBe(first); // 같은 결과도 새 노드라 aria-live가 다시 읽는다
+    });
+
+    it("[Codex F01] 시도가 겹치면 마지막 시도의 결과만 반영한다(먼저 끝난 이전 시도의 성공이 보이지 않는다)", async () => {
+      const user = userEvent.setup();
+      const clipboard = mockClipboard({ manual: true });
+      seed("ENDED", finalItems);
+      render();
+      await user.click(screen.getByRole("button", { name: "정산 복사" })); // 시도 1
+      await user.click(screen.getByRole("button", { name: "정산 복사" })); // 시도 2
+      act(() => clipboard.resolve()); // 시도 1이 먼저 끝난다
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      expect(screen.queryByText("정산 내용을 복사했습니다.")).not.toBeInTheDocument(); // 현재(시도 2)는 아직 끝나지 않았다
+      act(() => clipboard.resolve());
+      expect(await screen.findByText("정산 내용을 복사했습니다.")).toBeInTheDocument();
+    });
+
     it("[AC-SET-004-3] 화면 순서와 복사 텍스트의 순서가 같다", async () => {
       const clipboard = mockClipboard();
       seed("ENDED", finalItems);

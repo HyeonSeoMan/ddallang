@@ -1,9 +1,8 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { useState } from "react";
 import { css } from "styled-system/css";
-import { copyText } from "@/lib/copy";
+import { useCopyFeedback } from "@/lib/use-copy-feedback";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { snapshotAtom } from "./state";
@@ -19,19 +18,17 @@ export function inviteLink(inviteCode: string): string {
  */
 export function RoomInfo() {
   const snapshot = useAtomValue(snapshotAtom);
-  const [copyMessage, setCopyMessage] = useState<string | null>(null);
+  const { copy, status } = useCopyFeedback({
+    success: "초대 링크를 복사했습니다.",
+    failure: "복사하지 못했습니다. 링크를 직접 선택해 복사해 주세요.",
+  });
   if (!snapshot) return null;
   const { room, me } = snapshot;
   const link = inviteLink(room.inviteCode);
   const ended = room.status === "ENDED";
 
   async function onCopy() {
-    // 쓰기가 끝난 뒤에만 성공을 표시한다(FD-14).
-    const result = await copyText(link);
-    const message = result.ok
-      ? "초대 링크를 복사했습니다."
-      : "복사하지 못했습니다. 링크를 직접 선택해 복사해 주세요.";
-    setCopyMessage(message); // 아래 `aria-live` 영역이 한 번만 안내한다
+    await copy(link); // 쓰기가 끝난 뒤에만 성공을 표시한다(FD-14)
   }
 
   return (
@@ -68,7 +65,7 @@ export function RoomInfo() {
           초대 링크 복사
         </Button>
         <p aria-live="polite" className={css({ color: "inkMuted", fontSize: "sm" })}>
-          {copyMessage}
+          {status}
         </p>
       </div>
     </div>

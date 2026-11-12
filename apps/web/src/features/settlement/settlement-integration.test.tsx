@@ -70,6 +70,29 @@ describe("정산 영역 × 갱신·종료 (FE-S4-2 통합)", () => {
     expect(clipboard.written[0]).toBe(`${fixtures.room.name}\n게임 종료\n\n나래 → 가온 150 원`);
   });
 
+  it("[AC-SET-008-6][Codex F02] 참여자 필터를 선택·변경·해제해도 정산은 그대로이고 정산·손익 요청에 쿼리가 없다", async () => {
+    mount();
+    await waitFor(() => expect(visible()).toBe(true));
+    const settlementText = () =>
+      within(screen.getByRole("heading", { name: "예상 정산" }).closest("section")!).getByRole("list").textContent;
+    const before = settlementText();
+    const filter = () => screen.getByLabelText("참여자 필터");
+    const user = userEvent.setup();
+
+    for (const choice of ["가온", "나래", "다온 (비활성)", "전체"]) {
+      const requestsBefore = backend.requests.settlement;
+      await user.selectOptions(filter(), choice);
+      await waitFor(() => expect(backend.requests.settlement).toBeGreaterThan(requestsBefore)); // 새 순회(전체 갱신)
+      await waitFor(() => expect(store.get(snapshotAtom)?.transactionFilter).toBe(choice === "전체" ? null : store.get(snapshotAtom)?.transactionFilter));
+      expect(settlementText()).toBe(before); // 정산은 필터와 무관하다
+    }
+    // 정산·손익·방 조회에는 어떤 쿼리도 붙지 않았다. 거래 목록만 필터를 쓴다.
+    expect(backend.searches.settlement.every((q) => q === "")).toBe(true);
+    expect(backend.searches.balances.every((q) => q === "")).toBe(true);
+    expect(backend.searches.room.every((q) => q === "")).toBe(true);
+    expect(backend.searches.transactions.some((q) => q.includes("participantId="))).toBe(true);
+  });
+
   it("방 상태와 정산 종류가 어긋난 응답은 반영하지 않는다(종료됐는데 정산이 아직 예상이면 최종이 될 때까지 기다린다)", async () => {
     mount();
     await waitFor(() => expect(visible()).toBe(true));

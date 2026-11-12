@@ -77,7 +77,15 @@ export function createCoordinator(deps: CoordinatorDeps): Coordinator {
         if (!result.ok) {
           // 반영하지 않고 다시 조회한다(dirty는 그대로 참). 연결 실패로 보지 않는다.
           mismatches += 1;
-          await new Promise((resolve) => setTimeout(resolve, mismatchRetryDelay(mismatches)));
+          await new Promise<void>((resolve) => {
+            const timer = setTimeout(done, mismatchRetryDelay(mismatches));
+            function done() {
+              clearTimeout(timer);
+              abort.signal.removeEventListener("abort", done);
+              resolve();
+            }
+            abort.signal.addEventListener("abort", done, { once: true }); // dispose하면 대기를 바로 끝낸다
+          });
           continue;
         }
         mismatches = 0;

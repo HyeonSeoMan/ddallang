@@ -265,6 +265,24 @@ describe("갱신 코디네이터", () => {
       }
     });
 
+    it("재조회 대기 중 dispose하면 타이머가 정리되고 더 조회하지 않는다", async () => {
+      vi.useFakeTimers();
+      try {
+        const env = setup();
+        env.coordinator.handle(ready(1));
+        env.pending.shift()!.resolve({ ok: false, reason: "status-mismatch" });
+        await vi.advanceTimersByTimeAsync(10);
+        expect(vi.getTimerCount()).toBe(1); // 대기 중
+        env.coordinator.dispose();
+        await vi.advanceTimersByTimeAsync(0);
+        expect(vi.getTimerCount()).toBe(0);
+        await vi.advanceTimersByTimeAsync(5000);
+        expect(env.started()).toBe(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it("계속 어긋나도 연결 실패로 보지 않고 대기를 늘려(최대 3초) 재조회한다", async () => {
       expect([1, 2, 3, 4, 5, 9].map(mismatchRetryDelay)).toEqual([250, 500, 1000, 2000, 3000, 3000]);
       vi.useFakeTimers();

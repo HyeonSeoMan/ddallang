@@ -10,7 +10,7 @@
     "lint": "eslint .",
     "typecheck": "NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-http://localhost:3001} next typegen && tsc --noEmit",
     "test": "vitest run",
-    "check:ac": "echo \"check:ac는 FE-F7에서 구현한다\" && exit 1"
+    "check:ac": "node scripts/check-ac.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.106.1",

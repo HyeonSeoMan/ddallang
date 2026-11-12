@@ -14,7 +14,7 @@ import { type ConnectionEnv, createRoomConnection } from "./connection";
 import { createCoordinator } from "./coordinator";
 import { runEventStream } from "./event-stream";
 import { fetchRoomSnapshot } from "./snapshot";
-import { connectionPhaseAtom, participantFilterAtom } from "./state";
+import { connectionPhaseAtom, participantFilterAtom, refreshRequestAtom } from "./state";
 
 function browserEnv(): ConnectionEnv {
   return {
@@ -76,6 +76,10 @@ export function useRoomConnection(inviteCode: string, roomId: string): void {
     });
 
     connection.start();
-    return () => connection.stop();
+    const unsubscribe = store.sub(refreshRequestAtom, () => connection.requestRefresh());
+    return () => {
+      unsubscribe();
+      connection.stop();
+    };
   }, [inviteCode, roomId, store]);
 }

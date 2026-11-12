@@ -30,6 +30,7 @@ interface FakeCoordinator {
   epoch: number;
   hooks: { onCycleSucceeded(): void; onRefreshFailed(error: unknown): void };
   handled: SseItem[];
+  refreshRequests: number;
   disposed: boolean;
 }
 
@@ -58,9 +59,13 @@ function harness(options: { random?: number; online?: boolean } = {}) {
         epoch: e,
         hooks,
         handled: [],
+        refreshRequests: 0,
         disposed: false,
         api: {
           handle: (item) => fake.handled.push(item),
+          requestRefresh: () => {
+            fake.refreshRequests += 1;
+          },
           dispose: () => {
             fake.disposed = true;
           },

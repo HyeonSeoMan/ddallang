@@ -34,3 +34,11 @@ export function formatMoney(value: number, unit: string): string {
 export function formatSignedMoney(value: number, unit: string): string {
   return `${formatSigned(value)} ${unit}`;
 }
+
+/** 거래 시각 표시(FD-15, 제안): 기기의 로캘 시간대로 `MM/DD HH:mm`. 순서는 서버 순서이며 시각으로 다시 정렬하지 않는다. */
+export function formatDateTime(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}

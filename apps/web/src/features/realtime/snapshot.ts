@@ -89,6 +89,7 @@ export async function fetchRoomSnapshot(
       balances: balances.balances,
       transactions: transactions.transactions,
       nextCursor: transactions.nextCursor,
+      transactionFilter: request.participantId,
       settlement: settlement.settlement,
     },
   };

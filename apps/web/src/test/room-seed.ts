@@ -26,6 +26,7 @@ export function makeSnapshot(epoch: number, options: SeedOptions = {}): RoomSnap
     balances: fixtures.balances,
     transactions: fixtures.transactions,
     nextCursor: null,
+    transactionFilter: null,
     settlement: options.status === "ENDED" ? fixtures.finalSettlement : fixtures.expectedSettlement,
   };
 }

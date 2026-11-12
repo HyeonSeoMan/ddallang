@@ -1,10 +1,10 @@
 import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createStore } from "jotai";
-import { http, HttpResponse } from "msw";
+import { delay, http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it } from "vitest";
 import { ServerDataGate } from "@/features/room/server-data-gate";
-import { setConnectionAtom } from "@/features/room/state";
+import { applySnapshotAtom, sessionAtom, setConnectionAtom, snapshotAtom } from "@/features/room/state";
 import { expectNoA11yViolations } from "@/test/a11y";
 import { installFakeStorage } from "@/test/fake-storage";
 import * as fixtures from "@/test/fixtures";
@@ -222,6 +222,73 @@ describe("참여자 영역", () => {
     await screen.findByText("결과를 확인하지 못했습니다.");
     await user.click(screen.getByRole("button", { name: "가온 상태 변경 다시 시도" }));
     await waitFor(() => expect(seen.map((s) => s.method)).toEqual(["PATCH", "GET", "PATCH"]));
+  });
+
+  it("VALIDATION_FAILED에 닉네임 항목이 없으면 서버 message를 보인다", async () => {
+    server.use(handler("post", base, () => errorResponse("VALIDATION_FAILED", { message: "입력값이 올바르지 않습니다", details: [] })));
+    renderSection();
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("참여자 닉네임"), "마루");
+    await user.click(screen.getByRole("button", { name: "참여자 등록" }));
+    expect(await screen.findByText("입력값이 올바르지 않습니다")).toBeInTheDocument();
+  });
+
+  it("재시도 버튼을 연달아 눌러도(목록 조회 구간 포함) 요청이 한 번만 나간다", async () => {
+    let patches = 0;
+    server.use(
+      handler("patch", `${base}/p-1`, () => (++patches === 1 ? HttpResponse.error() : HttpResponse.json({ participant: fixtures.participants[0] }))),
+      handler("get", base, async () => {
+        await delay(80); // 두 번째 클릭이 목록 조회 구간 안에 들어오게 한다
+        return HttpResponse.json({ participants: [fixtures.participants[0]] });
+      }),
+    );
+    renderSection();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "가온 비활성화" }));
+    await screen.findByText("결과를 확인하지 못했습니다.");
+    const retry = screen.getByRole("button", { name: "가온 상태 변경 다시 시도" });
+    await Promise.all([user.click(retry), user.click(retry)]);
+    await waitFor(() => expect(seen.filter((s) => s.method === "PATCH")).toHaveLength(2)); // 최초 + 재시도 1회
+    expect(seen.filter((s) => s.method === "GET")).toHaveLength(1);
+  });
+
+  it("상태 변경 버튼을 연달아 눌러도 요청이 한 번만 나간다", async () => {
+    server.use(handler("patch", `${base}/p-1`, () => HttpResponse.json({ participant: fixtures.participants[0] })));
+    renderSection();
+    const user = userEvent.setup();
+    const button = screen.getByRole("button", { name: "가온 비활성화" });
+    await Promise.all([user.click(button), user.click(button)]);
+    await waitFor(() => expect(seen).toHaveLength(1));
+  });
+
+  it("결과 불명 안내는 알림(alert)이고, 갱신으로 이미 목표 상태가 되면 안내와 재시도가 사라진다", async () => {
+    server.use(handler("patch", `${base}/p-1`, () => HttpResponse.error()));
+    renderSection();
+    await userEvent.click(screen.getByRole("button", { name: "가온 비활성화" }));
+    const alert = await screen.findByText("결과를 확인하지 못했습니다.");
+    expect(alert).toHaveAttribute("role", "alert");
+    // 스트림 갱신으로 이 참여자가 INACTIVE가 되었다(다른 탭·재조회 등).
+    act(() => {
+      seedRoom(store, {
+        participants: fixtures.participants.map((p) => (p.id === "p-1" ? { ...p, status: "INACTIVE" as const } : p)),
+      });
+    });
+    await waitFor(() => expect(screen.queryByText("결과를 확인하지 못했습니다.")).not.toBeInTheDocument());
+    expect(screen.queryByRole("button", { name: "가온 상태 변경 다시 시도" })).not.toBeInTheDocument();
+  });
+
+  it("등록 입력 초안은 방별로 분리되어 다른 방으로 이동해도 새지 않는다", async () => {
+    seedRoom(store);
+    const view = renderApp(<ParticipantsSection />, store);
+    await userEvent.type(screen.getByLabelText("참여자 닉네임"), "첫방초안");
+    view.unmount();
+    // 같은 앱 상태에서 다른 방 화면으로 들어간다.
+    seedRoom(store);
+    store.set(sessionAtom, { inviteCode: "other-code", roomId: "room-2", me: fixtures.hostMember });
+    const snapshot = store.get(snapshotAtom)!;
+    store.set(applySnapshotAtom, { ...snapshot, room: { ...snapshot.room, id: "room-2" } });
+    renderApp(<ParticipantsSection />, store);
+    expect(screen.getByLabelText("참여자 닉네임")).toHaveValue("");
   });
 
   it("[AC-SYS-001-5] 연결이 끊겨 영역이 가려져도 작성 중이던 닉네임 입력은 유지된다", async () => {

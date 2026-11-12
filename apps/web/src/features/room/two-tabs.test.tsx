@@ -44,7 +44,7 @@ describe("같은 브라우저 두 탭의 첫 입장 (FE-S1-6)", () => {
         );
       }),
     );
-    const randomSpy = vi.spyOn(crypto, "getRandomValues");
+    const setItemSpy = vi.spyOn(storage, "setItem");
 
     // 탭 A·B: 같은 localStorage·같은 Web Locks를 공유하고 각자 별도 앱 상태(store)를 가진다.
     const tabA = renderApp(<InviteScreen inviteCode={CODE} />);
@@ -64,11 +64,11 @@ describe("같은 브라우저 두 탭의 첫 입장 (FE-S1-6)", () => {
     expect(new Set(authorizations).size).toBe(1);
     expect(storage.keys()).toEqual([`ddallang:identity:${CODE}`]);
     expect(storage.getItem(`ddallang:identity:${CODE}`)).toBe(authorizations[0]!.replace("Bearer ", ""));
-    // 난수 생성은 한 번뿐이었고(두 번째 탭은 잠금 안에서 재읽기), 배타 구간은 한 번에 하나만 실행됐다.
-    const keyGenerations = randomSpy.mock.calls.filter(([array]) => (array as Uint8Array).length === 32);
-    expect(keyGenerations).toHaveLength(1);
+    // 키 저장은 한 번뿐이었고(두 번째 탭은 잠금 안에서 재읽기해 저장하지 않는다), 배타 구간은 한 번에 하나만 실행됐다.
+    const identityWrites = setItemSpy.mock.calls.filter(([name]) => name === `ddallang:identity:${CODE}`);
+    expect(identityWrites).toHaveLength(1);
     expect(manager.maxConcurrent.get(`ddallang-identity:${CODE}`)).toBe(1);
-    // 한 명으로 복원된다: 첫 요청 201, 나머지 200이며 두 탭 모두 방 화면에 들어간다.
+    // 두 탭 모두 같은 키로 방 화면에 들어간다.
     await waitFor(() => expect(screen.getAllByRole("heading", { name: "누적 손익" })).toHaveLength(2));
     tabA.unmount();
     tabB.unmount();

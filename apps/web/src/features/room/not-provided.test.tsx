@@ -113,17 +113,25 @@ describe("S1 비제공 UI 점검", () => {
     expect(pages).toEqual(["invite/[inviteCode]/page.tsx", "page.tsx"]);
   });
 
-  it("소스에 제공하지 않는 기능의 API 호출이 없다(방·RoomMember 수정·삭제, 방장 이전, 링크 재발급, 연결)", () => {
+  it("소스에 제공하지 않는 기능의 API 호출이 없다(허용 목록: 참여자 상태 PATCH만)", () => {
     const sources = listFiles(SRC).filter((file) => /\.(ts|tsx)$/.test(file) && !/\.test\.|\/test\//.test(file));
     const offenders: string[] = [];
+    // 방·RoomMember·참여자를 수정·삭제하는 메서드 리터럴은 허용된 파일에만 있다.
+    // (거래 수정·삭제 PUT/DELETE는 S2 구현 때 해당 파일을 이 목록에 더한다.)
+    const allowed: Record<string, string[]> = { PATCH: ["participants-section.tsx"], PUT: [], DELETE: [] };
     for (const file of sources) {
       const text = readFileSync(file, "utf8");
       if (/regenerate|reissue|transfer[-_ ]?host|forceLeave|\bkick\b|links?\/new/i.test(text)) offenders.push(file);
-      // 방·RoomMember는 PATCH/PUT/DELETE 하지 않는다. 참여자 PATCH(status)만 있다.
-      for (const match of text.matchAll(/method:\s*"(PUT|DELETE)"[^}]*path:\s*`?[^`"]*\/(rooms|members)/g)) {
-        if (!/transactions/.test(match[0])) offenders.push(`${file}: ${match[0]}`);
+      for (const match of text.matchAll(/method:\s*"(PATCH|PUT|DELETE)"/g)) {
+        const verb = match[1]!;
+        if (!allowed[verb]!.some((name) => file.endsWith(name))) offenders.push(`${relative(SRC, file)}: ${verb}`);
       }
     }
     expect(offenders).toEqual([]);
+  });
+
+  it("스캔 규칙 자체 시험: 허용되지 않은 PATCH·DELETE 리터럴을 잡는다", () => {
+    const sample = 'request({ method: "PATCH", path: `/rooms/${id}/members/${m}` })';
+    expect(/method:\s*"(PATCH|PUT|DELETE)"/.test(sample)).toBe(true);
   });
 });

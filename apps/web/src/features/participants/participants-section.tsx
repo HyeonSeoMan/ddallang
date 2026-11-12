@@ -1,6 +1,7 @@
 "use client";
 
 import { useAtom, useAtomValue } from "jotai";
+import { useRef } from "react";
 import { useState } from "react";
 import { css } from "styled-system/css";
 import {
@@ -14,13 +15,14 @@ import {
 import { getStoredKey } from "@/lib/identity";
 import { validateRoomText } from "@/lib/validation/room-text";
 import { reasonMessage } from "@/features/room/messages";
+import { useCanMutate } from "@/features/room/server-data-gate";
 import { sessionAtom, snapshotAtom } from "@/features/room/state";
 import { useAnnounce } from "@/ui/announcer";
 import { Badge } from "@/ui/badge";
 import { Banner } from "@/ui/banner";
 import { Button } from "@/ui/button";
 import { TextField } from "@/ui/text-field";
-import { participantDraftAtom } from "./state";
+import { participantDraftsAtom } from "./state";
 
 /** 닉네임 비교 키: NFC로 정규화하고 `A-Z`만 소문자로 바꾼다(S1 §3.2). */
 export function nicknameKey(nickname: string): string {
@@ -42,7 +44,10 @@ export function ParticipantsSection() {
   const snapshot = useAtomValue(snapshotAtom);
   const session = useAtomValue(sessionAtom);
   const announce = useAnnounce();
-  const [draft, setDraft] = useAtom(participantDraftAtom);
+  const canMutate = useCanMutate();
+  const [drafts, setDrafts] = useAtom(participantDraftsAtom);
+  /** 상태 변경 요청(재시도의 목록 조회 구간 포함)이 진행 중인가. 이중 클릭이 같은 요청을 두 번 보내지 않게 한다. */
+  const busy = useRef(false);
   const [errors, setErrors] = useState<string[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [registering, setRegistering] = useState(false);
@@ -53,7 +58,9 @@ export function ParticipantsSection() {
 
   if (!snapshot || !session) return null;
   const { room, me, participants } = snapshot;
-  const canControl = me.isHost && room.status === "IN_PROGRESS";
+  const canControl = me.isHost && canMutate;
+  const draft = drafts[room.id] ?? "";
+  const setDraft = (value: string) => setDrafts((prev) => ({ ...prev, [room.id]: value }));
   const base = `/rooms/${encodeURIComponent(room.id)}/participants`;
 
   function authHeaders() {
@@ -90,7 +97,9 @@ export function ParticipantsSection() {
       announce("참여자를 등록했습니다.");
     } catch (error) {
       if (error instanceof ApiError && error.code === "VALIDATION_FAILED") {
-        setErrors(error.details.filter((d) => d.field === "nickname").map((d) => reasonMessage(d.code)));
+        const reasons = error.details.filter((d) => d.field === "nickname").map((d) => reasonMessage(d.code));
+        if (reasons.length > 0) setErrors(reasons);
+        else setNotice(error.message); // 필드에 매핑되지 않는 사유도 숨기지 않는다
       } else if (error instanceof ApiError && error.code === "NICKNAME_TAKEN") {
         // 응답이 유실된 뒤 재등록일 수 있다. 목록을 다시 조회해 같은 닉네임이 있는지 확인한다(S1 §6.5).
         try {
@@ -113,8 +122,8 @@ export function ParticipantsSection() {
     }
   }
 
-  async function changeStatus(participant: Participant, target: ParticipantStatus) {
-    if (togglingId) return;
+  /** PATCH를 보내고 결과를 행에 반영한다. 호출자가 `busy`를 잡고 있어야 한다. */
+  async function sendStatus(participant: Participant, target: ParticipantStatus) {
     const headers = authHeaders();
     if (!headers) {
       setRowNotice({ id: participant.id, message: NO_KEY_MESSAGE });
@@ -146,29 +155,44 @@ export function ParticipantsSection() {
     }
   }
 
+  async function changeStatus(participant: Participant, target: ParticipantStatus) {
+    if (busy.current) return; // 이중 클릭
+    busy.current = true;
+    try {
+      await sendStatus(participant, target);
+    } finally {
+      busy.current = false;
+    }
+  }
+
   /** 결과 불명 뒤 재시도: 다른 방장 탭이 바꿨을 수 있으므로 먼저 목록을 다시 조회해 현재 상태를 확인한다. */
   async function retryStatus(participant: Participant, target: ParticipantStatus) {
-    const headers = authHeaders();
-    if (!headers) {
-      setRowNotice({ id: participant.id, message: NO_KEY_MESSAGE });
-      return;
-    }
+    if (busy.current) return; // 목록 조회 구간의 이중 클릭도 막는다
+    busy.current = true;
     try {
-      const current = (await fetchParticipants(headers)).find((p) => p.id === participant.id);
-      if (current?.status === target) {
-        setUnknownToggle(null);
-        setRowNotice({ id: participant.id, message: "이미 해당 상태입니다." });
+      const headers = authHeaders();
+      if (!headers) {
+        setRowNotice({ id: participant.id, message: NO_KEY_MESSAGE });
         return;
       }
-    } catch (error) {
-      if (error instanceof ApiError) {
-        setRowNotice({ id: participant.id, message: error.message });
+      try {
+        const current = (await fetchParticipants(headers)).find((p) => p.id === participant.id);
+        if (current?.status === target) {
+          setUnknownToggle(null);
+          setRowNotice({ id: participant.id, message: "이미 해당 상태입니다." });
+          return;
+        }
+      } catch (error) {
+        setRowNotice({
+          id: participant.id,
+          message: error instanceof ApiError ? error.message : "결과를 확인하지 못했습니다.",
+        });
         return;
       }
-      setRowNotice({ id: participant.id, message: "결과를 확인하지 못했습니다." });
-      return;
+      await sendStatus(participant, target);
+    } finally {
+      busy.current = false;
     }
-    await changeStatus(participant, target);
   }
 
   return (
@@ -177,7 +201,8 @@ export function ParticipantsSection() {
       <ul className={css({ display: "flex", flexDirection: "column", gap: "2" })}>
         {participants.map((p) => {
           const next: ParticipantStatus = p.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
-          const isUnknown = unknownToggle?.id === p.id;
+          // 다른 접속자의 변경·재조회로 이미 목표 상태가 되었다면 결과 불명 안내와 재시도를 걷는다.
+          const isUnknown = unknownToggle?.id === p.id && p.status !== unknownToggle.target;
           return (
             <li key={p.id} className={css({ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "2" })}>
               <span>{p.nickname}</span>
@@ -203,8 +228,8 @@ export function ParticipantsSection() {
                   </Button>
                 )
               ) : null}
-              {rowNotice?.id === p.id ? (
-                <span role="status" className={css({ color: "errorText" })}>
+              {rowNotice?.id === p.id && !(unknownToggle?.id === p.id && p.status === unknownToggle.target) ? (
+                <span role="alert" className={css({ color: "errorText" })}>
                   {rowNotice.message}
                 </span>
               ) : null}

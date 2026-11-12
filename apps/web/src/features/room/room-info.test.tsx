@@ -52,7 +52,7 @@ describe("방 정보 영역", () => {
     await userEvent.click(screen.getByRole("button", { name: "초대 링크 복사" }));
     expect(screen.queryByText("초대 링크를 복사했습니다.")).not.toBeInTheDocument(); // 쓰기 완료 전
     act(() => clipboard.resolve());
-    expect(await screen.findAllByText("초대 링크를 복사했습니다.")).not.toHaveLength(0);
+    expect(await screen.findAllByText("초대 링크를 복사했습니다.")).toHaveLength(1); // 이중 안내 없음
     expect(clipboard.written).toEqual([link]);
   });
 
@@ -61,9 +61,7 @@ describe("방 정보 영역", () => {
     mockClipboard({ fail: true });
     renderApp(<RoomInfo />, store);
     await userEvent.click(screen.getByRole("button", { name: "초대 링크 복사" }));
-    await waitFor(() =>
-      expect(screen.getAllByText(/복사하지 못했습니다/).length).toBeGreaterThan(0),
-    );
+    await waitFor(() => expect(screen.getAllByText(/복사하지 못했습니다/)).toHaveLength(1));
     expect(screen.queryByText("초대 링크를 복사했습니다.")).not.toBeInTheDocument();
   });
 });

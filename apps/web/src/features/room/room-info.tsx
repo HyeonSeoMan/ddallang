@@ -6,7 +6,6 @@ import { css } from "styled-system/css";
 import { copyText } from "@/lib/copy";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
-import { useAnnounce } from "@/ui/announcer";
 import { snapshotAtom } from "./state";
 
 export function inviteLink(inviteCode: string): string {
@@ -20,7 +19,6 @@ export function inviteLink(inviteCode: string): string {
  */
 export function RoomInfo() {
   const snapshot = useAtomValue(snapshotAtom);
-  const announce = useAnnounce();
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
   if (!snapshot) return null;
   const { room, me } = snapshot;
@@ -33,8 +31,7 @@ export function RoomInfo() {
     const message = result.ok
       ? "초대 링크를 복사했습니다."
       : "복사하지 못했습니다. 링크를 직접 선택해 복사해 주세요.";
-    setCopyMessage(message);
-    announce(message, { assertive: !result.ok });
+    setCopyMessage(message); // 아래 `aria-live` 영역이 한 번만 안내한다
   }
 
   return (

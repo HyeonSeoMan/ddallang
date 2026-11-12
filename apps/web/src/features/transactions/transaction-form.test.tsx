@@ -230,6 +230,7 @@ describe("거래 입력 폼 (FE-S2-2)", () => {
       await user.click(save());
       expect(screen.getByLabelText("금액")).toHaveAccessibleDescription("필수 항목입니다.");
       expect(requests).toHaveLength(1); // 로컬 검증 실패는 보내지 않는다
+      expect(screen.getByLabelText("사유 (선택)")).toHaveAccessibleDescription(/보이지 않는 문자/); // 로컬 오류가 표시되는 동안에도 고치지 않은 필드의 서버 오류는 남는다
       await user.type(screen.getByLabelText("금액"), "7");
       expect(screen.getByLabelText("금액")).not.toHaveAccessibleDescription(AMOUNT_ERROR);
       expect(screen.getByLabelText("금액")).not.toHaveAccessibleDescription("필수 항목입니다.");

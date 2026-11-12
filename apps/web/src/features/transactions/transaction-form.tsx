@@ -114,7 +114,8 @@ export function TransactionForm() {
   // 작업 범위는 요청자(RoomMember)별로 분리한다(S2 §5.1).
   const scope = mutationScope("create", roomId, snapshot?.me.id ?? "");
   const mutation = useRoomMutation(scope);
-  const dismissedServer = useDismissedServerErrors(scope, mutation.state);
+  const serverErrors: FieldErrors = mutation.state?.kind === "rejected" ? mutation.state.fieldErrors : {};
+  const dismissedServer = useDismissedServerErrors(scope, mutation.state, serverErrors);
 
   if (!snapshot || !canMutate) return null; // 종료 후에는 폼을 숨긴다(초안은 메모리에 남는다)
   const active = snapshot.participants.filter((p) => p.status === "ACTIVE");
@@ -122,8 +123,8 @@ export function TransactionForm() {
   const payerId = active.some((p) => p.id === draft.payerId) ? draft.payerId : "";
   const payeeId = active.some((p) => p.id === draft.payeeId) ? draft.payeeId : "";
   const pending = mutation.state?.kind === "pending";
-  const serverErrors = mutation.state?.kind === "rejected" ? mutation.state.fieldErrors : {};
-  const errors: FieldErrors = clientErrors ?? dismissedServer.filter(serverErrors);
+  // 필드별로 합친다: 로컬 검증 오류가 있는 필드는 그것을, 나머지는 고치지 않은 필드의 서버 오류를 그대로 보인다.
+  const errors: FieldErrors = { ...dismissedServer.filter(serverErrors), ...(clientErrors ?? {}) };
 
   const set = (patch: Partial<Draft>) => {
     setDraft((prev) => ({ ...prev, ...patch }));

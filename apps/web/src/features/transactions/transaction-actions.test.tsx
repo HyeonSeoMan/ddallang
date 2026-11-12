@@ -448,6 +448,7 @@ describe("거래 수정·삭제 컨트롤 (FE-S2-3)", () => {
       await user.clear(screen.getByLabelText("금액")); // 로컬 오류를 만들었다가 모두 지워도
       await user.click(screen.getByRole("button", { name: "저장" }));
       expect(screen.getByLabelText("금액")).toHaveAccessibleDescription("필수 항목입니다.");
+      expect(screen.getByLabelText("사유 (선택)")).toHaveAccessibleDescription(/보이지 않는 문자/); // 로컬 오류가 표시되는 동안에도 고치지 않은 필드의 서버 오류는 남는다
       expect(seen).toHaveLength(1);
       await user.type(screen.getByLabelText("금액"), "7");
       expect(screen.getByLabelText("금액")).not.toHaveAccessibleDescription(AMOUNT_ERROR); // 옛 서버 오류가 되살아나지 않는다

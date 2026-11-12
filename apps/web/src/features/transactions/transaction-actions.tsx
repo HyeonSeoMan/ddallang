@@ -47,7 +47,8 @@ export function TransactionActions({
   // 작업 범위는 요청자(RoomMember)별로 분리한다(S2 §5.1: 키의 효력 범위는 방+요청자).
   const update = useRoomMutation(mutationScope("update", transaction.id, me.id));
   const remove = useRoomMutation(mutationScope("delete", transaction.id, me.id));
-  const dismissedServer = useDismissedServerErrors(mutationScope("update", transaction.id, me.id), update.state);
+  const serverErrors: FieldErrors = update.state?.kind === "rejected" ? update.state.fieldErrors : {};
+  const dismissedServer = useDismissedServerErrors(mutationScope("update", transaction.id, me.id), update.state, serverErrors);
   const [drafts, setDrafts] = useAtom(editDraftsAtom);
   const [confirming, setConfirming] = useState(false);
   const [errors, setErrors] = useState<FieldErrors | null>(null);
@@ -61,7 +62,8 @@ export function TransactionActions({
   const path = `/rooms/${encodeURIComponent(room.id)}/transactions/${encodeURIComponent(transaction.id)}`;
   const updating = update.state?.kind === "pending";
   const deleting = remove.state?.kind === "pending";
-  const shownErrors: FieldErrors = errors ?? dismissedServer.filter(update.state?.kind === "rejected" ? update.state.fieldErrors : {});
+  // 필드별로 합친다: 로컬 검증 오류가 있는 필드는 그것을, 나머지는 고치지 않은 필드의 서버 오류를 그대로 보인다.
+  const shownErrors: FieldErrors = { ...dismissedServer.filter(serverErrors), ...(errors ?? {}) };
   /** 결과를 알 수 없는 수정이 남아 있다(성공으로 단정하지 않고 같은 내용으로 수동 재시도해야 한다). */
   const unresolved = update.state?.kind === "unknown" || update.state?.kind === "needs-confirmation";
 

@@ -284,19 +284,24 @@ G4 판정(프론트엔드 구현 완료 인정)과 이 증거 묶음의 `main` �
 | `pnpm typecheck` | 통과(exit 0) | 구현 중 한 번 실패했다: Panda에 `_notFirst`가 없었다(`_first`로 수정). 시험은 타입을 검사하지 않아 통과했었다 |
 | `pnpm lint` | 통과(exit 0) | |
 | `pnpm build` | 통과(exit 0) | 라우트 `/`, `/_not-found`, `/invite/[inviteCode]` |
-| `pnpm test` | 49파일 612개 통과(exit 0) | 디자인 적용 직전 47파일 590개 → 신규 22개(`design.test.tsx` 14, `record-button.test.tsx` 8). 기존 590개는 그대로 통과 |
+| `pnpm test` | 49파일 612개 통과(exit 0) | 디자인 적용 전 기준선은 **47파일 576개**(`main` `94d7bf9`). 증가분 **36개** = 신규 파일 22개(`design.test.tsx` 14, `record-button.test.tsx` 8) + 토큰 쌍 매개변수 시험 14개(`tokens.test.ts`의 `it.each`가 글자 쌍 14→26, 경계 쌍 2→4로 늘었다). 기존 `*.test.*` 파일은 수정하지 않았다(`git diff 94d7bf9..HEAD`로 확인, 추가만 있음). 기존 576개는 그대로 통과 |
 | `pnpm check:ac` | 통과(exit 0) | 모든 AC(79개)에 태그 시험이 있다 |
 | `pnpm smoke` | 통과(exit 0) | `/invite/<코드>` 200, 그 밖의 경로 404 기대와 일치 |
+
+### 11.1.1 검수 정정 기록
+
+- G4 검수 1/3(Codex, REVISE)이 지적한 D1-01(시험 증가 수치가 틀림: 590은 토큰 파일을 바꾼 뒤에 센 값이라 매개변수 시험 14개가 이미 포함됐다)과 D1-02(외부 요청 부재 검증 범위가 정적 검사임)를 위 표와 §11.2에서 바로잡았다.
+- 같은 검수에서 검수자 샌드박스의 Vitest 1개가 임시 디렉터리 생성 차단으로 실패했다고 보고했다. 같은 시험은 작성자 환경에서 통과했고(612개), 샌드박스 제약에 따른 환경 문제로 본다. 검수자가 build·smoke 재실행과 Chrome 측정 재현은 하지 못했다.
 
 ### 11.2 FE-D1 완료 기준
 
 | 기준 | 증거 |
 | --- | --- |
-| 기존 시험 전부 통과 | §11.1 (590개 그대로 통과) |
+| 기존 시험 전부 통과 | §11.1 (기준선 576개 그대로 통과, 기존 시험 파일 수정 없음) |
 | 글자 4.5:1·비텍스트 3:1 | `tokens.test.ts`가 글자 쌍 26개·비텍스트 쌍 4개를 계산해 통과. **시안의 보조 글자색 `#6b7570`은 회색 바탕에서 4.5:1에 못 미쳐 `#55615a`로 조정했다**(RK-F15). 시안의 초록 `#12804f` 흰 글자는 4.97:1 |
 | `vitest-axe` 통과 | `ui.test.tsx`·`design.test.tsx`·`record-button.test.tsx`와 기존 화면 시험이 통과 |
 | 터치 목표 44px | 토큰 시험(44) + 실제 Chrome 측정 `Button` 높이 44px, 고정 버튼 56px |
-| 외부 도메인 요청 없음 | 소스·설정에 외부 글꼴 주소가 없음을 `design.test.tsx`가 검사. 빌드 산출물(`.next/static`, `.next/server`)에 `fonts.googleapis`·`fonts.gstatic`·`typekit`·`jsdelivr`·`unpkg` 문자열 없음을 grep으로 확인. `@font-face`는 `../media/PretendardVariable-*.woff2`(자체 호스팅) |
+| 외부 도메인 요청 없음 | **범위: 문자열 기반 정적 검사이며 실제 네트워크 요청을 기록해 확인한 것은 아니다**(실제 Chrome 측정 때도 요청 로그는 남기지 않았다). 소스·설정에 외부 글꼴 주소가 없음을 `design.test.tsx`가 검사. 빌드 산출물(`.next/static`, `.next/server`)에 `fonts.googleapis`·`fonts.gstatic`·`typekit`·`jsdelivr`·`unpkg` 문자열 없음을 grep으로 확인. `@font-face`는 `../media/PretendardVariable-*.woff2`(자체 호스팅) |
 | 글꼴 파일 크기 보고 | `PretendardVariable.woff2` **2,057,688바이트(약 2.0MB)**, 서브셋 없음. 사용자가 입력하는 닉네임이 임의의 한글 음절이라 서브셋은 글리프 누락 위험이 있어 쓰지 않았다(RK-F16 결정). `font-display: swap`. Next는 이 글꼴에 `<link rel="preload">`를 기본으로 넣는다 |
 | 라이선스 | SIL OFL 1.1 원문(`src/fonts/Pretendard-LICENSE.txt`, 공식 저장소 v1.3.9) |
 

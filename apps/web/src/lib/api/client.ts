@@ -45,6 +45,18 @@ function toDetails(value: unknown): ApiErrorDetail[] {
   return value.filter((d): d is ApiErrorDetail => typeof d === "object" && d !== null);
 }
 
+/** 오류 응답(`{ error: { code, message, details[] } }`)을 `ApiError`로 정규화한다. SSE 연결 실패도 같은 규칙을 쓴다. */
+export function apiErrorFromResponse(response: Response, payload: unknown): ApiError {
+  const error = (payload as { error?: Record<string, unknown> } | undefined)?.error;
+  return new ApiError({
+    status: response.status,
+    code: typeof error?.code === "string" ? error.code : "UNKNOWN_ERROR",
+    message: typeof error?.message === "string" ? error.message : "요청을 처리하지 못했습니다.",
+    details: toDetails(error?.details),
+    retryAfterSeconds: parseRetryAfter(response.headers.get("Retry-After")),
+  });
+}
+
 export interface ApiClient {
   request<T>(options: RequestOptions): Promise<ApiResponse<T>>;
   /** 가장 최근 응답의 `Date`로 추정한 `서버 시각 − 기기 시각`(ms). 응답을 받은 적이 없으면 `null`. */
@@ -131,19 +143,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       req.signal?.removeEventListener("abort", onCallerAbort);
     }
 
-    if (!response.ok) {
-      const error = (payload as { error?: Record<string, unknown> } | undefined)?.error;
-      const code = typeof error?.code === "string" ? error.code : "UNKNOWN_ERROR";
-      const message =
-        typeof error?.message === "string" ? error.message : "요청을 처리하지 못했습니다.";
-      throw new ApiError({
-        status: response.status,
-        code,
-        message,
-        details: toDetails(error?.details),
-        retryAfterSeconds: parseRetryAfter(response.headers.get("Retry-After")),
-      });
-    }
+    if (!response.ok) throw apiErrorFromResponse(response, payload);
 
     return {
       status: response.status,

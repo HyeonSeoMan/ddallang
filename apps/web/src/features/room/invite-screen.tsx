@@ -1,6 +1,6 @@
 "use client";
 
-import { useStore } from "jotai";
+import { useAtomValue, useStore } from "jotai";
 import { type FormEvent, useEffect, useReducer, useRef, useState } from "react";
 import { css } from "styled-system/css";
 import {
@@ -18,6 +18,7 @@ import { Badge } from "@/ui/badge";
 import { Banner } from "@/ui/banner";
 import { Button } from "@/ui/button";
 import { TextField } from "@/ui/text-field";
+import { useRoomConnection } from "@/features/realtime/use-room-connection";
 import { initialInviteStage, type InviteStage, inviteReducer } from "./invite-stage";
 import { IDENTITY_KEY_NOTICE, reasonMessage } from "./messages";
 import { RoomLayout } from "./room-layout";
@@ -219,9 +220,25 @@ export function InviteScreen({ inviteCode }: { inviteCode: string }) {
         ) : null}
       </div>
 
-      {state.stage === "room" ? <RoomLayout /> : null}
+      {state.stage === "room" ? <RoomScreen inviteCode={inviteCode} /> : null}
     </main>
   );
+}
+
+/** 입장(복원)에 성공한 뒤의 방 화면. 스트림을 연결하고 서버 유래 영역은 연결 게이트 뒤에 둔다. */
+function RoomScreen({ inviteCode }: { inviteCode: string }) {
+  const session = useAtomValue(sessionAtom);
+  return session?.inviteCode === inviteCode ? (
+    <>
+      <RoomConnection inviteCode={inviteCode} roomId={session.roomId} />
+      <RoomLayout />
+    </>
+  ) : null;
+}
+
+function RoomConnection({ inviteCode, roomId }: { inviteCode: string; roomId: string }) {
+  useRoomConnection(inviteCode, roomId);
+  return null;
 }
 
 class KeyFailure extends Error {

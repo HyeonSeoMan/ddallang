@@ -85,10 +85,13 @@ export function TransactionActions({ transaction, me, room }: { transaction: Tra
     const built = buildUpdate(submitted);
     if ("errors" in built) {
       setErrors(built.errors);
+      setDraft({ open: true }); // 닫힌 상태의 재시도라면 폼을 열어 입력 오류를 보여 준다(무반응처럼 보이지 않게)
       return;
     }
     setErrors(null);
     const result = await update.run({ method: "PUT", path, body: built.body }, options);
+    // 서버가 필드별 사유로 거부했는데 폼이 닫혀 있으면 열어서 보여 준다(필드 사유는 폼 안에서만 표시된다).
+    if (result?.kind === "rejected" && Object.keys(result.fieldErrors).length > 0) setDraft({ open: true });
     if (result?.kind === "success") {
       // 응답을 기다리는 사이 입력을 바꿨다면 새 입력은 보존한다(저장된 것으로 오인해 지우지 않는다).
       setDrafts((prev) => {

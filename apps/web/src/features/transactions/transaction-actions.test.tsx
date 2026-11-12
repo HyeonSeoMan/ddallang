@@ -308,6 +308,42 @@ describe("거래 수정·삭제 컨트롤 (FE-S2-3)", () => {
       expect(screen.getByText("작성자 또는 방장만 수정할 수 있습니다")).toBeInTheDocument();
     });
 
+    it("[R3-F01] 닫힌 상태에서 재시도했을 때 입력 오류가 있으면 폼을 다시 열어 사유를 보여 준다(무반응처럼 보이지 않는다)", async () => {
+      handle("put", `${base}/t-own`, () => HttpResponse.error());
+      seedRoom(store, { me: fixtures.guestMember });
+      renderRow();
+      const user = userEvent.setup();
+      await user.click(screen.getByRole("button", { name: /수정/ }));
+      await user.clear(screen.getByLabelText("금액"));
+      await user.type(screen.getByLabelText("금액"), "300");
+      await user.click(screen.getByRole("button", { name: "저장" }));
+      await screen.findByText("결과를 확인하지 못했습니다.");
+      await user.clear(screen.getByLabelText("금액")); // 금액을 비운 채
+      await user.click(screen.getByRole("button", { name: "취소" })); // 닫는다
+      await user.click(screen.getByRole("button", { name: "다시 시도" }));
+      // 보내지 않고, 폼이 열려 입력 오류가 보인다.
+      expect(await screen.findByLabelText("금액")).toHaveAccessibleDescription("필수 항목입니다.");
+      expect(seen).toHaveLength(1);
+    });
+
+    it("[R3-F01] 닫힌 상태의 재시도에 서버가 필드별 검증 거부(422)를 주면 폼을 다시 열어 필드 사유를 보여 주고 입력을 유지한다", async () => {
+      let calls = 0;
+      handle("put", `${base}/t-own`, () =>
+        ++calls === 1
+          ? HttpResponse.error()
+          : errorResponse("VALIDATION_FAILED", { details: [{ field: "amount", code: "OUT_OF_RANGE" }] }),
+      );
+      seedRoom(store, { me: fixtures.guestMember });
+      renderRow();
+      const user = userEvent.setup();
+      await closedUnknown(user);
+      await user.click(screen.getByRole("button", { name: "다시 시도" }));
+      expect(await screen.findByLabelText("금액")).toHaveAccessibleDescription("1 이상 999,999,999 이하로 입력해 주세요.");
+      expect(screen.getByLabelText("금액")).toHaveValue("300"); // 입력 유지
+      // 재마운트 뒤에도 사유와 입력을 확인하고 고칠 수 있다.
+      expect(seen).toHaveLength(2);
+    });
+
     it("수정에 성공하면 초안이 사라지고, 응답을 기다리는 사이 바꾼 입력은 보존한다", async () => {
       handle("put", `${base}/t-own`, async () => {
         await delay(60);

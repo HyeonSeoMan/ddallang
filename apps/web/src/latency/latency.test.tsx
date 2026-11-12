@@ -19,7 +19,7 @@ import {
   setParticipantStatus,
   updateTransaction,
 } from "./server";
-import { judge, summarize, type Summary } from "./stats";
+import { judge, summarize } from "./stats";
 
 const SCREEN_LIMITS = { p95Ms: 3_000, maxMs: 5_000 };
 const CONVERGE_LIMIT_MS = 20_000;
@@ -40,6 +40,13 @@ beforeAll(() => {
   installFakeLocks();
 });
 
+const KINDS = ["create", "editdelete", "status", "register", "end", "lost"];
+const requested = process.env.LATENCY_ONLY?.split(",").filter(Boolean);
+if (requested?.some((name) => !KINDS.includes(name))) {
+  throw new Error(`LATENCY_ONLY는 ${KINDS.join(", ")} 중에서 고른다.`);
+}
+/** 정식 측정: §6.7의 종류·횟수·방 수를 모두 채운 실행. 축소 실행은 정식 합격이 아니다. */
+const FULL = !requested && COUNT >= 100 && ROOMS >= 10 && CONVERGE_SAMPLES >= 10;
 const only = (name: string) => !process.env.LATENCY_ONLY || process.env.LATENCY_ONLY.split(",").includes(name);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -63,7 +70,7 @@ async function measure(
   condition: (container: HTMLElement) => boolean,
 ) {
   // 사전 점검: 변경 전에는 조건이 거짓이어야 한다(처음부터 참이면 0ms로 잘못 합격한다).
-  const already = clients.filter((c) => condition(c.container)).map((c) => c.index);
+  const already = clients.filter((c) => c.holds(condition)).map((c) => c.index);
   if (already.length > 0) throw new Error(`${kind}: 변경 전에 이미 조건을 만족한 화면 ${already.join(",")} (측정 무효)`);
   const watches = clients.map((c) => c.observe(condition, WAIT_MS));
   const t0 = Date.now();
@@ -108,7 +115,7 @@ describe("화면 반영 지연 (FE-S5-6, S5 §6.7)", () => {
     const path = process.env.LATENCY_REPORT;
     if (path) {
       const byKind = Object.fromEntries(Object.entries(samples).map(([k, v]) => [k, { ...summarize(v), timeouts: timeouts[k] ?? 0 }]));
-      writeFileSync(path, JSON.stringify({ measuredAt: new Date().toISOString(), count: COUNT, rooms: ROOMS, byKind, all }, null, 2));
+      writeFileSync(path, JSON.stringify({ measuredAt: new Date().toISOString(), full: FULL, count: COUNT, rooms: ROOMS, byKind, all }, null, 2));
     }
   });
 
@@ -199,12 +206,15 @@ describe("화면 반영 지연 (FE-S5-6, S5 §6.7)", () => {
     const lossyKey = live.members[9]!.key;
     let dropping = false;
     let dropped = 0;
+    let opens = 0; // 이 접속자가 스트림을 연 횟수(재연결 감지)
+    let heartbeats = 0; // 이 접속자에게 전달된 하트비트 수
     const realFetch = globalThis.fetch;
     vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
       const response = await realFetch(input, init);
       const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
       const auth = new Headers(init?.headers).get("Authorization");
       if (!url.endsWith("/events") || auth !== `Bearer ${lossyKey}` || !response.body) return response;
+      opens += 1;
       // 이 접속자의 스트림에서 변경 알림 프레임만 버린다(ready·heartbeat는 통과).
       const decoder = new TextDecoder();
       const encoder = new TextEncoder();
@@ -217,6 +227,7 @@ describe("화면 반영 지연 (FE-S5-6, S5 §6.7)", () => {
             pending = frames.pop() ?? "";
             for (const frame of frames) {
               const lossy = dropping && /^event: (?!ready|heartbeat)/m.test(frame);
+              if (/^event: heartbeat/m.test(frame)) heartbeats += 1;
               if (lossy) dropped += 1;
               else controller.enqueue(encoder.encode(`${frame}\n\n`));
             }
@@ -232,6 +243,8 @@ describe("화면 반영 지연 (FE-S5-6, S5 §6.7)", () => {
       for (let n = 1; n <= CONVERGE_SAMPLES; n++) {
         dropping = true;
         const droppedBefore = dropped;
+        const opensBefore = opens;
+        const heartbeatsBefore = heartbeats;
         const reason = `측정-유실-${n}`;
         const watch = lossy.observe(showsReason(reason), CONVERGE_LIMIT_MS + 10_000);
         const t0 = Date.now();
@@ -240,6 +253,9 @@ describe("화면 반영 지연 (FE-S5-6, S5 §6.7)", () => {
         dropping = false;
         // 알림이 실제로 버려졌어야 하트비트 경로를 잰 것이다(안 버려졌다면 측정 무효).
         if (dropped === droppedBefore) throw new Error("유실 수렴: 변경 알림이 버려지지 않아 측정이 무효입니다.");
+        // 재연결(새 ready)로 복구된 표본은 하트비트 경로를 잰 것이 아니다. 하트비트가 도착한 뒤 수렴했어야 한다.
+        if (opens !== opensBefore) throw new Error("유실 수렴: 스트림이 재연결되어 하트비트 경로 측정이 무효입니다.");
+        if (heartbeats === heartbeatsBefore) throw new Error("유실 수렴: 하트비트 없이 수렴해 측정이 무효입니다.");
         (samples["유실 수렴"] ??= []).push(at === null ? CONVERGE_LIMIT_MS + 10_000 : at - t0);
         await sleep(500);
       }
@@ -249,15 +265,34 @@ describe("화면 반영 지연 (FE-S5-6, S5 §6.7)", () => {
     }
   });
 
-  it("[AC-VIEW-005-8] 목표를 지켰다: 화면 반영 p95 3초·최대 5초, 수렴 20초 이하, 시간 초과 0건", () => {
-    const summaries: Record<string, Summary> = {};
-    for (const [kind, values] of Object.entries(samples)) summaries[kind] = summarize(values);
-    for (const [kind, summary] of Object.entries(summaries)) {
+  it("[AC-VIEW-005-8] 목표를 지켰다: 화면 반영 p95 3초·최대 5초, 수렴 20초 이하, 시간 초과 0건, 정식 횟수 충족", () => {
+    // 정식 합격은 §6.7의 종류·횟수·방 수를 모두 채운 실행뿐이다. 축소·부분 실행은 `LATENCY_ALLOW_PARTIAL=1`로 목표만 확인한다.
+    if (!FULL && process.env.LATENCY_ALLOW_PARTIAL !== "1") {
+      throw new Error("축소·부분 실행은 정식 합격이 아닙니다(정식: 기본 횟수·방 수, LATENCY_ONLY 없음). 연습용이면 LATENCY_ALLOW_PARTIAL=1.");
+    }
+    const expected: Record<string, number> = {
+      "거래 생성": COUNT * 10,
+      "거래 수정": COUNT * 10,
+      "거래 삭제": COUNT * 10,
+      "참여자 상태 변경": COUNT * 10,
+      "참여자 등록": ROOMS * 10,
+      "게임 종료": ROOMS * 10,
+      "유실 수렴": CONVERGE_SAMPLES,
+    };
+    if (FULL) {
+      for (const [kind, count] of Object.entries(expected)) {
+        const got = samples[kind]?.length ?? 0;
+        if (got < count) failures.push(`${kind}: 표본 ${got}개 < 정식 ${count}개`);
+      }
+    }
+    for (const [kind, values] of Object.entries(samples)) {
+      const summary = summarize(values);
       if (kind === "유실 수렴") failures.push(...judge(kind, summary, { p95Ms: CONVERGE_LIMIT_MS, maxMs: CONVERGE_LIMIT_MS }));
       else failures.push(...judge(kind, summary, SCREEN_LIMITS));
     }
     const screens = Object.entries(samples).filter(([k]) => k !== "유실 수렴").flatMap(([, v]) => v);
     if (screens.length > 0) failures.push(...judge("전체", summarize(screens), SCREEN_LIMITS));
+    else failures.push("측정된 화면 반영 표본이 없습니다.");
     for (const [kind, n] of Object.entries(timeouts)) failures.push(`${kind}: 시간 초과 ${n}건`);
     expect(failures).toEqual([]);
   });

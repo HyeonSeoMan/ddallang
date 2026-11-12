@@ -12,7 +12,9 @@ export interface LiveClient {
   index: number;
   container: HTMLElement;
   unmount: () => void;
-  /** 화면(`container`)이 조건을 만족하는 순간의 `Date.now()`. 이미 만족하면 즉시. 시간 안에 못 하면 `null`. */
+  /** 화면이 정상(연결됨·현재 스냅샷 있음·거래 영역 표시 중)이면서 조건을 만족하는가. 끊김·갱신 실패로 본문이 숨겨진 화면은 "부재" 조건을 만족시키지 못한다. */
+  holds: (condition: (container: HTMLElement) => boolean) => boolean;
+  /** 화면(`container`)이 `holds`를 만족하는 순간의 `Date.now()`. 이미 만족하면 즉시. 시간 안에 못 하면 `null`. */
   observe: (condition: (container: HTMLElement) => boolean, timeoutMs: number) => Promise<number | null>;
 }
 
@@ -34,20 +36,26 @@ export async function mountClient(
     }
   }, { timeout: 30_000, interval: 50 });
   const container = view.container;
+  const holds = (condition: (container: HTMLElement) => boolean) =>
+    store.get(connectionAtom) === "connected" &&
+    store.get(snapshotAtom) !== null &&
+    section(container, "거래 내역") !== null &&
+    condition(container);
   return {
+    holds,
     index,
     container,
     unmount: () => view.unmount(),
     observe: (condition, timeoutMs) =>
       new Promise((resolve) => {
-        if (condition(container)) return resolve(Date.now());
+        if (holds(condition)) return resolve(Date.now());
         const done = (value: number | null) => {
           observer.disconnect();
           clearTimeout(timer);
           resolve(value);
         };
         const observer = new MutationObserver(() => {
-          if (condition(container)) done(Date.now());
+          if (holds(condition)) done(Date.now());
         });
         observer.observe(container, { subtree: true, childList: true, characterData: true, attributes: true });
         const timer = setTimeout(() => done(null), timeoutMs);

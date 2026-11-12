@@ -56,8 +56,15 @@ describe("같은 브라우저 두 탭의 첫 입장 (FE-S1-6)", () => {
     await user.type(nicknameInputs[0]!, "손님");
     await user.type(nicknameInputs[1]!, "손님");
     const buttons = screen.getAllByRole("button", { name: "입장" });
-    // 두 탭의 입장 버튼을 같은 tick에 누른다.
+    // 잠금 실행을 보류해 경합을 결정적으로 만든다: 두 탭의 입장 시도가 모두 잠금 대기열에 쌓인 것을 확인한 뒤에 푼다.
+    // (보류 없이 같은 tick에 누르는 것만으로는 한 탭이 끝난 뒤 다른 탭이 실행되어도 시험이 통과한다.)
+    const lockName = `ddallang-identity:${CODE}`;
+    const release = manager.hold();
     await Promise.all(buttons.map((button) => user.click(button)));
+    await waitFor(() => expect(manager.pending(lockName)).toBe(2));
+    expect(storage.keys()).toEqual([]); // 아직 어느 탭도 키를 만들거나 저장하지 않았다
+    expect(authorizations).toHaveLength(0);
+    release();
 
     await waitFor(() => expect(authorizations).toHaveLength(2));
     // 키는 하나만 만들어지고 두 탭이 같은 키로 요청한다.

@@ -10,6 +10,7 @@ import { validateAmount, validateReason, validateRound } from "@/lib/validation/
 import { useAnnounce } from "@/ui/announcer";
 import { Button } from "@/ui/button";
 import { TextField } from "@/ui/text-field";
+import { useDismissedServerErrors } from "./dismissed-errors";
 import { type FieldErrors, fieldReasonMessage, type TxField } from "./messages";
 import { MutationNotice } from "./mutation-notice";
 import { mutationScope, useRoomMutation } from "./mutation-state";
@@ -112,6 +113,7 @@ export function TransactionForm() {
     });
   // 작업 범위는 요청자(RoomMember)별로 분리한다(S2 §5.1).
   const mutation = useRoomMutation(mutationScope("create", roomId, snapshot?.me.id ?? ""));
+  const dismissedServer = useDismissedServerErrors(mutation.state);
 
   if (!snapshot || !canMutate) return null; // 종료 후에는 폼을 숨긴다(초안은 메모리에 남는다)
   const active = snapshot.participants.filter((p) => p.status === "ACTIVE");
@@ -120,10 +122,14 @@ export function TransactionForm() {
   const payeeId = active.some((p) => p.id === draft.payeeId) ? draft.payeeId : "";
   const pending = mutation.state?.kind === "pending";
   const serverErrors = mutation.state?.kind === "rejected" ? mutation.state.fieldErrors : {};
-  const errors: FieldErrors = clientErrors ?? serverErrors;
+  const errors: FieldErrors = clientErrors ?? dismissedServer.filter(serverErrors);
 
   const set = (patch: Partial<Draft>) => {
     setDraft((prev) => ({ ...prev, ...patch }));
+    // 고친 필드의 서버 거부 오류도 숨긴다(고치지 않은 필드의 오류는 남는다). 지급자를 고치면 "같은 사람" 오류도 함께 걷는다.
+    const fixed = Object.keys(patch) as TxField[];
+    if ("payerId" in patch && serverErrors.payeeId?.includes(fieldReasonMessage("payeeId", "SAME_AS_PAYER"))) fixed.push("payeeId");
+    dismissedServer.dismiss(fixed);
     // 고친 필드의 이전 검증 오류는 지운다(다음 제출 때 다시 검증한다).
     setClientErrors((prev) => {
       if (!prev) return prev;

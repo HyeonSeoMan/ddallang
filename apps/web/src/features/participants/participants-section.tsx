@@ -53,7 +53,16 @@ export function ParticipantsSection() {
   const [registering, setRegistering] = useState(false);
   /** 상태 변경이 진행 중인 참여자 ID와, 결과를 알 수 없어 재시도를 기다리는 변경. */
   const [togglingId, setTogglingId] = useState<string | null>(null);
-  const [unknownToggle, setUnknownToggle] = useState<{ id: string; target: ParticipantStatus } | null>(null);
+  // 결과를 알 수 없는 상태 변경: 참여자별로 보존한다(다른 참여자의 처리 결과가 이 정보를 지우면 재조회 보호가 우회된다).
+  const [unknownToggles, setUnknownToggles] = useState<Record<string, ParticipantStatus>>({});
+  const markUnknown = (id: string, target: ParticipantStatus) => setUnknownToggles((prev) => ({ ...prev, [id]: target }));
+  const clearUnknown = (id: string) =>
+    setUnknownToggles((prev) => {
+      if (!(id in prev)) return prev;
+      const rest = { ...prev };
+      delete rest[id];
+      return rest;
+    });
   const [rowNotice, setRowNotice] = useState<{ id: string; message: string } | null>(null);
 
   if (!snapshot || !session) return null;
@@ -138,14 +147,14 @@ export function ParticipantsSection() {
         body: { status: target },
         headers,
       });
-      setUnknownToggle(null);
+      clearUnknown(participant.id);
       announce(target === "INACTIVE" ? "참여자를 비활성화했습니다." : "참여자를 재활성화했습니다.");
     } catch (error) {
       if (isUnknownResult(error)) {
-        setUnknownToggle({ id: participant.id, target });
+        markUnknown(participant.id, target);
         setRowNotice({ id: participant.id, message: "결과를 확인하지 못했습니다." });
       } else if (error instanceof ApiError) {
-        setUnknownToggle(null);
+        clearUnknown(participant.id);
         setRowNotice({ id: participant.id, message: error.message });
       } else {
         throw error;
@@ -178,7 +187,7 @@ export function ParticipantsSection() {
       try {
         const current = (await fetchParticipants(headers)).find((p) => p.id === participant.id);
         if (current?.status === target) {
-          setUnknownToggle(null);
+          clearUnknown(participant.id);
           setRowNotice({ id: participant.id, message: "이미 해당 상태입니다." });
           return;
         }
@@ -202,7 +211,8 @@ export function ParticipantsSection() {
         {participants.map((p) => {
           const next: ParticipantStatus = p.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
           // 다른 접속자의 변경·재조회로 이미 목표 상태가 되었다면 결과 불명 안내와 재시도를 걷는다.
-          const isUnknown = unknownToggle?.id === p.id && p.status !== unknownToggle.target;
+          const unknownTarget = unknownToggles[p.id];
+          const isUnknown = unknownTarget !== undefined && p.status !== unknownTarget;
           return (
             <li key={p.id} className={css({ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "2" })}>
               <span>{p.nickname}</span>
@@ -212,7 +222,7 @@ export function ParticipantsSection() {
                   <Button
                     variant="secondary"
                     disabled={togglingId !== null}
-                    onClick={() => void retryStatus(p, unknownToggle.target)}
+                    onClick={() => void retryStatus(p, unknownTarget)}
                     aria-label={`${p.nickname} 상태 변경 다시 시도`}
                   >
                     다시 시도
@@ -228,7 +238,12 @@ export function ParticipantsSection() {
                   </Button>
                 )
               ) : null}
-              {rowNotice?.id === p.id && !(unknownToggle?.id === p.id && p.status === unknownToggle.target) ? (
+              {isUnknown && rowNotice?.id !== p.id ? (
+                <span role="alert" className={css({ color: "errorText" })}>
+                  결과를 확인하지 못했습니다.
+                </span>
+              ) : null}
+              {rowNotice?.id === p.id && !(unknownTarget !== undefined && p.status === unknownTarget) ? (
                 <span role="alert" className={css({ color: "errorText" })}>
                   {rowNotice.message}
                 </span>

@@ -11,6 +11,7 @@ import { useAnnounce } from "@/ui/announcer";
 import { Button } from "@/ui/button";
 import { ConfirmDialog } from "@/ui/confirm-dialog";
 import { TextField } from "@/ui/text-field";
+import { useDismissedServerErrors } from "./dismissed-errors";
 import { type FieldErrors, fieldReasonMessage } from "./messages";
 import { MutationNotice } from "./mutation-notice";
 import { type EditDraft, editDraftKey, editDraftsAtom } from "./edit-state";
@@ -46,6 +47,7 @@ export function TransactionActions({
   // 작업 범위는 요청자(RoomMember)별로 분리한다(S2 §5.1: 키의 효력 범위는 방+요청자).
   const update = useRoomMutation(mutationScope("update", transaction.id, me.id));
   const remove = useRoomMutation(mutationScope("delete", transaction.id, me.id));
+  const dismissedServer = useDismissedServerErrors(update.state);
   const [drafts, setDrafts] = useAtom(editDraftsAtom);
   const [confirming, setConfirming] = useState(false);
   const [errors, setErrors] = useState<FieldErrors | null>(null);
@@ -59,18 +61,20 @@ export function TransactionActions({
   const path = `/rooms/${encodeURIComponent(room.id)}/transactions/${encodeURIComponent(transaction.id)}`;
   const updating = update.state?.kind === "pending";
   const deleting = remove.state?.kind === "pending";
-  const shownErrors: FieldErrors = errors ?? (update.state?.kind === "rejected" ? update.state.fieldErrors : {});
+  const shownErrors: FieldErrors = errors ?? dismissedServer.filter(update.state?.kind === "rejected" ? update.state.fieldErrors : {});
   /** 결과를 알 수 없는 수정이 남아 있다(성공으로 단정하지 않고 같은 내용으로 수동 재시도해야 한다). */
   const unresolved = update.state?.kind === "unknown" || update.state?.kind === "needs-confirmation";
 
   /** 고친 필드의 이전 검증 오류를 지운다(다음 저장 때 다시 검증한다). */
-  const clearError = (field: "amount" | "reason" | "round") =>
+  const clearError = (field: "amount" | "reason" | "round") => {
+    dismissedServer.dismiss([field]); // 서버가 거부한 응답의 이 필드 오류도 숨긴다
     setErrors((prev) => {
       if (!prev?.[field]) return prev;
       const next = { ...prev };
       delete next[field];
       return Object.keys(next).length > 0 ? next : null;
     });
+  };
 
   const setDraft = (patch: Partial<EditDraft>) =>
     setDrafts((prev) => {

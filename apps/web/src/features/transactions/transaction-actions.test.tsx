@@ -454,6 +454,41 @@ describe("거래 수정·삭제 컨트롤 (FE-S2-3)", () => {
       expect(screen.getByLabelText("금액")).not.toHaveAccessibleDescription("필수 항목입니다.");
     });
 
+    it("[S2 F01 재마운트] 재마운트해도 고친 필드의 옛 서버 오류는 되살아나지 않고, 새 거부 응답에서는 다시 표시된다", async () => {
+      const AMOUNT_ERROR = "1 이상 999,999,999 이하로 입력해 주세요.";
+      handle("put", `${base}/t-own`, () =>
+        errorResponse("VALIDATION_FAILED", { details: [{ field: "amount", code: "OUT_OF_RANGE" }, { field: "reason", code: "INVALID_CHARACTER" }] }),
+      );
+      seedRoom(store, { me: fixtures.guestMember });
+      const view = renderApp(
+        <main>
+          <TransactionActions transaction={own} me={fixtures.guestMember} room={fixtures.room} />
+        </main>,
+        store,
+      );
+      const user = userEvent.setup();
+      await user.click(screen.getByRole("button", { name: /수정/ }));
+      await user.click(screen.getByRole("button", { name: "저장" }));
+      await waitFor(() => expect(screen.getByLabelText("금액")).toHaveAccessibleDescription(AMOUNT_ERROR));
+      await user.type(screen.getByLabelText("금액"), "1"); // 금액을 고친다(3001)
+      expect(screen.getByLabelText("금액")).not.toHaveAccessibleDescription(AMOUNT_ERROR);
+
+      view.unmount();
+      renderApp(
+        <main>
+          <TransactionActions transaction={own} me={fixtures.guestMember} room={fixtures.room} />
+        </main>,
+        store,
+      );
+      expect(screen.getByLabelText("금액")).toHaveValue(`${own.amount}1`);
+      expect(screen.getByLabelText("금액")).not.toHaveAccessibleDescription(AMOUNT_ERROR); // 되살아나지 않는다
+      expect(screen.getByLabelText("사유 (선택)")).toHaveAccessibleDescription(/보이지 않는 문자/);
+
+      await user.click(screen.getByRole("button", { name: "저장" })); // 새 거부 응답에서는 다시 표시된다
+      await waitFor(() => expect(screen.getByLabelText("금액")).toHaveAccessibleDescription(AMOUNT_ERROR));
+      expect(seen).toHaveLength(2);
+    });
+
     it("[F01] 수정 초안은 요청자별로 분리되어 같은 방에서 신원이 바뀌어도 이전 신원의 초안이 보이지 않는다", async () => {
       seedRoom(store, { me: fixtures.hostMember });
       const first = renderApp(

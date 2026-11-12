@@ -47,7 +47,7 @@ export function TransactionActions({
   // 작업 범위는 요청자(RoomMember)별로 분리한다(S2 §5.1: 키의 효력 범위는 방+요청자).
   const update = useRoomMutation(mutationScope("update", transaction.id, me.id));
   const remove = useRoomMutation(mutationScope("delete", transaction.id, me.id));
-  const dismissedServer = useDismissedServerErrors(update.state);
+  const dismissedServer = useDismissedServerErrors(mutationScope("update", transaction.id, me.id), update.state);
   const [drafts, setDrafts] = useAtom(editDraftsAtom);
   const [confirming, setConfirming] = useState(false);
   const [errors, setErrors] = useState<FieldErrors | null>(null);

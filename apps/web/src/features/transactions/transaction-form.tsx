@@ -112,8 +112,9 @@ export function TransactionForm() {
       return { ...all, [key]: typeof update === "function" ? update(prev) : update };
     });
   // 작업 범위는 요청자(RoomMember)별로 분리한다(S2 §5.1).
-  const mutation = useRoomMutation(mutationScope("create", roomId, snapshot?.me.id ?? ""));
-  const dismissedServer = useDismissedServerErrors(mutation.state);
+  const scope = mutationScope("create", roomId, snapshot?.me.id ?? "");
+  const mutation = useRoomMutation(scope);
+  const dismissedServer = useDismissedServerErrors(scope, mutation.state);
 
   if (!snapshot || !canMutate) return null; // 종료 후에는 폼을 숨긴다(초안은 메모리에 남는다)
   const active = snapshot.participants.filter((p) => p.status === "ACTIVE");

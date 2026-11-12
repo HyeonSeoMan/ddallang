@@ -10,8 +10,11 @@ import { server } from "./msw-server";
  */
 export async function primeServerClock(key: string, offsetMs = 0): Promise<void> {
   server.use(
-    http.get(apiUrl(`/rooms/${fixtures.room.id}`), () =>
-      HttpResponse.json({ room: fixtures.room, me: fixtures.hostMember }, { headers: { Date: new Date(Date.now() + offsetMs).toUTCString() } }),
+    // 한 번만 쓴다: 계속 남아 있으면 같은 경로를 처리하는 다른 가짜 서버의 방 조회를 가로챈다.
+    http.get(
+      apiUrl(`/rooms/${fixtures.room.id}`),
+      () => HttpResponse.json({ room: fixtures.room, me: fixtures.hostMember }, { headers: { Date: new Date(Date.now() + offsetMs).toUTCString() } }),
+      { once: true },
     ),
   );
   await getApiClient().request({ method: "GET", path: `/rooms/${fixtures.room.id}`, headers: bearerHeader(key) });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
+import { useId } from "react";
 import { css } from "styled-system/css";
 import { useCopyFeedback } from "@/lib/use-copy-feedback";
 import { Badge } from "@/ui/badge";
@@ -17,6 +18,7 @@ export function inviteLink(inviteCode: string): string {
  * `ServerDataGate` 아래에서만 그려진다.
  */
 export function RoomInfo() {
+  const linkId = useId();
   const snapshot = useAtomValue(snapshotAtom);
   const { copy, status } = useCopyFeedback({
     success: "초대 링크를 복사했습니다.",
@@ -43,11 +45,11 @@ export function RoomInfo() {
       </p>
 
       <div className={css({ display: "flex", flexDirection: "column", gap: "1" })}>
-        <label htmlFor="invite-link" className={css({ fontWeight: "semibold" })}>
+        <label htmlFor={linkId} className={css({ fontWeight: "semibold" })}>
           초대 링크
         </label>
         <input
-          id="invite-link"
+          id={linkId}
           readOnly
           value={link}
           onFocus={(event) => event.currentTarget.select()}

@@ -69,11 +69,11 @@ export interface RoomMutation {
 }
 
 /** 화면 상태의 작업 범위 이름. 요청자(RoomMember)별로 분리한다. */
-export function mutationScope(kind: "create" | "update" | "delete", target: string, memberId: string): string {
+export function mutationScope(kind: "create" | "update" | "delete" | "end", target: string, memberId: string): string {
   return `${kind}:${target}:${memberId}`;
 }
 
-export function useRoomMutation(scope: string): RoomMutation {
+export function useRoomMutation(scope: string, config: { expiredGuide?: string } = {}): RoomMutation {
   const store = useStore();
   const stateAtom = useMemo(() => atom((get) => get(mutationUiAtom)[scope] ?? null), [scope]);
   const state = useAtomValue(stateAtom);
@@ -112,7 +112,7 @@ export function useRoomMutation(scope: string): RoomMutation {
           next = { kind: "success" };
           break;
         case "rejected": {
-          const { message, fieldErrors } = describeApiError(outcome.error, { fresh });
+          const { message, fieldErrors } = describeApiError(outcome.error, { fresh, expiredGuide: config.expiredGuide });
           next = { kind: "rejected", code: outcome.error.code, message, fieldErrors };
           break;
         }
@@ -131,7 +131,7 @@ export function useRoomMutation(scope: string): RoomMutation {
       setState(next);
       return next;
     },
-    [store, scope, setState],
+    [store, scope, setState, config.expiredGuide],
   );
 
   return { state, run, clear: useCallback(() => setState(null), [setState]) };

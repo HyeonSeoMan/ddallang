@@ -54,7 +54,10 @@ export interface ErrorDescription {
  * 필드에 매핑되는 사유는 `fieldErrors`로 돌려주고, 매핑되지 않으면 `message`를 그대로 보인다.
  * `fresh`는 사용자가 방금 시작한 요청인지(만료 안내에서 기기 시계 확인을 덧붙이는 기준).
  */
-export function describeApiError(error: ApiError, context: { fresh: boolean; now?: number }): ErrorDescription {
+export function describeApiError(
+  error: ApiError,
+  context: { fresh: boolean; now?: number; /** 만료 안내의 확인 대상 문구(거래는 거래 내역, 게임 종료는 방 상태). */ expiredGuide?: string },
+): ErrorDescription {
   const fieldErrors: FieldErrors = {};
   switch (error.code) {
     case "VALIDATION_FAILED": {
@@ -81,7 +84,7 @@ export function describeApiError(error: ApiError, context: { fresh: boolean; now
       const skewed =
         serverTime !== undefined && Math.abs(Date.parse(serverTime) - (context.now ?? Date.now())) > CLOCK_SKEW_LIMIT_MS;
       // 서버 message를 그대로 보이고 목록 확인을 안내한다. 방금 시작한 요청이거나 시계 차이가 크면 시계 확인도 덧붙인다.
-      const parts = [error.message, EXPIRED_GUIDE];
+      const parts = [error.message, context.expiredGuide ?? EXPIRED_GUIDE];
       if (context.fresh || skewed) parts.push(CLOCK_HINT);
       return { message: parts.join(" "), fieldErrors };
     }

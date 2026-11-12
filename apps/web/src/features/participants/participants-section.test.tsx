@@ -224,6 +224,33 @@ describe("참여자 영역", () => {
     await waitFor(() => expect(seen.map((s) => s.method)).toEqual(["PATCH", "GET", "PATCH"]));
   });
 
+  it("한 참여자의 결과 불명은 다른 참여자의 처리 결과(성공·API 오류)로 지워지지 않고, 재시도는 목록 재조회가 먼저다", async () => {
+    let second = 0;
+    server.use(
+      handler("patch", `${base}/p-1`, () => HttpResponse.error()), // 가온: 결과 불명
+      handler("patch", `${base}/p-2`, () => (++second === 1 ? HttpResponse.json({ participant: fixtures.participants[1] }) : errorResponse("PARTICIPANT_NOT_FOUND"))),
+      handler("get", base, () => HttpResponse.json({ participants: fixtures.participants })),
+    );
+    renderSection();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "가온 비활성화" }));
+    await screen.findByText("결과를 확인하지 못했습니다.");
+
+    await user.click(screen.getByRole("button", { name: "나래 비활성화" })); // 다른 참여자: 성공
+    await waitFor(() => expect(seen.filter((s) => s.path.endsWith("/p-2"))).toHaveLength(1));
+    expect(screen.getByRole("button", { name: "가온 상태 변경 다시 시도" })).toBeInTheDocument();
+    expect(screen.getByText("결과를 확인하지 못했습니다.")).toBeInTheDocument(); // 다른 행의 알림이 가온의 안내를 덮어도 안내는 남는다
+
+    await user.click(screen.getByRole("button", { name: "나래 비활성화" })); // 다른 참여자: API 오류
+    await waitFor(() => expect(seen.filter((s) => s.path.endsWith("/p-2"))).toHaveLength(2));
+    expect(screen.getByRole("button", { name: "가온 상태 변경 다시 시도" })).toBeInTheDocument();
+    expect(screen.getByText("결과를 확인하지 못했습니다.")).toBeInTheDocument();
+
+    seen.length = 0;
+    await user.click(screen.getByRole("button", { name: "가온 상태 변경 다시 시도" }));
+    await waitFor(() => expect(seen.map((s) => `${s.method} ${s.path.split("/").pop()}`)).toEqual(["GET participants", "PATCH p-1"]));
+  });
+
   it("VALIDATION_FAILED에 닉네임 항목이 없으면 서버 message를 보인다", async () => {
     server.use(handler("post", base, () => errorResponse("VALIDATION_FAILED", { message: "입력값이 올바르지 않습니다", details: [] })));
     renderSection();

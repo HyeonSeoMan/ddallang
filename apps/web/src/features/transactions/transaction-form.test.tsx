@@ -208,6 +208,60 @@ describe("거래 입력 폼 (FE-S2-2)", () => {
       await waitFor(() => expect(screen.getByLabelText("금액")).toHaveAccessibleDescription("1 이상 999,999,999 이하로 입력해 주세요."));
       expect(screen.getByLabelText("사유 (선택)")).toHaveAccessibleDescription(/보이지 않는 문자/);
     });
+
+    it("[S2 F01] 서버 422 뒤 고친 필드의 오류만 사라지고 고치지 않은 필드의 오류는 남으며, 로컬 오류를 지운 뒤에도 옛 서버 오류가 되살아나지 않는다", async () => {
+      const AMOUNT_ERROR = "1 이상 999,999,999 이하로 입력해 주세요.";
+      handle(() =>
+        errorResponse("VALIDATION_FAILED", { details: [{ field: "amount", code: "OUT_OF_RANGE" }, { field: "reason", code: "INVALID_CHARACTER" }] }),
+      );
+      mount();
+      const user = userEvent.setup();
+      await fill(user, { payer: "가온", payee: "나래", amount: "10" });
+      await user.click(save());
+      await waitFor(() => expect(screen.getByLabelText("금액")).toHaveAccessibleDescription(AMOUNT_ERROR));
+      expect(screen.getByLabelText("사유 (선택)")).toHaveAccessibleDescription(/보이지 않는 문자/);
+
+      await user.type(screen.getByLabelText("금액"), "5"); // 금액을 고친다
+      expect(screen.getByLabelText("금액")).not.toHaveAccessibleDescription(AMOUNT_ERROR);
+      expect(screen.getByLabelText("사유 (선택)")).toHaveAccessibleDescription(/보이지 않는 문자/); // 고치지 않은 필드의 오류는 남는다
+
+      // 금액을 비워 로컬 검증 오류를 만들고, 다시 입력해 로컬 오류를 모두 지워도 금액의 옛 서버 오류가 되살아나지 않는다.
+      await user.clear(screen.getByLabelText("금액"));
+      await user.click(save());
+      expect(screen.getByLabelText("금액")).toHaveAccessibleDescription("필수 항목입니다.");
+      expect(requests).toHaveLength(1); // 로컬 검증 실패는 보내지 않는다
+      expect(screen.getByLabelText("사유 (선택)")).toHaveAccessibleDescription(/보이지 않는 문자/); // 로컬 오류가 표시되는 동안에도 고치지 않은 필드의 서버 오류는 남는다
+      await user.type(screen.getByLabelText("금액"), "7");
+      expect(screen.getByLabelText("금액")).not.toHaveAccessibleDescription(AMOUNT_ERROR);
+      expect(screen.getByLabelText("금액")).not.toHaveAccessibleDescription("필수 항목입니다.");
+
+      await user.type(screen.getByLabelText("사유 (선택)"), "가"); // 사유도 고치면 서버 오류가 모두 사라진다
+      expect(screen.getByLabelText("사유 (선택)")).not.toHaveAccessibleDescription(/보이지 않는 문자/);
+    });
+
+    it("[S2 F01 재마운트] 재마운트(연결 끊김·복구)해도 고친 필드의 옛 서버 오류는 되살아나지 않고, 새 거부 응답에서는 다시 표시된다", async () => {
+      const AMOUNT_ERROR = "1 이상 999,999,999 이하로 입력해 주세요.";
+      handle(() =>
+        errorResponse("VALIDATION_FAILED", { details: [{ field: "amount", code: "OUT_OF_RANGE" }, { field: "reason", code: "INVALID_CHARACTER" }] }),
+      );
+      const view = mount();
+      const user = userEvent.setup();
+      await fill(user, { payer: "가온", payee: "나래", amount: "10" });
+      await user.click(save());
+      await waitFor(() => expect(screen.getByLabelText("금액")).toHaveAccessibleDescription(AMOUNT_ERROR));
+      await user.type(screen.getByLabelText("금액"), "5"); // 금액을 고친다
+      expect(screen.getByLabelText("금액")).not.toHaveAccessibleDescription(AMOUNT_ERROR);
+
+      view.unmount();
+      renderApp(<main><TransactionForm /></main>, store); // 같은 앱 상태(초안·거부 응답)로 다시 마운트
+      expect(screen.getByLabelText("금액")).toHaveValue("105");
+      expect(screen.getByLabelText("금액")).not.toHaveAccessibleDescription(AMOUNT_ERROR); // 되살아나지 않는다
+      expect(screen.getByLabelText("사유 (선택)")).toHaveAccessibleDescription(/보이지 않는 문자/); // 고치지 않은 필드의 오류는 남는다
+
+      await user.click(save()); // 새 거부 응답에서는 다시 표시된다
+      await waitFor(() => expect(screen.getByLabelText("금액")).toHaveAccessibleDescription(AMOUNT_ERROR));
+      expect(requests).toHaveLength(2);
+    });
   });
 
   describe("결과 불명과 Idempotency Key (FE-F8 연동)", () => {

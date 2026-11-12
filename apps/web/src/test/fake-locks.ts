@@ -8,6 +8,25 @@ export class FakeLockManager {
   /** 잠금 안에서 동시에 실행 중인 콜백의 최대 개수(이름별). 배타성 확인용. */
   maxConcurrent = new Map<string, number>();
   private running = new Map<string, number>();
+  private queued = new Map<string, number>();
+  private gate: Promise<void> | null = null;
+
+  /** 아직 시작하지 못하고 잠금 대기열에 있는 요청 수(이름별). */
+  pending(name: string): number {
+    return this.queued.get(name) ?? 0;
+  }
+
+  /** 콜백 실행을 보류한다(요청은 대기열에 쌓인다). 반환한 함수를 부르면 풀린다. 경합을 결정적으로 만드는 시험용. */
+  hold(): () => void {
+    let release!: () => void;
+    this.gate = new Promise<void>((resolve) => {
+      release = () => {
+        this.gate = null;
+        resolve();
+      };
+    });
+    return release;
+  }
 
   request<T>(name: string, callback: LockCallback<T>): Promise<T>;
   request<T>(name: string, options: { mode?: "exclusive" }, callback: LockCallback<T>): Promise<T>;
@@ -18,7 +37,10 @@ export class FakeLockManager {
   ): Promise<T> {
     const callback = (typeof optionsOrCallback === "function" ? optionsOrCallback : maybeCallback)!;
     const previous = this.tails.get(name) ?? Promise.resolve();
+    this.queued.set(name, (this.queued.get(name) ?? 0) + 1);
     const run = previous.then(async () => {
+      if (this.gate) await this.gate;
+      this.queued.set(name, (this.queued.get(name) ?? 1) - 1);
       const now = (this.running.get(name) ?? 0) + 1;
       this.running.set(name, now);
       this.maxConcurrent.set(name, Math.max(this.maxConcurrent.get(name) ?? 0, now));

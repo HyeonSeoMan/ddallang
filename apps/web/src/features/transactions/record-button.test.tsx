@@ -69,6 +69,24 @@ describe("고정 거래 기록하기 버튼 (FE-D2, U-6)", () => {
     expect(screen.queryByTestId("record-button-clearance")).not.toBeInTheDocument();
   });
 
+  it("종료된 방에서도 거래 입력 구역은 유지되고(FD-12) 폼이 없는 제목만의 컴팩트 카드로 보인다", () => {
+    mount({ status: "ENDED" });
+    expect(screen.getByRole("heading", { level: 2, name: "거래 입력" })).toBeInTheDocument();
+    const entry = document.querySelector<HTMLElement>('[data-section="entry"]')!;
+    expect(entry).toHaveAttribute("data-compact", "true");
+    expect(within(entry).queryByLabelText("지급자")).not.toBeInTheDocument();
+    // 본문이 있는 구역은 컴팩트가 아니다.
+    expect(document.querySelector('[data-section="balances"]')).not.toHaveAttribute("data-compact");
+  });
+
+  it("연결이 끊기면 거래 입력 구역은 다른 구역처럼 제목만 남는다(가려진 이유는 연결 배너가 알린다)", () => {
+    mount();
+    act(() => store.set(setConnectionAtom, "disconnected"));
+    const heading = screen.getByRole("heading", { level: 2, name: "거래 입력" });
+    expect(heading).toBeInTheDocument();
+    expect(screen.queryByLabelText("지급자")).not.toBeInTheDocument();
+  });
+
   it("연결이 끊기면 버튼과 여백이 사라진다(복구 뒤 표시는 스냅샷 세대가 정한다, 이 시험 범위 밖)", () => {
     mount();
     expect(recordButton()).toBeInTheDocument();

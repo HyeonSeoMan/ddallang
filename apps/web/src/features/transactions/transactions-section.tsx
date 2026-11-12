@@ -10,6 +10,7 @@ import { participantFilterAtom, requestRefreshAtom } from "@/features/realtime/s
 import { type RoomSnapshot, sessionAtom, snapshotAtom } from "@/features/room/state";
 import { Banner } from "@/ui/banner";
 import { Button } from "@/ui/button";
+import { selectClass } from "@/ui/select-style";
 import { Money } from "@/ui/money";
 
 const ALL = "";
@@ -120,7 +121,7 @@ export function TransactionsSection({
           id={filterId}
           value={filter ?? ALL}
           onChange={(e) => onFilterChange(e.target.value)}
-          className={css({ minH: "touch", px: "4", borderWidth: "2px", borderColor: "line", borderRadius: "md", bg: "paper", color: "ink" })}
+          className={selectClass}
         >
           <option value={ALL}>전체</option>
           {participants.map((p) => (

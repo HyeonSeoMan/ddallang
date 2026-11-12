@@ -4,7 +4,7 @@ import { type ReactNode, useId } from "react";
 import { css } from "styled-system/css";
 import { useAtomValue } from "jotai";
 import { BagIcon, BellIcon, BookIcon, CoinIcon, PeopleIcon } from "@/ui/icons";
-import { dataVisibleAtom } from "./state";
+import { canMutateAtom, dataVisibleAtom } from "./state";
 import { ServerDataGate } from "./server-data-gate";
 
 /** 방 화면 구역 순서(FD-12, 제안): 연결 배너 → 방 정보 → 누적 손익 → 정산 → 거래 입력 → 거래 내역 → 참여자. */
@@ -43,22 +43,34 @@ export function RoomSection({
   const headingId = useId();
   // 서버 유래 값에 따라 달라지는 제목(`titles`)은 게이트가 열렸을 때만 쓴다. 끊김 중에는 기본 제목이다.
   const visible = useAtomValue(dataVisibleAtom);
+  const canMutate = useAtomValue(canMutateAtom);
   const heading = visible ? title : ROOM_SECTION_TITLES[id];
   const SectionIcon = SECTION_ICONS[id];
+  // 구역 구조는 바꾸지 않는다(FD-12). 본문이 없는 구역은 제목만 있는 컴팩트한 카드로 보인다:
+  // 끊김 중(가려진 이유는 연결 배너가 알린다), 그리고 게임이 끝나 거래 입력 폼이 없는 거래 입력 구역(S2 §9).
+  const compact = !visible || (id === "entry" && !canMutate);
   return (
     <section
       aria-labelledby={headingId}
       data-section={id}
       className={css({ mt: "4", p: "5", bg: "paper", borderRadius: "lg", boxShadow: "card" })}
+      data-compact={compact ? "true" : undefined}
     >
       <h2
         id={headingId}
-        className={css({ display: "flex", alignItems: "center", gap: "2", fontSize: "xl", fontWeight: "bold", mb: "3" })}
+        className={css({ display: "flex", alignItems: "center", gap: "2", fontSize: "xl", fontWeight: "bold" })}
       >
         <SectionIcon size={28} />
         {heading}
       </h2>
-      <ServerDataGate>{children}</ServerDataGate>
+      {/* 제목만 남는 카드가 무겁지 않도록 컴팩트일 때는 제목 아래 여백을 두지 않는다. */}
+      {compact ? (
+        <ServerDataGate>{children}</ServerDataGate>
+      ) : (
+        <div className={css({ mt: "3" })}>
+          <ServerDataGate>{children}</ServerDataGate>
+        </div>
+      )}
     </section>
   );
 }

@@ -61,11 +61,11 @@ export interface LiveRoom {
 }
 
 /** 방장 + 접속자 9명이 입장하고 참여자가 `participants`명 등록된 방(S5 §6.7 측정 조건의 접속자 10명). */
-export async function createLiveRoom(participantCount: number): Promise<LiveRoom> {
+export async function createLiveRoom(participantCount: number, unit = "원"): Promise<LiveRoom> {
   const hostKey = newKey();
   const created = await ok<{ room: Room; me: RoomMember }>(
     "방 생성",
-    call("POST", "/rooms", hostKey, { name: "지연 측정", unit: "원", nickname: "방장" }),
+    call("POST", "/rooms", hostKey, { name: "지연 측정", unit, nickname: "방장" }),
   );
   const host: Member = { key: hostKey, me: created.me };
   const members = [host];

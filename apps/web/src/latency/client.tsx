@@ -3,6 +3,7 @@
 // (입장은 실서버 API로 끝났고 별칭은 저장소 조회에만 쓰인다).
 import { waitFor } from "@testing-library/react";
 import { createStore } from "jotai";
+import { connectionPhaseAtom } from "@/features/realtime/state";
 import { connectionAtom, sessionAtom, snapshotAtom } from "@/features/room/state";
 import { InviteScreen } from "@/features/room/invite-screen";
 import { renderApp } from "@/test/render";
@@ -10,6 +11,7 @@ import type { LiveRoom } from "./server";
 
 export interface LiveClient {
   index: number;
+  store: ReturnType<typeof createStore>;
   container: HTMLElement;
   unmount: () => void;
   /** 화면이 정상(연결됨·현재 스냅샷 있음·거래 영역 표시 중)이면서 조건을 만족하는가. 끊김·갱신 실패로 본문이 숨겨진 화면은 "부재" 조건을 만족시키지 못한다. */
@@ -32,7 +34,7 @@ export async function mountClient(
   const view = renderApp(<InviteScreen inviteCode={alias} />, store);
   await waitFor(() => {
     if (store.get(connectionAtom) !== "connected" || store.get(snapshotAtom) === null) {
-      throw new Error("연결 대기");
+      throw new Error(`연결 대기(단계 ${store.get(connectionPhaseAtom)})`);
     }
   }, { timeout: 30_000, interval: 50 });
   const container = view.container;
@@ -44,6 +46,7 @@ export async function mountClient(
   return {
     holds,
     index,
+    store,
     container,
     unmount: () => view.unmount(),
     observe: (condition, timeoutMs) =>

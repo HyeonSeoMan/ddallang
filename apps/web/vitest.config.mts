@@ -17,8 +17,8 @@ export default defineConfig({
     setupFiles: ["./vitest.setup.ts"],
     globals: false,
     css: false,
-    // 실서버 지연 측정은 별도 설정(`pnpm test:latency`)으로만 돌린다.
-    exclude: [...configDefaults.exclude, "src/latency/latency.test.tsx"],
+    // 실서버 지연 측정·연동 점검은 별도 설정(`pnpm test:latency`·`pnpm test:integration`)으로만 돌린다.
+    exclude: [...configDefaults.exclude, "src/latency/latency.test.tsx", "src/integration/integration.test.tsx"],
     env: { NEXT_PUBLIC_API_BASE_URL: "http://api.test" },
   },
 });

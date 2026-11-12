@@ -16,6 +16,7 @@ import { acquireIdentityKey, getStoredKey } from "@/lib/identity";
 import { validateRoomText } from "@/lib/validation/room-text";
 import { Badge } from "@/ui/badge";
 import { Banner } from "@/ui/banner";
+import { BrandHeader, cardClass } from "@/ui/brand-header";
 import { Button } from "@/ui/button";
 import { TextField } from "@/ui/text-field";
 import { ConnectionBanner } from "@/features/realtime/connection-banner";
@@ -178,8 +179,9 @@ export function InviteScreen({ inviteCode }: { inviteCode: string }) {
   return (
     <main data-invite-code={inviteCode} data-stage={state.stage}>
       <div className={css({ maxW: "md", mx: "auto", p: "4" })}>
-        <h1 className={css({ fontSize: "2xl", fontWeight: "bold", mb: "3" })}>DDALLANG</h1>
+        <BrandHeader />
 
+        <div className={state.stage === "room" ? undefined : cardClass}>
         {preview && state.stage !== "room" ? (
           <section aria-label="방 정보" className={css({ mb: "4" })}>
             <p className={css({ fontSize: "lg", fontWeight: "bold" })}>{preview.name}</p>
@@ -228,6 +230,7 @@ export function InviteScreen({ inviteCode }: { inviteCode: string }) {
             ) : null}
           </div>
         ) : null}
+        </div>
       </div>
 
       {state.stage === "room" ? <RoomScreen inviteCode={inviteCode} /> : null}

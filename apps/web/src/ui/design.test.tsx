@@ -4,8 +4,10 @@ import { join } from "node:path";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { expectNoA11yViolations } from "@/test/a11y";
+import { BrandHeader } from "./brand-header";
 import { Button } from "./button";
 import { BagIcon, BellIcon, BookIcon, CoinIcon, PeopleIcon } from "./icons";
+import { selectClass } from "./select-style";
 import { colors, FONT_STACK, radii, shadows } from "./tokens";
 
 const SRC = join(__dirname, "..");
@@ -119,5 +121,35 @@ describe("버튼 변형과 토큰(FD-18)", () => {
   it("포인트색은 초록(주요 행동)과 노랑(보조 강조)이다", () => {
     expect(colors.primary).toBe("#12804f");
     expect(colors.accent).toBe("#ffc93c");
+  });
+});
+
+describe("브라우저 QA 후속 수정(FD-18)", () => {
+  it("모든 네이티브 select가 공통 모양(selectClass)을 쓴다: 기본 화살표가 오른쪽 끝에 쏠리지 않는다", () => {
+    const all = sourceFiles(join(SRC, "features"));
+    const offenders = all.filter((file) => {
+      const text = readFileSync(file, "utf8");
+      return text.includes("<select") && !text.includes("selectClass");
+    });
+    expect(offenders).toEqual([]);
+  });
+
+  it("selectClass는 기본 화살표를 끄고 오른쪽 안쪽 여백을 확보한다", () => {
+    const { container } = render(<select className={selectClass} defaultValue="a"><option value="a">가</option></select>);
+    const classes = container.querySelector("select")!.className;
+    expect(classes.split(" ")).toContain("ap_none"); // Panda는 appearance를 ap로 줄인다
+    expect(classes).toMatch(/pr_12/);
+    expect(classes).toMatch(/pl_4/);
+  });
+
+  it("브랜드 헤더의 접근 가능한 이름은 DDALLANG이고 방울 아이콘은 숨겨진다", () => {
+    const { container } = render(<BrandHeader />);
+    expect(screen.getByRole("heading", { level: 1, name: "DDALLANG" })).toBeInTheDocument();
+    expect(container.querySelector("h1 svg")).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("한글은 단어 중간에서 줄바꿈하지 않는다(전역 word-break: keep-all)", () => {
+    const config = readFileSync(join(WEB, "panda.config.ts"), "utf8");
+    expect(config).toContain('wordBreak: "keep-all"');
   });
 });

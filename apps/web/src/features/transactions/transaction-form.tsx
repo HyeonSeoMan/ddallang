@@ -9,6 +9,7 @@ import { type ValidationReasonCode } from "@/lib/api";
 import { validateAmount, validateReason, validateRound } from "@/lib/validation/transaction";
 import { useAnnounce } from "@/ui/announcer";
 import { Button } from "@/ui/button";
+import { selectClass } from "@/ui/select-style";
 import { TextField } from "@/ui/text-field";
 import { useDismissedServerErrors } from "./dismissed-errors";
 import { type FieldErrors, fieldReasonMessage, type TxField } from "./messages";
@@ -36,15 +37,6 @@ export const draftKey = (roomId: string, memberId: string) => `${roomId}:${membe
 
 const toErrors = (field: TxField, code: ValidationReasonCode) => [fieldReasonMessage(field, code)];
 
-const selectClass = css({
-  minH: "touch",
-  px: "4",
-  borderWidth: "2px",
-  borderColor: "line",
-  borderRadius: "md",
-  bg: "paper",
-  color: "ink",
-});
 
 function ParticipantSelect({
   label,

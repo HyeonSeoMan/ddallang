@@ -23,6 +23,7 @@ import {
 import { validateRoomText } from "@/lib/validation/room-text";
 import { Banner } from "@/ui/banner";
 import { Button } from "@/ui/button";
+import { selectClass } from "@/ui/select-style";
 import { TextField } from "@/ui/text-field";
 import { CREATE_UNKNOWN_NOTICE, IDENTITY_KEY_NOTICE, reasonMessage } from "./messages";
 import { sessionAtom } from "./state";
@@ -229,15 +230,7 @@ export function CreateRoomForm() {
           disabled={locked}
           aria-invalid={unitChoice !== CUSTOM_UNIT && errors.unit ? true : undefined}
           aria-describedby={unitChoice !== CUSTOM_UNIT && errors.unit ? `${unitSelectId}-error` : undefined}
-          className={css({
-            minH: "touch",
-            px: "3",
-            borderWidth: "2px",
-            borderColor: "line",
-            borderRadius: "md",
-            bg: "paper",
-            color: "ink",
-          })}
+          className={selectClass}
         >
           {UNIT_PRESETS.map((unit) => (
             <option key={unit} value={unit}>

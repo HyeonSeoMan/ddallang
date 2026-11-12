@@ -4,7 +4,7 @@ import { type ReactNode, useId } from "react";
 import { css } from "styled-system/css";
 import { useAtomValue } from "jotai";
 import { BagIcon, BellIcon, BookIcon, CoinIcon, PeopleIcon } from "@/ui/icons";
-import { dataVisibleAtom } from "./state";
+import { canMutateAtom, dataVisibleAtom } from "./state";
 import { ServerDataGate } from "./server-data-gate";
 
 /** 방 화면 구역 순서(FD-12, 제안): 연결 배너 → 방 정보 → 누적 손익 → 정산 → 거래 입력 → 거래 내역 → 참여자. */
@@ -43,22 +43,28 @@ export function RoomSection({
   const headingId = useId();
   // 서버 유래 값에 따라 달라지는 제목(`titles`)은 게이트가 열렸을 때만 쓴다. 끊김 중에는 기본 제목이다.
   const visible = useAtomValue(dataVisibleAtom);
+  const canMutate = useAtomValue(canMutateAtom);
   const heading = visible ? title : ROOM_SECTION_TITLES[id];
   const SectionIcon = SECTION_ICONS[id];
+  // 게임이 끝나면 거래 입력 폼이 없어(S2 §9) 제목만 있는 빈 카드가 된다. 데이터가 보이는 종료 상태에서는 구역을 그리지 않는다.
+  // 끊김 중에는 다른 구역과 같이 제목만 남긴다(가려진 이유는 연결 배너가 알린다).
+  if (id === "entry" && visible && !canMutate) return null;
   return (
     <section
       aria-labelledby={headingId}
       data-section={id}
       className={css({ mt: "4", p: "5", bg: "paper", borderRadius: "lg", boxShadow: "card" })}
+      data-hidden={visible ? undefined : "true"}
     >
       <h2
         id={headingId}
-        className={css({ display: "flex", alignItems: "center", gap: "2", fontSize: "xl", fontWeight: "bold", mb: "3" })}
+        className={css({ display: "flex", alignItems: "center", gap: "2", fontSize: "xl", fontWeight: "bold" })}
       >
         <SectionIcon size={28} />
         {heading}
       </h2>
-      <ServerDataGate>{children}</ServerDataGate>
+      {/* 본문이 가려진 동안(끊김)에는 제목만 남아 카드가 무겁지 않게 제목 아래 여백을 두지 않는다. */}
+      {visible ? <div className={css({ mt: "3" })}><ServerDataGate>{children}</ServerDataGate></div> : <ServerDataGate>{children}</ServerDataGate>}
     </section>
   );
 }

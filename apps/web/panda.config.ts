@@ -25,7 +25,7 @@ export default defineConfig({
     },
   },
   globalCss: {
-    body: { bg: "canvas", color: "ink", fontFamily: "body", lineHeight: "1.5" },
+    body: { bg: "canvas", color: "ink", fontFamily: "body", lineHeight: "1.5", wordBreak: "keep-all", overflowWrap: "break-word" },
     "*:focus-visible": { outline: "3px solid", outlineColor: "focus", outlineOffset: "2px" },
   },
 });

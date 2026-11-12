@@ -1,4 +1,4 @@
-import { act, screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createStore } from "jotai";
 import { delay, http, HttpResponse } from "msw";
@@ -282,12 +282,6 @@ describe("거래 내역 영역", () => {
       expect(rows()).toHaveLength(1);
       expect(rows()[0]!.textContent).toContain("50 원");
       expect(screen.queryByText("필터를 적용하는 중…")).not.toBeInTheDocument();
-    });
-
-    it("필터는 누적 손익 영역에 영향을 주지 않는다(거래 영역만 필터 상태를 쓴다)", () => {
-      seed([tx(1)]);
-      renderSection();
-      expect(within(screen.getByRole("main")).queryByText(/누적/)).not.toBeInTheDocument();
     });
   });
 });

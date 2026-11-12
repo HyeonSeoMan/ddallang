@@ -1,6 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createStore } from "jotai";
+import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it } from "vitest";
 import { BalancesSection } from "@/features/balances/balances-section";
 import { participantFilterAtom } from "@/features/realtime/state";
@@ -10,6 +11,7 @@ import { connectionAtom, sessionAtom, snapshotAtom } from "@/features/room/state
 import type { Transaction } from "@/lib/api";
 import { installFakeStorage } from "@/test/fake-storage";
 import * as fixtures from "@/test/fixtures";
+import { apiUrl } from "@/test/handlers";
 import { server } from "@/test/msw-server";
 import { renderApp } from "@/test/render";
 import { INVITE_CODE } from "@/test/room-seed";
@@ -137,6 +139,28 @@ describe("S3 화면 × 갱신 주기 (FE-S3-3)", () => {
     await waitFor(() => expect(amounts()[0]).toBe("5,151"), { timeout: 3000 });
     await new Promise((resolve) => setTimeout(resolve, 300));
     expect(rows()).toHaveLength(20); // 늦게 온 2번째 페이지가 이어 붙지 않았다
+  });
+
+  it("더 보기 응답이 새 순회가 반영된 **뒤에** 도착해도(도착 순서를 강제) 이어 붙이지 않는다", async () => {
+    await mountAndWait();
+    // `cursor`가 있는 요청(더 보기)만 시험이 풀어 줄 때까지 붙잡아 둔다. 그 밖의 요청은 기존 가짜 서버로 넘어간다.
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    server.use(
+      http.get(apiUrl(`/rooms/${fixtures.room.id}/transactions`), async ({ request }) => {
+        if (new URL(request.url).searchParams.get("cursor") === null) return undefined;
+        await gate;
+        return HttpResponse.json({ transactions: [{ ...backend.transactions[0]!, id: "late", amount: 31337 }], nextCursor: null });
+      }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "더 보기" })); // 붙잡힌 요청
+    backend.transactions = [{ ...backend.transactions[0]!, id: "t-new", amount: 4321 }, ...backend.transactions];
+    backend.commit("transaction.created", { transactionId: "t-new" });
+    await waitFor(() => expect(amounts()[0]).toBe("4,321")); // 새 순회가 먼저 반영됐다
+    release(); // 이제서야 이전 순회의 더 보기 응답이 도착한다
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(rows()).toHaveLength(20);
+    expect(amounts()).not.toContain("31,337");
   });
 
   it("누적 손익은 거래 필터의 영향을 받지 않는다(필터 변경 뒤에도 같은 값)", async () => {

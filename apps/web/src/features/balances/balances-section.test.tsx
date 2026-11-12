@@ -74,7 +74,7 @@ describe("누적 손익 영역", () => {
     });
     renderApp(<BalancesSection />, store);
     const big = screen.getByText("+999,999,999,000 원");
-    expect(big.className).toMatch(/\S/); // nowrap 클래스가 적용된 Money 요소
+    expect(big.className).toContain("white-space_nowrap"); // 줄바꿈 금지 스타일(white-space: nowrap)이 적용된 요소
     expect(screen.getByText("−999,999,999,000 원")).toBeInTheDocument();
   });
 

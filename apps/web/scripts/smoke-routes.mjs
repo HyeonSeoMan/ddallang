@@ -51,6 +51,13 @@ try {
     console.log(`${ok ? "OK  " : "FAIL"} ${path} -> ${response.status}`);
     if (!ok) failed = true;
   }
+  // 정의되지 않은 경로는 404다(S1 §4.8: 방 코드 입력·`/rooms/{id}` 분리 화면 등은 만들지 않는다).
+  for (const path of ["/rooms", "/rooms/abc", "/join", "/invite", "/invite/abc/extra"]) {
+    const response = await fetch(`http://localhost:${port}${path}`);
+    const ok = response.status === 404;
+    console.log(`${ok ? "OK  " : "FAIL"} ${path} -> ${response.status} (404 기대)`);
+    if (!ok) failed = true;
+  }
 } catch (error) {
   console.error(error);
   failed = true;

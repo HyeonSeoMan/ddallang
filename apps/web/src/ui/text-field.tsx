@@ -35,7 +35,7 @@ export function TextField({ label, hint, errors = [], className, ...inputProps }
         className={cx(
           css({
             minH: "touch",
-            px: "3",
+            px: "4",
             borderWidth: "2px",
             borderColor: "line",
             borderRadius: "md",

@@ -38,7 +38,7 @@ const toErrors = (field: TxField, code: ValidationReasonCode) => [fieldReasonMes
 
 const selectClass = css({
   minH: "touch",
-  px: "3",
+  px: "4",
   borderWidth: "2px",
   borderColor: "line",
   borderRadius: "md",
@@ -249,7 +249,7 @@ export function TransactionForm() {
         onConfirmNew={() => void submit({ confirmNewAttempt: true })}
         disabled={pending}
       />
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" variant="accent" disabled={pending}>
         {pending ? "저장 중…" : "저장"}
       </Button>
     </form>

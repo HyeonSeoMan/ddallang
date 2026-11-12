@@ -118,7 +118,7 @@ export function ConfirmDialog({
         aria-describedby={descriptionId}
         tabIndex={-1}
         onKeyDown={onKeyDown}
-        className={css({ bg: "paper", color: "ink", borderRadius: "lg", p: "5", maxW: "md", w: "full" })}
+        className={css({ bg: "paper", color: "ink", borderRadius: "lg", p: "6", maxW: "md", w: "full", boxShadow: "float" })}
       >
         <h2 id={titleId} className={css({ fontSize: "xl", fontWeight: "bold", mb: "2" })}>
           {title}

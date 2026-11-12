@@ -120,7 +120,7 @@ export function TransactionsSection({
           id={filterId}
           value={filter ?? ALL}
           onChange={(e) => onFilterChange(e.target.value)}
-          className={css({ minH: "touch", px: "3", borderWidth: "2px", borderColor: "line", borderRadius: "md", bg: "paper", color: "ink" })}
+          className={css({ minH: "touch", px: "4", borderWidth: "2px", borderColor: "line", borderRadius: "md", bg: "paper", color: "ink" })}
         >
           <option value={ALL}>전체</option>
           {participants.map((p) => (
@@ -138,7 +138,7 @@ export function TransactionsSection({
       ) : (
         <ul className={css({ display: "flex", flexDirection: "column", gap: "3" })}>
           {items.map((t) => (
-            <li key={t.id} className={css({ display: "flex", flexDirection: "column", gap: "1", borderBottomWidth: "1px", borderColor: "line", pb: "2" })}>
+            <li key={t.id} className={css({ display: "flex", flexDirection: "column", gap: "1", borderBottomWidth: "1px", borderColor: "divider", pb: "2" })}>
               <div className={css({ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: "2" })}>
                 <span>
                   {nameOf(t.payerId)} → {nameOf(t.payeeId)}

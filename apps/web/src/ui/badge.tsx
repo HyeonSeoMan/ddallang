@@ -16,7 +16,7 @@ export function Badge({ tone = "neutral", children }: { tone?: Tone; children: R
   return (
     <span
       className={cx(
-        css({ display: "inline-block", px: "2", py: "0.5", borderRadius: "full", fontSize: "sm", fontWeight: "semibold" }),
+        css({ display: "inline-block", px: "3", py: "1", borderRadius: "full", fontSize: "sm", fontWeight: "bold", boxShadow: "chip" }),
         toneClass[tone],
       )}
     >

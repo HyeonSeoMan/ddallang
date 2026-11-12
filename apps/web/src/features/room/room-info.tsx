@@ -55,7 +55,7 @@ export function RoomInfo() {
           onFocus={(event) => event.currentTarget.select()}
           className={css({
             minH: "touch",
-            px: "3",
+            px: "4",
             borderWidth: "2px",
             borderColor: "line",
             borderRadius: "md",

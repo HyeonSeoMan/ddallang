@@ -3,6 +3,7 @@
 import { type ReactNode, useId } from "react";
 import { css } from "styled-system/css";
 import { useAtomValue } from "jotai";
+import { BagIcon, BellIcon, BookIcon, CoinIcon, PeopleIcon } from "@/ui/icons";
 import { dataVisibleAtom } from "./state";
 import { ServerDataGate } from "./server-data-gate";
 
@@ -19,7 +20,17 @@ export const ROOM_SECTION_TITLES = {
 
 export type RoomSectionId = keyof typeof ROOM_SECTION_TITLES;
 
-/** 구역 제목은 항상 보이고, 본문은 `ServerDataGate` 아래에만 그린다. */
+/** 구역 제목 곁의 장식 아이콘(FD-18). 아이콘은 `aria-hidden`이라 제목의 접근 가능한 이름은 그대로다. */
+const SECTION_ICONS: Record<RoomSectionId, (props: { size?: number }) => ReactNode> = {
+  info: BellIcon,
+  balances: CoinIcon,
+  settlement: BagIcon,
+  entry: CoinIcon,
+  transactions: BookIcon,
+  participants: PeopleIcon,
+};
+
+/** 구역 제목은 항상 보이고, 본문은 `ServerDataGate` 아래에만 그린다. 구역은 회색 바탕 위의 흰 카드다(FD-18). */
 export function RoomSection({
   id,
   title = ROOM_SECTION_TITLES[id],
@@ -33,9 +44,18 @@ export function RoomSection({
   // 서버 유래 값에 따라 달라지는 제목(`titles`)은 게이트가 열렸을 때만 쓴다. 끊김 중에는 기본 제목이다.
   const visible = useAtomValue(dataVisibleAtom);
   const heading = visible ? title : ROOM_SECTION_TITLES[id];
+  const SectionIcon = SECTION_ICONS[id];
   return (
-    <section aria-labelledby={headingId} data-section={id} className={css({ mt: "5" })}>
-      <h2 id={headingId} className={css({ fontSize: "lg", fontWeight: "bold", mb: "2" })}>
+    <section
+      aria-labelledby={headingId}
+      data-section={id}
+      className={css({ mt: "4", p: "5", bg: "paper", borderRadius: "lg", boxShadow: "card" })}
+    >
+      <h2
+        id={headingId}
+        className={css({ display: "flex", alignItems: "center", gap: "2", fontSize: "xl", fontWeight: "bold", mb: "3" })}
+      >
+        <SectionIcon size={28} />
         {heading}
       </h2>
       <ServerDataGate>{children}</ServerDataGate>
@@ -49,10 +69,12 @@ export interface RoomLayoutProps {
   slots?: Partial<Record<RoomSectionId, ReactNode>>;
   /** 구역 제목 바꾸기. 데이터 영역이 보일 때만 적용되고 끊김 중에는 기본 제목이다. */
   titles?: Partial<Record<RoomSectionId, string>>;
+  /** 화면 아래에 떠 있는 요소(고정 `거래 기록하기` 버튼, U-6). 마지막 구역을 가리지 않도록 스스로 자리를 만든다. */
+  floating?: ReactNode;
 }
 
 /** 모바일 우선 한 열(가로 스크롤 없음). 각 Task가 자기 구역의 `slots`를 채운다. */
-export function RoomLayout({ banner, slots = {}, titles = {} }: RoomLayoutProps) {
+export function RoomLayout({ banner, slots = {}, titles = {}, floating }: RoomLayoutProps) {
   return (
     <div className={css({ maxW: "md", mx: "auto", p: "4" })}>
       {banner}
@@ -61,6 +83,7 @@ export function RoomLayout({ banner, slots = {}, titles = {} }: RoomLayoutProps)
           {slots[id]}
         </RoomSection>
       ))}
+      {floating}
     </div>
   );
 }

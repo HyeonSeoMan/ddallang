@@ -1,4 +1,4 @@
-import { vi } from "vitest";
+import { stubNavigator } from "./navigator-stub";
 
 type LockCallback<T> = (lock: { name: string; mode: "exclusive" } | null) => Promise<T> | T;
 
@@ -38,6 +38,6 @@ export class FakeLockManager {
 
 /** `navigator.locks`를 가짜로 바꾼다. 인자가 `undefined`가 아니라 `null`이면 미지원 환경을 흉내 낸다. */
 export function installFakeLocks(manager: FakeLockManager | null = new FakeLockManager()) {
-  vi.stubGlobal("navigator", Object.create(navigator, { locks: { value: manager ?? undefined } }));
+  stubNavigator("locks", manager ?? undefined);
   return manager;
 }

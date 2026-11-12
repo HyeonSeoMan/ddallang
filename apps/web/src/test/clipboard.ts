@@ -1,4 +1,5 @@
 import { vi } from "vitest";
+import { stubNavigator } from "./navigator-stub";
 
 export interface ClipboardMock {
   writeText: ReturnType<typeof vi.fn<(text: string) => Promise<void>>>;
@@ -36,7 +37,7 @@ export function mockClipboard(options: ClipboardMockOptions = {}) {
     return Promise.resolve();
   });
 
-  vi.stubGlobal("navigator", Object.create(navigator, { clipboard: { value: { writeText } } }));
+  stubNavigator("clipboard", { writeText });
 
   return {
     writeText,
@@ -49,5 +50,5 @@ export function mockClipboard(options: ClipboardMockOptions = {}) {
 
 /** 클립보드 API가 없는 환경(미지원). */
 export function removeClipboard() {
-  vi.stubGlobal("navigator", Object.create(navigator, { clipboard: { value: undefined } }));
+  stubNavigator("clipboard", undefined);
 }

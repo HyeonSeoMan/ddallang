@@ -24,8 +24,8 @@ MVP 범위는 방 생성과 초대 링크 입장, 익명 접속자, 참여자 �
 - Next.js 16 (App Router), React 19, TypeScript
 - 서버 상태: TanStack Query, 클라이언트 상태: Jotai
 - 스타일: Panda CSS
-- 테스트: Vitest, Testing Library
-- 린트: ESLint
+- 테스트: Vitest, Testing Library, MSW(모의 서버), `vitest-axe`(접근성), `fast-check`(속성 시험)
+- 린트: ESLint (`EventSource`·`dangerouslySetInnerHTML`·저장소 직접 접근·`console` 제한 규칙)
 
 ### 백엔드 (`ddallang-server`)
 
@@ -53,6 +53,7 @@ pnpm Workspace + Turborepo
 
 ```bash
 pnpm install
+cp apps/web/.env.example apps/web/.env.local   # 백엔드 주소 설정(아래)
 pnpm dev        # Panda 코드젠/watch + Next.js dev 서버
 pnpm build
 pnpm lint
@@ -60,15 +61,47 @@ pnpm typecheck
 pnpm test
 ```
 
+`apps/web` 추가 스크립트(`pnpm --filter web <이름>`):
+
+| 스크립트 | 용도 |
+| --- | --- |
+| `check:ac` | `docs/plans/web/ac-matrix.md`의 모든 AC에 `[AC-…]` 태그 시험이 있는지 대조한다. 기능 구현 중에는 미달이 정상이며 전체 통과는 마지막 Task(FE-Z1)에서 요구한다 |
+| `smoke` | 빌드 산출물을 `next start`로 띄워 임의의 `/invite/{코드}` 경로가 앱에 연결되는지 확인한다(`pnpm build` 선행) |
+
+### 백엔드 연결
+
+브라우저가 백엔드를 직접 호출한다(Next.js 서버 프록시 없음). `NEXT_PUBLIC_API_BASE_URL`은 **필수**이며 없으면 빌드·기동이 실패한다.
+
+- 자동 시험(`pnpm test`)은 MSW 모의 서버를 쓰므로 백엔드가 필요 없다.
+- 화면을 직접 볼 때는 로컬 `ddallang-server`(기본 `http://localhost:3001`, PostgreSQL 16은 `docker compose`)에 연결한다. 백엔드 `CORS_ORIGINS`에 프론트 출처(`http://localhost:3000`)가 들어 있어야 한다.
+- 실서버 연동 점검과 지연 측정은 모의 단계가 끝난 뒤 별도 Task(FE-I1, FE-S5-6)로 한다.
+
+## 개발 현황
+
+문서(정책·PRD·Spec·Plan/Tasks)는 모두 확정되어 `main`에 있다. 구현은 `docs/plans/web/tasks.md`의 순서를 따른다. 백엔드(`ddallang-server`)는 BE-Z1까지 구현을 마쳤다.
+
+| 프론트엔드 묶음 | Task | 상태 |
+| --- | --- | --- |
+| 공통 기반 | FE-F1 도구체인·제한 규칙, F2 API 클라이언트, F7 시험 기반, F5 공통 UI, F3 신원 키, F4 필수 기능 검사, F6 방 화면 셸·연결 게이트, F8 변경 요청 매니저 | 구현 완료 |
+| S1 방·신원·참여자 | FE-S1-1~S1-6 | 예정 |
+| S5 연결·실시간 코어 | FE-S5-1~S5-3 | 예정 |
+| S2 거래 / S3 손익·내역 | FE-S2-1~S2-4, FE-S3-1~S3-3 | 예정 |
+| S5 화면·S4 정산 | FE-S5-4~S5-6, FE-S4-1~S4-4 | 예정 |
+| 마무리 | FE-I1 실서버 연동, FE-Z1 통합 검증 | 예정 |
+
+검수 상태: 공통 기반은 Codex 한도 문제로 **Claude 독립 검수**(새 세션, 읽기 전용, 정적 검수 위주)를 받았다. 이는 Codex 검수가 아니며 사용자 승인도 아니다. 실서버·실브라우저·지연 측정은 아직 실행하지 않았다.
+
 ## 디렉터리
 
-- `apps/web` — 프론트엔드 앱
+- `apps/web` — 프론트엔드 앱 (`src/lib` API·신원·변경 요청·포맷, `src/ui` 공통 UI, `src/features` 기능별 화면, `src/test` 시험 기반)
 - `packages/typescript-config` — 공통 tsconfig
 - `docs/policies` — 제품 정책
 - `docs/prd` — PRD와 열린 질문, 검수 기록
 - `docs/specs` — 기능별 공통 Spec (방·신원·참여자, 거래 CRUD, 조회·손익, 실시간·연결, 정산·종료)
+- `docs/plans/web` — 프론트엔드 Plan·Tasks·AC 매핑표
+- `docs/plans/server` — 백엔드 Plan·Tasks·AC 매핑표
 - `.agents` — 에이전트 공통 거버넌스
-- `.claude` — Claude Code 프로젝트 설정(Hook, Skill, 토큰 최적화 가이드)
+- `.claude` — Claude Code 프로젝트 설정(권한, Skill, 토큰 최적화 가이드)
 
 ## 문서 체계
 
@@ -84,7 +117,7 @@ pnpm test
 | Spec | `docs/specs/` ([목차와 승인 현황](docs/specs/README.md)) | 프론트엔드·백엔드가 함께 준수하는 동작 계약 |
 | Plan / Tasks | 각 저장소 | 승인된 Spec을 구현하기 위한 기술 계획과 작업 단위 (저장소별로 독립) |
 
-PRD와 각 Spec은 사용자 승인 후 확정되며, 확정 뒤 의미 있는 변경은 재검수와 재승인을 거친다. 구현(Plan/Tasks 이후)은 모든 기능 Spec이 확정된 뒤에 시작한다.
+PRD와 각 Spec은 사용자 승인 후 확정되며, 확정 뒤 의미 있는 변경은 재검수와 재승인을 거친다. 구현은 모든 기능 Spec과 해당 저장소의 Plan/Tasks가 확정된 뒤에 시작했다.
 
 ## 핵심 설계 원칙
 
@@ -105,12 +138,9 @@ Claude Code가 작성·구현하고 Codex가 독립적으로 검수한다. 역�
 - `AGENTS.md` — Codex 독립 리뷰 규칙 (읽기 전용)
 - `.agents/governance.md` — 두 에이전트가 공통으로 참조하는 거버넌스와 게이트
 
-### Claude Code Hook·Skill (`.claude/`)
+### Claude Code 설정 (`.claude/`)
 
-- `.claude/hooks/pretool_guard.py` — 실수 방지 장치다. `git push`, `git reset --hard`, main 브랜치 커밋·병합, `gh pr merge`, `sudo`, 명백히 파괴적인 `rm -r`, 민감 파일(`.env`, 키 등) 읽기·쓰기처럼 **명확하게 적힌 단순 명령**만 차단한다. **샌드박스나 보안 경계가 아니며**, 변수·`bash -c`·`env` 같은 wrapper·glob·스크립트 등으로 우회할 수 있다. 알려진 한계는 [`.claude/hooks/README.md`](.claude/hooks/README.md)에 정리되어 있다. 승인 게이트(push, 병합, 저장소 생성)는 hook 유무와 관계없이 사용자가 별도 터미널에서 실행한다.
-- `.claude/hooks/posttool_track.py` — 수정한 파일의 저장소 상대 경로만 기록한다(내용·명령은 저장하지 않음).
+- `.claude/settings.json` — 위험 명령(`git reset --hard`, `git clean -f`, `gh repo create/delete`, `sudo`)과 비밀 파일(`.env*`, 키) 읽기를 거부하는 권한 목록. PreToolUse·PostToolUse Hook은 2026-11-12에 사용자 결정으로 제거했다(작업을 방해해서). 커밋·푸시·`gh pr merge`는 이제 막지 않으며, `main` 병합 등 승인 게이트는 `CLAUDE.md`의 규칙(사용자의 명시적 승인)으로 지킨다.
 - `.claude/skills/token-audit` — `scripts/tokstat.py`로 한 작업 구간의 토큰 사용량을 집계한다.
-- 테스트: `python3 -B .claude/hooks/test_hooks.py`. 통과는 문서에 적힌 동작을 한다는 뜻이며 안전 보장이 아니다.
-- 검수 기록: Codex 독립 검수 3회(REVISE → BLOCKED → REVISE) 후 한도에 도달했고, 이후 수정(R3-01, R3-02)은 자체 검증만 거쳤다. Codex PASS는 없다.
 
 Codex 검수 통과는 사용자 승인이 아니다. PRD 확정, 각 Spec 확정, `main` 병합은 사용자가 승인한다.

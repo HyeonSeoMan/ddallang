@@ -151,6 +151,81 @@ describe("거래 수정·삭제 컨트롤 (FE-S2-3)", () => {
     });
   });
 
+  describe("연결 끊김과 재마운트 (Codex R-F01·R-F02)", () => {
+    function renderRow(me = fixtures.guestMember) {
+      return renderApp(
+        <main>
+          <TransactionActions transaction={own} me={me} room={fixtures.room} />
+        </main>,
+        store,
+      );
+    }
+
+    it("[AC-SYS-001-5][R-F01] 수정 중이던 입력은 행이 언마운트됐다가 다시 마운트돼도 유지된다(자동 제출 없음)", async () => {
+      handle("put", `${base}/t-own`, () => HttpResponse.json({ transaction: own }));
+      seedRoom(store, { me: fixtures.guestMember });
+      const first = renderRow();
+      const user = userEvent.setup();
+      await user.click(screen.getByRole("button", { name: /수정/ }));
+      await user.clear(screen.getByLabelText("금액"));
+      await user.type(screen.getByLabelText("금액"), "250");
+      await user.type(screen.getByLabelText("사유 (선택)"), "추가");
+      first.unmount(); // 연결 끊김으로 서버 유래 영역이 가려진다
+      renderRow();
+      expect(screen.getByLabelText("금액")).toHaveValue("250");
+      expect(screen.getByLabelText("사유 (선택)")).toHaveValue("점심추가");
+      await new Promise((resolve) => setTimeout(resolve, 60));
+      expect(seen).toHaveLength(0); // 복구가 자동으로 제출하지 않는다
+    });
+
+    it("[R-F02] 결과 불명인 수정은 재마운트 뒤에도 안내와 수동 재시도가 남고, 다시 열어도 지워지지 않으며, 같은 키로 보낸다", async () => {
+      let calls = 0;
+      handle("put", `${base}/t-own`, () => (++calls === 1 ? HttpResponse.error() : HttpResponse.json({ transaction: own })));
+      seedRoom(store, { me: fixtures.guestMember });
+      const first = renderRow();
+      const user = userEvent.setup();
+      await user.click(screen.getByRole("button", { name: /수정/ }));
+      await user.clear(screen.getByLabelText("금액"));
+      await user.type(screen.getByLabelText("금액"), "300");
+      await user.click(screen.getByRole("button", { name: "저장" }));
+      await screen.findByText("결과를 확인하지 못했습니다.");
+      first.unmount();
+
+      renderRow();
+      expect(screen.getByText("결과를 확인하지 못했습니다.")).toBeInTheDocument(); // 폼이 다시 열려 있다
+      expect(screen.getByLabelText("금액")).toHaveValue("300");
+      // 폼을 닫아도(취소) 불명 안내와 재시도는 남는다.
+      await user.click(screen.getByRole("button", { name: "취소" }));
+      expect(screen.getByText("결과를 확인하지 못했습니다.")).toBeInTheDocument();
+      // 다시 열어도 불명 상태와 입력이 지워지지 않는다.
+      await user.click(screen.getByRole("button", { name: /수정/ }));
+      expect(screen.getByText("결과를 확인하지 못했습니다.")).toBeInTheDocument();
+      expect(screen.getByLabelText("금액")).toHaveValue("300");
+      await user.click(screen.getByRole("button", { name: "다시 시도" }));
+      await waitFor(() => expect(seen).toHaveLength(2));
+      expect(seen[1]!.key).toBe(seen[0]!.key); // 같은 키
+      expect(seen[1]!.body).toEqual(seen[0]!.body);
+    });
+
+    it("수정에 성공하면 초안이 사라지고, 응답을 기다리는 사이 바꾼 입력은 보존한다", async () => {
+      handle("put", `${base}/t-own`, async () => {
+        await delay(60);
+        return HttpResponse.json({ transaction: own });
+      });
+      seedRoom(store, { me: fixtures.guestMember });
+      renderRow();
+      const user = userEvent.setup();
+      await user.click(screen.getByRole("button", { name: /수정/ }));
+      await user.clear(screen.getByLabelText("금액"));
+      await user.type(screen.getByLabelText("금액"), "400");
+      await user.click(screen.getByRole("button", { name: "저장" }));
+      await user.type(screen.getByLabelText("금액"), "5"); // 저장 응답 전에 4005로 변경
+      await waitFor(() => expect(seen).toHaveLength(1));
+      await delay(120);
+      expect(screen.getByLabelText("금액")).toHaveValue("4005"); // 새 입력이 저장된 것으로 오인돼 지워지지 않았다
+    });
+  });
+
   describe("삭제", () => {
     it("[AC-TXN-005-2] 확인 전에는 요청하지 않고 기본 포커스는 취소이며, 취소하면 요청이 0회다", async () => {
       // 요청이 나가면 기록되도록 삭제 처리기를 등록해 둔다(없으면 요청이 나가도 `seen`에 남지 않는다).

@@ -32,8 +32,12 @@ export const mutationUiAtom = atom<Record<string, MutationUi>>({});
 
 const managers = new Map<string, MutationManager>();
 
-function managerFor(inviteCode: string, roomId: string): MutationManager {
-  const id = `${inviteCode}:${roomId}`;
+/**
+ * 매니저는 (방, 신원 키)별로 둔다. 키의 효력 범위가 (방, 요청자 RoomMember)이므로(S2 §5.1, AC-TXN-007-7) 같은 방에서
+ * 신원이 바뀌면 이전 신원의 불명 요청 키·최초 시각·진행 상태를 새 신원이 이어받지 않는다. 메모리에만 있다.
+ */
+function managerFor(inviteCode: string, roomId: string, identityKey: string): MutationManager {
+  const id = `${inviteCode}:${roomId}:${identityKey}`;
   let manager = managers.get(id);
   if (!manager) {
     const api = getApiClient();
@@ -64,6 +68,11 @@ export interface RoomMutation {
   clear(): void;
 }
 
+/** 화면 상태의 작업 범위 이름. 요청자(RoomMember)별로 분리한다. */
+export function mutationScope(kind: "create" | "update" | "delete", target: string, memberId: string): string {
+  return `${kind}:${target}:${memberId}`;
+}
+
 export function useRoomMutation(scope: string): RoomMutation {
   const store = useStore();
   const stateAtom = useMemo(() => atom((get) => get(mutationUiAtom)[scope] ?? null), [scope]);
@@ -90,7 +99,7 @@ export function useRoomMutation(scope: string): RoomMutation {
         setState(failed);
         return failed;
       }
-      const manager = managerFor(session.inviteCode, session.roomId);
+      const manager = managerFor(session.inviteCode, session.roomId, key);
       const before = manager.getState(scope).status;
       if (before === "in-progress") return null; // 중복 제출
       const fresh = before === "idle";

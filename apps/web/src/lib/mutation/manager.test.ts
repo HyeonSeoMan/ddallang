@@ -79,6 +79,20 @@ describe("변경 요청 매니저", () => {
     expect(headers.Authorization).toBe("Bearer test"); // 호출자의 헤더는 그대로
   });
 
+  it("[AC-TXN-007-1] 시계 동기화를 기다리는 동안 같은 작업이 두 번 호출되어도 요청은 한 번만 나간다(키가 둘이 되지 않는다)", async () => {
+    const env = setup({ syncClock: true });
+    // 방 조회(시계 동기화) 뒤 거래 요청 응답을 준비한다.
+    env.responses.push(env.ok({ transaction: {} }));
+    const first = env.manager.submit(SCOPE, create());
+    const second = env.manager.submit(SCOPE, create()); // 첫 호출이 동기화를 기다리는 중
+    expect(await second).toEqual({ status: "in-progress" });
+    expect(env.manager.getState(SCOPE)).toEqual({ status: "in-progress" });
+    await first;
+    const posts = env.fetchMock.mock.calls.filter(([url]) => String(url).includes("/transactions"));
+    expect(posts).toHaveLength(1);
+    expect(env.fetchMock.mock.calls.filter(([url]) => !String(url).includes("/transactions"))).toHaveLength(1); // 방 조회 1회
+  });
+
   it("[AC-TXN-007-1] 진행 중이면 같은 작업의 중복 제출을 보내지 않는다", async () => {
     const env = setup();
     await prime(env);

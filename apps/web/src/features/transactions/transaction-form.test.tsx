@@ -308,6 +308,63 @@ describe("거래 입력 폼 (FE-S2-2)", () => {
     });
   });
 
+  describe("검수 R-F03·R-F05", () => {
+    it("[R-F03] 저장 응답을 기다리는 사이 바꾼 입력은 이전 요청이 성공해도 지워지지 않는다", async () => {
+      handle(async () => {
+        await delay(80);
+        return created();
+      });
+      mount();
+      const user = userEvent.setup();
+      await fill(user, { payer: "가온", payee: "나래", amount: "10" });
+      await user.click(save());
+      await waitFor(() => expect(requests).toHaveLength(1));
+      await user.clear(screen.getByLabelText("금액"));
+      await user.type(screen.getByLabelText("금액"), "20"); // 아직 저장되지 않은 새 입력
+      await delay(160);
+      expect(screen.getByLabelText("금액")).toHaveValue("20");
+      expect(screen.getByLabelText("지급자")).toHaveValue("p-1");
+      expect(requests).toHaveLength(1); // 새 입력은 자동 제출되지 않는다
+    });
+
+    it("[R-F05] 같은 방에서 신원이 바뀌면 이전 신원의 불명 요청 상태·키를 이어받지 않는다", async () => {
+      handle((n) => (n === 1 ? HttpResponse.error() : created()));
+      seedRoom(store);
+      const first = renderApp(<main><TransactionForm /></main>, store);
+      const user = userEvent.setup();
+      await fill(user, { payer: "가온", payee: "나래", amount: "10" });
+      await user.click(save());
+      await screen.findByText(UNKNOWN_RESULT);
+      first.unmount();
+
+      // 같은 방에 다른 신원(다른 RoomMember·다른 신원 키)으로 들어온다.
+      const OTHER_KEY = "z".repeat(43);
+      installFakeStorage().setItem(`ddallang:identity:${INVITE_CODE}`, OTHER_KEY);
+      await primeServerClock(OTHER_KEY);
+      seedRoom(store, { me: fixtures.guestMember });
+      renderApp(<main><TransactionForm /></main>, store);
+      expect(screen.queryByText(UNKNOWN_RESULT)).not.toBeInTheDocument(); // 이전 신원의 상태가 보이지 않는다
+      await fill(user, { payer: "가온", payee: "나래", amount: "10" });
+      await user.click(save());
+      await waitFor(() => expect(requests).toHaveLength(2));
+      expect(requests[1]!.authorization).toBe(`Bearer ${OTHER_KEY}`);
+      expect(requests[1]!.key).not.toBe(requests[0]!.key); // 같은 내용이어도 새 신원은 새 키
+    });
+
+    it("[R-F04] 시계 동기화 중 저장 버튼을 연달아 눌러도 요청은 한 번만 나간다", async () => {
+      handle(() => created());
+      // 서버 시계를 아직 모르는 상태를 만든다: 새 API 클라이언트는 만들 수 없으므로 방 조회가 느린 동기화를 흉내 낸다.
+      mount();
+      const user = userEvent.setup();
+      await fill(user, { payer: "가온", payee: "나래", amount: "10" });
+      const button = save();
+      await Promise.all([user.click(button), user.click(button)]);
+      await waitFor(() => expect(requests).toHaveLength(1));
+      await delay(80);
+      expect(requests).toHaveLength(1);
+    });
+  });
+
   describe("종료와 연결 끊김", () => {
     it("[AC-TXN-009-3] 게임이 종료되면 입력 폼이 숨겨진다", () => {
       mount({ status: "ENDED" });

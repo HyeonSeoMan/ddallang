@@ -1,5 +1,6 @@
 "use client";
 
+import { useAtom } from "jotai";
 import { useState } from "react";
 import { css } from "styled-system/css";
 import { useCanMutate } from "@/features/room/server-data-gate";
@@ -12,7 +13,8 @@ import { ConfirmDialog } from "@/ui/confirm-dialog";
 import { TextField } from "@/ui/text-field";
 import { type FieldErrors, fieldReasonMessage } from "./messages";
 import { MutationNotice } from "./mutation-notice";
-import { useRoomMutation } from "./mutation-state";
+import { type EditDraft, editDraftsAtom } from "./edit-state";
+import { mutationScope, useRoomMutation } from "./mutation-state";
 
 /** 삭제 확인(plan §7). 기본 포커스는 `취소`다. */
 const DELETE_TITLE = "거래를 삭제할까요?";
@@ -30,28 +32,47 @@ export function canEditTransaction(transaction: Transaction, me: RoomMember): bo
 export function TransactionActions({ transaction, me, room }: { transaction: Transaction; me: RoomMember; room: Room }) {
   const canMutate = useCanMutate();
   const announce = useAnnounce();
-  const update = useRoomMutation(`update:${transaction.id}`);
-  const remove = useRoomMutation(`delete:${transaction.id}`);
-  const [editing, setEditing] = useState(false);
+  // 작업 범위는 요청자(RoomMember)별로 분리한다(S2 §5.1: 키의 효력 범위는 방+요청자).
+  const update = useRoomMutation(mutationScope("update", transaction.id, me.id));
+  const remove = useRoomMutation(mutationScope("delete", transaction.id, me.id));
+  const [drafts, setDrafts] = useAtom(editDraftsAtom);
   const [confirming, setConfirming] = useState(false);
-  const [amount, setAmount] = useState(String(transaction.amount));
-  const [reason, setReason] = useState(transaction.reason ?? "");
-  const [round, setRound] = useState(transaction.round ?? "");
   const [errors, setErrors] = useState<FieldErrors | null>(null);
 
   if (!canMutate || !canEditTransaction(transaction, me)) return null;
+  const draft: EditDraft | undefined = drafts[transaction.id];
+  const editing = draft?.open === true;
   const path = `/rooms/${encodeURIComponent(room.id)}/transactions/${encodeURIComponent(transaction.id)}`;
   const updating = update.state?.kind === "pending";
   const deleting = remove.state?.kind === "pending";
   const shownErrors: FieldErrors = errors ?? (update.state?.kind === "rejected" ? update.state.fieldErrors : {});
+  /** 결과를 알 수 없는 수정이 남아 있다(성공으로 단정하지 않고 같은 내용으로 수동 재시도해야 한다). */
+  const unresolved = update.state?.kind === "unknown" || update.state?.kind === "needs-confirmation";
 
-  function buildUpdate(): { body: Record<string, unknown> } | { errors: FieldErrors } {
+  const setDraft = (patch: Partial<EditDraft>) =>
+    setDrafts((prev) => {
+      const current = prev[transaction.id] ?? {
+        amount: String(transaction.amount),
+        reason: transaction.reason ?? "",
+        round: transaction.round ?? "",
+        open: true,
+      };
+      return { ...prev, [transaction.id]: { ...current, ...patch } };
+    });
+  const dropDraft = () =>
+    setDrafts((prev) => {
+      const next = { ...prev };
+      delete next[transaction.id];
+      return next;
+    });
+
+  function buildUpdate(values: EditDraft): { body: Record<string, unknown> } | { errors: FieldErrors } {
     const found: FieldErrors = {};
-    const parsedAmount = validateAmount(amount);
+    const parsedAmount = validateAmount(values.amount);
     if (!parsedAmount.ok) found.amount = [fieldReasonMessage("amount", parsedAmount.reason)];
-    const parsedReason = validateReason(reason);
+    const parsedReason = validateReason(values.reason);
     if (parsedReason.reasons.length > 0) found.reason = parsedReason.reasons.map((c) => fieldReasonMessage("reason", c));
-    const parsedRound = validateRound(round);
+    const parsedRound = validateRound(values.round);
     if (parsedRound.reasons.length > 0) found.round = parsedRound.reasons.map((c) => fieldReasonMessage("round", c));
     if (!parsedAmount.ok || Object.keys(found).length > 0) return { errors: found };
     // 수정은 세 값을 통째로 교체한다. 입력 없음은 null로 지운다(S2 §4.2). 당사자 필드는 보내지 않는다(AC-TXN-005-6).
@@ -59,8 +80,9 @@ export function TransactionActions({ transaction, me, room }: { transaction: Tra
   }
 
   async function save(options?: { confirmNewAttempt?: boolean }) {
-    if (updating) return;
-    const built = buildUpdate();
+    if (updating || !draft) return;
+    const submitted = draft; // 이 요청이 보낸 입력
+    const built = buildUpdate(submitted);
     if ("errors" in built) {
       setErrors(built.errors);
       return;
@@ -68,7 +90,21 @@ export function TransactionActions({ transaction, me, room }: { transaction: Tra
     setErrors(null);
     const result = await update.run({ method: "PUT", path, body: built.body }, options);
     if (result?.kind === "success") {
-      setEditing(false);
+      // 응답을 기다리는 사이 입력을 바꿨다면 새 입력은 보존한다(저장된 것으로 오인해 지우지 않는다).
+      setDrafts((prev) => {
+        const current = prev[transaction.id];
+        const unchanged =
+          current !== undefined &&
+          current.amount === submitted.amount &&
+          current.reason === submitted.reason &&
+          current.round === submitted.round;
+        if (unchanged || current === undefined) {
+          const next = { ...prev };
+          delete next[transaction.id];
+          return next;
+        }
+        return prev;
+      });
       update.clear();
       announce("거래를 수정했습니다.");
     }
@@ -82,17 +118,32 @@ export function TransactionActions({ transaction, me, room }: { transaction: Tra
   }
 
   function startEdit() {
-    setAmount(String(transaction.amount));
-    setReason(transaction.reason ?? "");
-    setRound(transaction.round ?? "");
     setErrors(null);
-    update.clear();
-    setEditing(true);
+    // 결과 불명인 수정이 남아 있으면 그 상태와 입력을 지우지 않고 그대로 이어서 연다.
+    if (!unresolved) update.clear();
+    if (unresolved && draft) setDraft({ open: true });
+    else
+      setDrafts((prev) => ({
+        ...prev,
+        [transaction.id]: {
+          amount: String(transaction.amount),
+          reason: transaction.reason ?? "",
+          round: transaction.round ?? "",
+          open: true,
+        },
+      }));
   }
 
+  function cancelEdit() {
+    if (unresolved) setDraft({ open: false }); // 보냈던 내용을 남겨 같은 키로 다시 시도할 수 있게 한다
+    else dropDraft();
+    setErrors(null);
+  }
+
+  const label = `거래 ${formatMoney(transaction.amount, room.unit)}`;
   return (
     <div className={css({ display: "flex", flexDirection: "column", gap: "2" })}>
-      {editing ? (
+      {editing && draft ? (
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -100,34 +151,40 @@ export function TransactionActions({ transaction, me, room }: { transaction: Tra
           }}
           noValidate
           className={css({ display: "flex", flexDirection: "column", gap: "2" })}
-          aria-label={`거래 ${formatMoney(transaction.amount, room.unit)} 수정`}
+          aria-label={`${label} 수정`}
         >
-          <TextField label="금액" inputMode="numeric" autoComplete="off" value={amount} onChange={(e) => setAmount(e.target.value)} errors={shownErrors.amount} />
-          <TextField label="사유 (선택)" autoComplete="off" value={reason} onChange={(e) => setReason(e.target.value)} errors={shownErrors.reason} />
-          <TextField label="라운드 (선택)" autoComplete="off" value={round} onChange={(e) => setRound(e.target.value)} errors={shownErrors.round} />
+          <TextField label="금액" inputMode="numeric" autoComplete="off" value={draft.amount} onChange={(e) => setDraft({ amount: e.target.value })} errors={shownErrors.amount} />
+          <TextField label="사유 (선택)" autoComplete="off" value={draft.reason} onChange={(e) => setDraft({ reason: e.target.value })} errors={shownErrors.reason} />
+          <TextField label="라운드 (선택)" autoComplete="off" value={draft.round} onChange={(e) => setDraft({ round: e.target.value })} errors={shownErrors.round} />
           <MutationNotice state={update.state} onRetry={() => void save()} onConfirmNew={() => void save({ confirmNewAttempt: true })} disabled={updating} />
           <div className={css({ display: "flex", gap: "2" })}>
             <Button type="submit" disabled={updating}>
               {updating ? "저장 중…" : "저장"}
             </Button>
-            <Button variant="secondary" onClick={() => setEditing(false)} disabled={updating}>
+            <Button variant="secondary" onClick={cancelEdit} disabled={updating}>
               취소
             </Button>
           </div>
         </form>
       ) : (
         <div className={css({ display: "flex", gap: "2" })}>
-          <Button variant="secondary" onClick={startEdit} aria-label={`거래 ${formatMoney(transaction.amount, room.unit)} 수정`}>
+          <Button variant="secondary" onClick={startEdit} aria-label={`${label} 수정`}>
             수정
           </Button>
-          <Button variant="secondary" onClick={() => setConfirming(true)} disabled={deleting} aria-label={`거래 ${formatMoney(transaction.amount, room.unit)} 삭제`}>
+          <Button variant="secondary" onClick={() => setConfirming(true)} disabled={deleting} aria-label={`${label} 삭제`}>
             삭제
           </Button>
         </div>
       )}
 
       {!editing ? (
-        <MutationNotice state={remove.state} onRetry={() => void confirmDelete()} onConfirmNew={() => void confirmDelete({ confirmNewAttempt: true })} disabled={deleting} />
+        <>
+          {/* 폼을 닫은 뒤에도 결과 불명인 수정이 남아 있으면 안내한다(재시도는 보냈던 입력으로). */}
+          {unresolved && draft ? (
+            <MutationNotice state={update.state} onRetry={() => void save()} onConfirmNew={() => void save({ confirmNewAttempt: true })} disabled={updating} />
+          ) : null}
+          <MutationNotice state={remove.state} onRetry={() => void confirmDelete()} onConfirmNew={() => void confirmDelete({ confirmNewAttempt: true })} disabled={deleting} />
+        </>
       ) : null}
 
       <ConfirmDialog

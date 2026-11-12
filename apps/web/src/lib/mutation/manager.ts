@@ -112,6 +112,8 @@ export interface MutationManager {
 export function createMutationManager(options: MutationManagerOptions): MutationManager {
   const { api } = options;
   const attempts = new Map<string, Attempt>();
+  /** `submit`이 시작되어 아직 끝나지 않은 작업 범위. 시계 동기화를 기다리는 동안의 중복 호출도 막는다. */
+  const inflight = new Set<string>();
 
   const isExpired = (attempt: Attempt) => api.serverNow() - attempt.firstAttemptAt >= KEY_LIFETIME_MS;
 
@@ -120,8 +122,23 @@ export function createMutationManager(options: MutationManagerOptions): Mutation
     request: MutationRequest,
     submitOptions: SubmitOptions = {},
   ): Promise<MutationOutcome<T>> {
+    // 시계 동기화(`syncClock`)를 기다리는 동안에도 같은 작업의 두 번째 호출은 막는다. 그렇지 않으면 서로 다른 키로
+    // 두 번 보내 거래가 중복될 수 있다(검수 R-F04, AC-TXN-007-1).
+    if (inflight.has(scope) || attempts.get(scope)?.state === "in-progress") return { status: "in-progress" };
+    inflight.add(scope);
+    try {
+      return await submitExclusive<T>(scope, request, submitOptions);
+    } finally {
+      inflight.delete(scope);
+    }
+  }
+
+  async function submitExclusive<T>(
+    scope: string,
+    request: MutationRequest,
+    submitOptions: SubmitOptions,
+  ): Promise<MutationOutcome<T>> {
     const existing = attempts.get(scope);
-    if (existing?.state === "in-progress") return { status: "in-progress" };
 
     const fingerprint = fingerprintOf(request);
     let attempt: Attempt | undefined;
@@ -185,6 +202,7 @@ export function createMutationManager(options: MutationManagerOptions): Mutation
   return {
     submit,
     getState(scope) {
+      if (inflight.has(scope)) return { status: "in-progress" };
       const attempt = attempts.get(scope);
       if (!attempt) return { status: "idle" };
       if (attempt.state === "in-progress") return { status: "in-progress" };

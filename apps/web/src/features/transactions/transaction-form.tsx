@@ -12,7 +12,7 @@ import { Button } from "@/ui/button";
 import { TextField } from "@/ui/text-field";
 import { type FieldErrors, fieldReasonMessage, type TxField } from "./messages";
 import { MutationNotice } from "./mutation-notice";
-import { useRoomMutation } from "./mutation-state";
+import { mutationScope, useRoomMutation } from "./mutation-state";
 
 interface Draft {
   payerId: string;
@@ -98,7 +98,8 @@ export function TransactionForm() {
   const [draft, setDraft] = useAtom(transactionDraftAtom);
   const [clientErrors, setClientErrors] = useState<FieldErrors | null>(null);
   const roomId = snapshot?.room.id ?? "";
-  const mutation = useRoomMutation(`create:${roomId}`);
+  // 작업 범위는 요청자(RoomMember)별로 분리한다(S2 §5.1).
+  const mutation = useRoomMutation(mutationScope("create", roomId, snapshot?.me.id ?? ""));
 
   if (!snapshot || !canMutate) return null; // 종료 후에는 폼을 숨긴다(초안은 메모리에 남는다)
   const active = snapshot.participants.filter((p) => p.status === "ACTIVE");
@@ -144,12 +145,22 @@ export function TransactionForm() {
       return;
     }
     setClientErrors(null);
+    const submitted = { ...draft, payerId, payeeId }; // 이 요청이 보낸 입력
     const result = await mutation.run(
       { method: "POST", path: `/rooms/${encodeURIComponent(roomId)}/transactions`, body: built.body },
       options,
     );
     if (result?.kind === "success") {
-      setDraft(EMPTY); // 서버가 확정 성공으로 응답한 뒤에만 비운다
+      // 서버가 확정 성공으로 응답한 뒤에만 비운다. 응답을 기다리는 사이 입력을 바꿨다면 새 입력은 보존한다.
+      setDraft((prev) =>
+        prev.payerId === submitted.payerId &&
+        prev.payeeId === submitted.payeeId &&
+        prev.amount === submitted.amount &&
+        prev.reason === submitted.reason &&
+        prev.round === submitted.round
+          ? EMPTY
+          : prev,
+      );
       mutation.clear();
       announce("거래를 저장했습니다.");
     }

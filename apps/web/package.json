@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "typecheck": "NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-http://localhost:3001} next typegen && tsc --noEmit",
     "test": "vitest run",
+    "test:latency": "vitest run --config vitest.latency.config.mts",
     "check:ac": "node scripts/check-ac.mjs",
     "smoke": "node scripts/smoke-routes.mjs"
   },

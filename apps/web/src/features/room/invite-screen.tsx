@@ -19,6 +19,8 @@ import { Banner } from "@/ui/banner";
 import { Button } from "@/ui/button";
 import { TextField } from "@/ui/text-field";
 import { useRoomConnection } from "@/features/realtime/use-room-connection";
+import { BalancesSection } from "@/features/balances/balances-section";
+import { TransactionsSection } from "@/features/transactions/transactions-section";
 import { ParticipantsSection } from "@/features/participants/participants-section";
 import { initialInviteStage, type InviteStage, inviteReducer } from "./invite-stage";
 import { IDENTITY_KEY_NOTICE, reasonMessage } from "./messages";
@@ -233,7 +235,12 @@ function RoomScreen({ inviteCode }: { inviteCode: string }) {
   return session?.inviteCode === inviteCode ? (
     <>
       <RoomConnection inviteCode={inviteCode} roomId={session.roomId} />
-      <RoomLayout slots={{ info: <RoomInfo />, participants: <ParticipantsSection /> }} />
+      <RoomLayout slots={{
+          info: <RoomInfo />,
+          balances: <BalancesSection />,
+          transactions: <TransactionsSection />,
+          participants: <ParticipantsSection />,
+        }} />
     </>
   ) : null;
 }

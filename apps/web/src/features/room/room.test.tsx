@@ -27,6 +27,7 @@ function makeSnapshot(epoch: number, status: "IN_PROGRESS" | "ENDED" = "IN_PROGR
     balances: fixtures.balances,
     transactions: fixtures.transactions,
     nextCursor: null,
+    transactionFilter: null,
     settlement: fixtures.expectedSettlement,
   };
 }

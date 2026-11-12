@@ -9,3 +9,10 @@ export const connectionPhaseAtom = atom<ConnectionPhase>("connecting");
  * 새 순회를 한다(AC-VIEW-005-7).
  */
 export const participantFilterAtom = atom<string | null>(null);
+
+/** 새 순회(전체 갱신)를 요청하는 신호. 값이 바뀔 때마다 연결 훅이 갱신을 한 번 더 시작한다. */
+export const refreshRequestAtom = atom(0);
+
+export const requestRefreshAtom = atom(null, (get, set) => {
+  set(refreshRequestAtom, get(refreshRequestAtom) + 1);
+});

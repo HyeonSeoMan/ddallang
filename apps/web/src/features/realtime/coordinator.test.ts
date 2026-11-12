@@ -14,6 +14,7 @@ function snapshot(epoch = 1, label = "x"): RoomSnapshot {
     balances: fixtures.balances,
     transactions: fixtures.transactions,
     nextCursor: null,
+    transactionFilter: null,
     settlement: fixtures.expectedSettlement,
   };
 }

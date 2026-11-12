@@ -21,6 +21,8 @@ export interface FakeBackend {
   failing: Set<ReadEndpoint>;
   /** 지금까지 받은 조회 요청 수(엔드포인트별). */
   requests: Record<ReadEndpoint, number>;
+  /** 거래 목록 조회 쿼리 기록(필터·커서 검증용). */
+  transactionQueries: Array<{ participantId: string | null; cursor: string | null }>;
   /** 마지막 `/events` 연결. 시험이 이벤트를 밀어 넣는다. */
   stream: FakeSse | null;
   /** 변경 하나를 반영한다: `revision`을 올리고 이벤트를 스트림으로 보낸다. */
@@ -39,6 +41,7 @@ export function createFakeBackend(): FakeBackend {
     latency: {},
     failing: new Set(),
     requests: { room: 0, participants: 0, balances: 0, transactions: 0, settlement: 0 },
+    transactionQueries: [],
     stream: null,
     commit(event, extra = {}) {
       backend.revision += 1;
@@ -70,10 +73,34 @@ export function createFakeBackend(): FakeBackend {
     read("room", "", () => ({ room: backend.room, me: fixtures.hostMember })),
     read("participants", "/participants", () => ({ participants: backend.participants })),
     read("balances", "/balances", () => ({ balances: backend.balances })),
-    read("transactions", "/transactions", () => ({
-      transactions: backend.transactions.slice(0, 20),
-      nextCursor: null,
-    })),
+    // 거래 목록: 필터(`participantId`)와 20건 단위 커서(`c<offset>`)를 흉내 낸다. 서버의 정렬 규칙은 다시 구현하지 않고
+    // 시험이 정한 `backend.transactions` 순서를 그대로 쓴다. `c-bad` 같은 커서는 cursor 오류(422)다.
+    http.get(apiUrl(`/rooms/${fixtures.room.id}/transactions`), async ({ request }) => {
+      backend.requests.transactions += 1;
+      const url = new URL(request.url);
+      const participantId = url.searchParams.get("participantId");
+      const cursor = url.searchParams.get("cursor");
+      backend.transactionQueries.push({ participantId, cursor });
+      const wait = backend.latency.transactions;
+      if (wait) await delay(wait);
+      if (backend.failing.has("transactions")) return new HttpResponse(null, { status: 503 });
+      let offset = 0;
+      if (cursor !== null) {
+        const match = /^c(\d+)$/.exec(cursor);
+        if (!match) {
+          return errorResponse("VALIDATION_FAILED", { details: [{ field: "cursor", code: "INVALID_VALUE" }] });
+        }
+        offset = Number(match[1]);
+      }
+      const all = participantId
+        ? backend.transactions.filter((t) => t.payerId === participantId || t.payeeId === participantId)
+        : backend.transactions;
+      const page = all.slice(offset, offset + 20);
+      return HttpResponse.json({
+        transactions: structuredClone(page),
+        nextCursor: offset + 20 < all.length ? `c${offset + 20}` : null,
+      });
+    }),
     read("settlement", "/settlement", () => ({ settlement: backend.settlement })),
     http.get(apiUrl(`/rooms/${fixtures.room.id}/events`), () => {
       const sse = createFakeSse();

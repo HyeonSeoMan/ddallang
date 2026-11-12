@@ -68,6 +68,8 @@ export interface ConnectionDeps {
 export interface RoomConnection {
   start(): void;
   stop(): void;
+  /** 현재 연결의 전체 갱신을 한 번 더 요청한다(필터 변경 등). 연결되어 있지 않으면 무시된다. */
+  requestRefresh(): void;
 }
 
 /** 1초에서 시작해 연속 실패마다 2배(최대 30초)에 ±20% 무작위를 더한 대기 시간. */
@@ -318,6 +320,9 @@ export function createRoomConnection(deps: ConnectionDeps): RoomConnection {
       ];
       if (!env.isVisible()) hiddenSince = deps.now();
       void connect();
+    },
+    requestRefresh() {
+      coordinator?.requestRefresh();
     },
     stop() {
       if (stopped) return;

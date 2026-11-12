@@ -29,6 +29,8 @@ export interface CoordinatorDeps {
 
 export interface Coordinator {
   handle(item: SseItem): void;
+  /** 사용자 동작(필터 변경 등)으로 새 순회가 필요할 때 전체 갱신을 한 번 더 요청한다. `ready` 전에는 무시. */
+  requestRefresh(): void;
   /** 이후의 모든 응답·이벤트를 버린다. */
   dispose(): void;
   readonly state: { seen: number; dirty: boolean; running: boolean; ready: boolean };
@@ -112,6 +114,11 @@ export function createCoordinator(deps: CoordinatorDeps): Coordinator {
     dispose() {
       disposed = true;
       abort.abort(); // 진행 중인 조회를 중단한다(끊김·언마운트 뒤에 요청이 남지 않는다)
+    },
+    requestRefresh() {
+      if (disposed || failed || !state.ready) return;
+      markDirty();
+      refresh();
     },
     handle(item) {
       if (disposed || failed || item.kind !== "event") return;

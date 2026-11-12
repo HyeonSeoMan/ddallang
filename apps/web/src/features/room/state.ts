@@ -27,6 +27,8 @@ export interface RoomSnapshot {
   balances: Balance[];
   transactions: Transaction[];
   nextCursor: string | null;
+  /** 이 거래 목록(첫 페이지)을 조회할 때 쓴 참여자 필터. "더 보기"는 같은 필터로 이어 간다. */
+  transactionFilter: string | null;
   settlement: Settlement;
 }
 

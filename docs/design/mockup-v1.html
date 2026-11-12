@@ -1,0 +1,326 @@
+<title>딸랑 디자인 시안</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/*FONTFACE*/
+/* 레이아웃: 소개 → 폰 목업 3장(방 홈 / 거래 입력 / 최종 정산) → 상태 컴포넌트. 회색 바탕 위에 떠 있는 카드와 입체 아이콘이 핵심 */
+:root {
+  --bg: #e9eeea;
+  --screen: #f5f6f8;
+  --card: #ffffff;
+  --card-sub: #f3f5f7;
+  --ink: #111614;
+  --muted: #6b7570;
+  --line: #eceff0;
+  --green: #12804f;
+  --green-hi: #1a9863;
+  --on-green: #ffffff;
+  --green-soft: #e2f4ea;
+  --green-text: #0b6b45;
+  --yellow: #ffc93c;
+  --on-yellow: #3a2a00;
+  --yellow-soft: #fff3c9;
+  --red: #c23a2f;
+  --red-soft: #fde8e5;
+  --frame: #151a17;
+  --nav: rgba(255, 255, 255, 0.78);
+  --nav-line: rgba(0, 0, 0, 0.09);
+  --nav-on: #e4e7ea;
+  --card-shadow: 0 1px 2px rgba(20, 30, 25, 0.04), 0 10px 28px rgba(20, 30, 25, 0.07);
+  --float-shadow: 0 2px 4px rgba(20, 30, 25, 0.06), 0 14px 34px rgba(20, 30, 25, 0.16);
+  --btn-shadow: 0 2px 0 rgba(0, 0, 0, 0.14), 0 10px 20px rgba(18, 128, 79, 0.28);
+  --font: "Pretendard", "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b100d; --screen: #101512; --card: #1a211d; --card-sub: #222b26; --ink: #eef4ee; --muted: #9eaca3; --line: #28332d;
+    --green: #3fd696; --green-hi: #62e6ae; --on-green: #05261a; --green-soft: #163626; --green-text: #5fe3ae; --yellow-soft: #3a3010;
+    --red: #ff8a7f; --red-soft: #3d1f1c; --frame: #000; --nav: rgba(30, 38, 33, 0.78); --nav-line: rgba(255, 255, 255, 0.1); --nav-on: #2f3b34;
+    --card-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px rgba(0, 0, 0, 0.35);
+    --float-shadow: 0 2px 4px rgba(0, 0, 0, 0.5), 0 14px 34px rgba(0, 0, 0, 0.55);
+    --btn-shadow: 0 2px 0 rgba(0, 0, 0, 0.35), 0 10px 20px rgba(63, 214, 150, 0.18);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0b100d; --screen: #101512; --card: #1a211d; --card-sub: #222b26; --ink: #eef4ee; --muted: #9eaca3; --line: #28332d;
+  --green: #3fd696; --green-hi: #62e6ae; --on-green: #05261a; --green-soft: #163626; --green-text: #5fe3ae; --yellow-soft: #3a3010;
+  --red: #ff8a7f; --red-soft: #3d1f1c; --frame: #000; --nav: rgba(30, 38, 33, 0.78); --nav-line: rgba(255, 255, 255, 0.1); --nav-on: #2f3b34;
+  --card-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px rgba(0, 0, 0, 0.35);
+  --float-shadow: 0 2px 4px rgba(0, 0, 0, 0.5), 0 14px 34px rgba(0, 0, 0, 0.55);
+  --btn-shadow: 0 2px 0 rgba(0, 0, 0, 0.35), 0 10px 20px rgba(63, 214, 150, 0.18);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font); line-height: 1.5;
+  padding-block: 40px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.wrap { max-width: 1180px; margin: 0 auto; }
+h1 { font-size: 28px; font-weight: 900; margin: 0 0 6px; letter-spacing: -0.02em; text-wrap: balance; }
+h2 { font-size: 18px; font-weight: 700; margin: 0 0 12px; }
+.lead { color: var(--muted); margin: 0 0 36px; max-width: 62ch; }
+.stage { display: flex; flex-wrap: wrap; gap: 36px 28px; justify-content: center; align-items: flex-start; margin-bottom: 56px; }
+.cap { text-align: center; font-size: 13px; color: var(--muted); margin-top: 14px; }
+.cap b { color: var(--ink); display: block; font-size: 15px; }
+.themebtn { float: right; font: inherit; font-size: 13px; font-weight: 700; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+.defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+/* 폰 */
+.phone { width: 360px; max-width: 100%; background: var(--frame); border-radius: 46px; padding: 10px; box-shadow: var(--float-shadow); }
+.screen { background: var(--screen); border-radius: 37px; overflow: hidden; height: 760px; display: flex; flex-direction: column; position: relative; }
+.status { display: flex; justify-content: space-between; padding: 14px 26px 4px; font-size: 13px; font-weight: 700; }
+.scroll { flex: 1; overflow: hidden; padding: 10px 14px 0; display: flex; flex-direction: column; gap: 14px; }
+
+/* 상단 */
+.head { display: flex; align-items: center; justify-content: space-between; }
+.pill { height: 46px; min-width: 46px; border-radius: 999px; background: var(--card); box-shadow: var(--card-shadow); display: flex; align-items: center; gap: 14px; padding: 0 14px; font-weight: 700; font-size: 14px; position: relative; }
+.pill .badge { position: absolute; top: -4px; left: 22px; min-width: 18px; height: 18px; border-radius: 9px; background: var(--red); color: #fff; font-size: 11px; display: grid; place-items: center; font-weight: 900; }
+.ic { width: 22px; height: 22px; flex: none; }
+.ic.s { width: 18px; height: 18px; }
+
+/* 카드 */
+.card { background: var(--card); border-radius: 28px; padding: 22px; box-shadow: var(--card-shadow); }
+.card h4 { margin: 0; font-size: 14px; font-weight: 500; color: var(--muted); }
+.title { font-size: 21px; font-weight: 900; letter-spacing: -0.03em; line-height: 1.32; margin: 0; text-wrap: balance; }
+.num { font-variant-numeric: tabular-nums; font-weight: 800; letter-spacing: -0.03em; }
+.gain { color: var(--green-text); } .loss { color: var(--red); }
+.btn { display: block; width: 100%; height: 56px; border: 0; border-radius: 20px; font: inherit; font-weight: 900; font-size: 17px; letter-spacing: -0.02em; cursor: pointer; }
+.btn.g { background: var(--green); color: var(--on-green); box-shadow: 0 8px 18px rgba(18, 128, 79, 0.22); }
+.btn.y { background: var(--yellow); color: var(--on-yellow); box-shadow: 0 8px 18px rgba(255, 190, 30, 0.3); }
+.btn:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+.room { display: flex; align-items: center; gap: 8px; margin: 14px 0 18px; font-weight: 500; color: var(--muted); font-size: 15px; }
+.room .live { margin-left: auto; font-size: 12px; font-weight: 700; color: var(--green-text); background: var(--green-soft); padding: 4px 10px; border-radius: 999px; display: flex; gap: 6px; align-items: center; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green-hi); }
+
+/* 바로가기 */
+.quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; text-align: center; font-size: 13px; font-weight: 500; padding: 2px 0; }
+.quick svg { width: 54px; height: 54px; display: block; margin: 0 auto 4px; }
+
+/* 리스트 */
+.list { display: flex; flex-direction: column; margin-top: 6px; }
+.tight .li { padding: 9px 0; }
+.li { display: flex; align-items: center; gap: 14px; padding: 15px 0; }
+.li svg { width: 40px; height: 40px; flex: none; }
+.li .grow { flex: 1; min-width: 0; }
+.li small { display: block; color: var(--muted); font-size: 13px; font-weight: 500; }
+.li .num { font-size: 21px; line-height: 1.25; }
+.chev { color: var(--muted); font-size: 22px; font-weight: 300; }
+.more { text-align: center; color: var(--muted); font-weight: 500; padding: 16px 0 0; margin: 4px -22px 0; border-top: 1px solid var(--line); }
+.avatar { width: 40px; height: 40px; border-radius: 50%; flex: none; display: grid; place-items: center; font-weight: 700; font-size: 15px;
+  background: color-mix(in srgb, var(--c2) 16%, var(--card)); color: color-mix(in srgb, var(--c2) 72%, var(--ink)); }
+
+/* 떠 있는 하단 탭 */
+.nav { position: absolute; left: 14px; right: 14px; bottom: 16px; height: 68px; border-radius: 999px; background: var(--nav); border: 1px solid var(--nav-line); box-shadow: var(--float-shadow); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); display: flex; align-items: center; padding: 6px; }
+.nav div { flex: 1; text-align: center; font-size: 11.5px; font-weight: 500; display: flex; flex-direction: column; align-items: center; gap: 2px; height: 100%; justify-content: center; border-radius: 999px; color: var(--ink); }
+.nav div.on { background: var(--nav-on); font-weight: 700; }
+.nav svg { width: 26px; height: 26px; }
+.cta { position: absolute; left: 0; right: 0; bottom: 0; padding: 40px 16px 22px; background: linear-gradient(transparent, var(--screen) 55%); }
+
+/* 입력 */
+.top2 { display: flex; align-items: center; justify-content: space-between; }
+.top2 h3 { margin: 0; font-size: 18px; font-weight: 900; }
+.back { width: 46px; height: 46px; border-radius: 50%; background: var(--card); box-shadow: var(--card-shadow); display: grid; place-items: center; font-size: 22px; }
+.flow { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; }
+.person { text-align: center; }
+.person .avatar { width: 62px; height: 62px; font-size: 22px; margin: 0 auto 8px; }
+.person b { display: block; font-size: 16px; }
+.person small { color: var(--muted); font-size: 12px; }
+.arrow { width: 36px; height: 36px; border-radius: 50%; background: var(--yellow); display: grid; place-items: center; font-weight: 900; color: var(--on-yellow); }
+.card.amt { text-align: center; padding: 14px 18px 18px; }
+.amt small { color: var(--muted); font-size: 14px; font-weight: 500; }
+.amt .num { display: block; font-size: 48px; line-height: 1.15; margin: 4px 0 14px; }
+.amt .num span { font-size: 24px; }
+.keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.keys span { text-align: center; padding: 12px 0; border-radius: 16px; background: var(--card-sub); font-weight: 700; font-size: 14px; }
+.picks { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.pick { padding: 9px 14px; border-radius: 999px; background: var(--card-sub); font-weight: 500; font-size: 14px; }
+
+/* 정산 */
+.sum { background: var(--yellow); color: var(--on-yellow); border-radius: 28px; padding: 22px; box-shadow: var(--card-shadow); position: relative; overflow: hidden; }
+.sum h4 { margin: 0; font-size: 14px; font-weight: 700; opacity: .8; }
+.sum .num { display: block; font-size: 28px; margin-top: 4px; }
+.sum svg { position: absolute; right: 16px; top: 14px; width: 40px; height: 40px; }
+.copy { background: var(--card); border: 1px dashed var(--nav-line); border-radius: 18px; padding: 12px 16px; font-size: 13px; line-height: 1.6; color: var(--muted); }
+.copy b { color: var(--ink); }
+
+/* 상태 */
+.states { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.state { background: var(--card); border-radius: 24px; padding: 20px; box-shadow: var(--card-shadow); min-width: 0; }
+.state small { color: var(--muted); font-size: 12px; display: block; margin-top: 12px; }
+.banner { border-radius: 18px; padding: 14px; font-size: 14px; display: flex; gap: 10px; align-items: flex-start; }
+.banner b { display: block; }
+.banner.warn { background: var(--yellow-soft); }
+.banner.err { background: var(--red-soft); }
+.banner i { font-style: normal; font-weight: 900; width: 24px; height: 24px; border-radius: 50%; background: var(--yellow); color: var(--on-yellow); display: grid; place-items: center; font-size: 13px; flex: none; }
+.banner.err i { background: var(--red); color: var(--card); }
+.skel { height: 20px; border-radius: 10px; background: linear-gradient(90deg, var(--line), var(--card-sub), var(--line)); }
+.empty { text-align: center; padding: 6px 0 2px; color: var(--muted); font-size: 14px; }
+.empty svg { width: 56px; height: 56px; }
+.empty b { display: block; color: var(--ink); font-size: 16px; margin: 4px 0 2px; }
+/* 깊이감: 아이콘, 버튼, 칩, 아바타에 아래로 떨어지는 은은한 그림자 */
+.quick svg, .li svg, .room svg, .amt > svg, .sum svg, .empty svg { filter: drop-shadow(0 4px 5px rgba(0, 0, 0, 0.2)); }
+.pill svg.ic { filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.18)); }
+.nav svg { filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.16)); }
+.avatar { box-shadow: 0 4px 8px rgba(0, 0, 0, 0.14), 0 1px 0 rgba(255, 255, 255, 0.6) inset; }
+.btn.g { box-shadow: 0 3px 0 rgba(0, 0, 0, 0.22), 0 12px 22px rgba(18, 128, 79, 0.32); }
+.btn.y { box-shadow: 0 3px 0 rgba(150, 100, 0, 0.35), 0 12px 22px rgba(255, 190, 30, 0.38); }
+.btn:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2), 0 6px 12px rgba(0, 0, 0, 0.15); }
+.keys span, .pick { box-shadow: 0 2px 0 rgba(0, 0, 0, 0.07), 0 4px 8px rgba(0, 0, 0, 0.06); }
+.arrow { box-shadow: 0 3px 0 rgba(150, 100, 0, 0.3), 0 6px 12px rgba(255, 190, 30, 0.4); }
+.chip, .room .live { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); }
+.nav div.on { box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1) inset, 0 1px 0 rgba(255, 255, 255, 0.5); }
+.back, .pill { box-shadow: 0 2px 4px rgba(20, 30, 25, 0.06), 0 8px 18px rgba(20, 30, 25, 0.1); }
+@media (max-width: 420px) { .screen { height: 740px; } }
+</style>
+
+<!-- 플랫 2톤 아이콘 정의: 단색 면, 둥근 모서리, 흰 글리프 -->
+<svg class="defs" aria-hidden="true">
+  <defs>
+    <symbol id="i-coin" viewBox="0 0 48 48">
+      <circle cx="24" cy="24" r="21" fill="#f8bd3e"/>
+      <text x="24" y="32" text-anchor="middle" font-size="23" font-weight="800" fill="#fff" font-family="Pretendard, sans-serif">₩</text>
+    </symbol>
+    <symbol id="i-bell" viewBox="0 0 48 48">
+      <circle cx="24" cy="6.500" r="3" fill="#f0a91c"/>
+      <path d="M24 8.500c-7.500 0-12.500 5.200-12.500 12.500v7L8 33h32l-3.500-5v-7c0-7.300-5-12.500-12.500-12.500z" fill="#ffc93c"/>
+      <rect x="7" y="32" width="34" height="6" rx="3" fill="#f0a91c"/>
+      <circle cx="24" cy="42" r="4" fill="#e59a14"/>
+    </symbol>
+    <symbol id="i-bag" viewBox="0 0 48 48">
+      <path d="M17 17c-5.500 4-9 9.500-9 16 0 6.500 6 10 16 10s16-3.500 16-10c0-6.500-3.500-12-9-16z" fill="#f8bd3e"/>
+      <path d="M16 8.500c0-1 .8-1.500 1.800-1.200 2 .6 3.400 1.200 6.200 1.200s4.200-.6 6.200-1.200c1-.3 1.800.2 1.800 1.200V15c0 1.400-1 2.500-2.500 2.500h-11C17 17.500 16 16.400 16 15z" fill="#d98d1b"/>
+      <text x="24" y="38" text-anchor="middle" font-size="17" font-weight="800" fill="#fff" font-family="Pretendard, sans-serif">₩</text>
+    </symbol>
+    <symbol id="i-book" viewBox="0 0 48 48">
+      <rect x="9" y="4" width="30" height="40" rx="6" fill="#3f97f3"/>
+      <path d="M29 4h4a6 6 0 0 1 6 6v28a6 6 0 0 1-6 6h-4z" fill="#2a78d8"/>
+      <rect x="15" y="10" width="8" height="7" rx="2" fill="#fff"/>
+    </symbol>
+    <symbol id="i-people" viewBox="0 0 48 48">
+      <circle cx="31" cy="15" r="7.500" fill="#59b57d"/>
+      <path d="M19 40c0-7 5-11.500 12-11.500S43 33 43 40z" fill="#3d9460"/>
+      <circle cx="17" cy="18" r="8.500" fill="#ffd45e"/>
+      <path d="M3 43c0-8.500 6-14 14-14s14 5.500 14 14z" fill="#f4b62a"/>
+    </symbol>
+    <symbol id="i-send" viewBox="0 0 48 48">
+      <circle cx="24" cy="24" r="21" fill="#43a96d"/>
+      <path d="M14 24h18M25 16l8 8-8 8" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    </symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M12 3 3 10v10a1 1 0 0 0 1 1h5v-6h6v6h5a1 1 0 0 0 1-1V10z" fill="currentColor"/><path d="M9.500 14.500c1.500 1.200 3.500 1.200 5 0" stroke="var(--card)" stroke-width="1.800" fill="none" stroke-linecap="round"/></symbol>
+    <symbol id="i-t1" viewBox="0 0 24 24"><circle cx="9" cy="9" r="4" fill="#9aa5a0"/><circle cx="17" cy="10" r="3" fill="#b7c0bb"/><path d="M2 20c0-4 3-6 7-6s7 2 7 6z" fill="#9aa5a0"/></symbol>
+    <symbol id="i-t2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="4" fill="#9aa5a0"/><rect x="3" y="4" width="18" height="5" rx="3" fill="#b7c0bb"/><rect x="7" y="12" width="10" height="2" rx="1" fill="#fff"/><rect x="7" y="16" width="6" height="2" rx="1" fill="#fff"/></symbol>
+    <symbol id="i-t3" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#9aa5a0"/><path d="M7 12h8M12 8l4 4-4 4" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+  <button class="themebtn" id="themebtn" type="button">라이트 / 다크</button>
+  <h1>딸랑 디자인 시안</h1>
+  <p class="lead">회색 바탕 위에 흰 카드가 떠 있고, 아이콘은 단색 2톤으로 깔끔하게, 숫자는 크고 굵게 잡았습니다. 노랑은 딸랑 방울과 코인 같은 포인트에, 초록은 주요 버튼과 이익에 씁니다. 이름과 금액은 예시입니다.</p>
+
+  <div class="stage">
+    <!-- 1. 방 홈 -->
+    <div>
+      <div class="phone"><div class="screen">
+        <div class="status"><span>9:41</span><span>5G ▮▮▮</span></div>
+        <div class="scroll">
+          <div class="head">
+            <div class="pill" style="padding:0 12px"><svg class="ic" style="width:30px;height:30px"><use href="#i-bell"/></svg></div>
+            <div class="pill"><span class="badge">1</span><svg class="ic" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0-6 6v4l-2 3h16l-2-3V9a6 6 0 0 0-6-6zM10 19a2 2 0 0 0 4 0z" fill="#8e98a1"/></svg><svg class="ic" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" stroke="#8e98a1" stroke-width="2.200" stroke-linecap="round"/></svg></div>
+          </div>
+          <div class="card">
+            <p class="title">토요일 고스톱 방이에요<br>이번 판 손익을 확인해 보세요</p>
+            <div class="room"><svg class="ic" style="width:30px;height:30px"><use href="#i-coin"/></svg>참여자 4명 · 거래 12건<span class="live"><span class="dot"></span>실시간</span></div>
+            <button class="btn g" type="button">거래 기록하기</button>
+          </div>
+          <div class="quick">
+            <div><svg><use href="#i-people"/></svg>참여자</div>
+            <div><svg><use href="#i-send"/></svg>초대하기</div>
+            <div><svg><use href="#i-bag"/></svg>정산 보기</div>
+            <div><svg><use href="#i-book"/></svg>거래 내역</div>
+          </div>
+          <div class="card" style="padding-bottom:20px">
+            <h4>내 누적 손익</h4>
+            <div class="num gain" style="font-size:27px;margin:4px 0 2px">+ 12,000원 <span class="chev">›</span></div>
+            <div class="list">
+              <div class="li"><div class="avatar" style="--c1:#7be0ac;--c2:#0b8a56">철</div><div class="grow"><small>김철수 (나)</small><div class="num gain">+ 12,000원</div></div><span class="chev">›</span></div>
+              <div class="li"><div class="avatar" style="--c1:#ffe07a;--c2:#e89b00">민</div><div class="grow"><small>박민수</small><div class="num gain">+ 3,000원</div></div><span class="chev">›</span></div>
+              <div class="li"><div class="avatar" style="--c1:#ffa79d;--c2:#d93e32">영</div><div class="grow"><small>이영희</small><div class="num loss">− 8,000원</div></div><span class="chev">›</span></div>
+            </div>
+            <div class="more">참여자 더 보기 ⌄</div>
+          </div>
+        </div>
+        <div class="nav">
+          <div class="on"><svg><use href="#i-home"/></svg>홈</div>
+          <div><svg><use href="#i-t1"/></svg>참여자</div>
+          <div><svg><use href="#i-t2"/></svg>내역</div>
+          <div><svg><use href="#i-t3"/></svg>정산</div>
+        </div>
+      </div></div>
+      <div class="cap"><b>방 홈</b>떠 있는 카드, 플랫 2톤 아이콘, 알약형 하단 탭</div>
+    </div>
+
+    <!-- 2. 거래 입력 -->
+    <div>
+      <div class="phone"><div class="screen">
+        <div class="status"><span>9:41</span><span>5G ▮▮▮</span></div>
+        <div class="scroll">
+          <div class="top2"><div class="back">‹</div><h3>거래 기록</h3><span style="width:46px"></span></div>
+          <div class="card">
+            <div class="flow">
+              <div class="person"><div class="avatar" style="--c1:#ffa79d;--c2:#d93e32">영</div><b>이영희</b><small>준 사람</small></div>
+              <div class="arrow">→</div>
+              <div class="person"><div class="avatar" style="--c1:#7be0ac;--c2:#0b8a56">철</div><b>김철수</b><small>받은 사람</small></div>
+            </div>
+            <div class="picks"><span class="pick">박민수</span><span class="pick">최준호</span><span class="pick">바꾸기</span></div>
+          </div>
+          <div class="card amt">
+            <svg style="width:56px;height:56px;margin:-6px auto 0;display:block"><use href="#i-coin"/></svg>
+            <small>얼마를 주고받았나요?</small>
+            <span class="num">5,000<span>원</span></span>
+            <div class="keys"><span>+1,000</span><span>+5,000</span><span>+10,000</span><span>지우기</span></div>
+          </div>
+          <div class="card" style="padding:16px 22px"><h4>메모 (선택)</h4><div style="margin-top:2px;font-weight:500">3판 연속 광박</div></div>
+        </div>
+        <div class="cta"><button class="btn y" type="button">5,000원 기록하기</button></div>
+      </div></div>
+      <div class="cap"><b>거래 입력</b>누가 누구에게, 얼마를 한 화면에서</div>
+    </div>
+
+    <!-- 3. 최종 정산 -->
+    <div>
+      <div class="phone"><div class="screen">
+        <div class="status"><span>9:41</span><span>5G ▮▮▮</span></div>
+        <div class="scroll">
+          <div class="top2"><div class="back">‹</div><h3>최종 정산</h3><span style="width:46px"></span></div>
+          <div class="sum"><h4>오늘 총 거래</h4><span class="num">12건 · 18,000원</span><svg><use href="#i-coin"/></svg></div>
+          <div class="card tight" style="padding-bottom:10px">
+            <h4>이렇게 보내면 끝나요</h4>
+            <div class="list">
+              <div class="li"><div class="avatar" style="--c1:#ffa79d;--c2:#d93e32">영</div><div class="grow"><small>이영희 → 김철수</small><div class="num">8,000원</div></div></div>
+              <div class="li"><div class="avatar" style="--c1:#7cc0ff;--c2:#1f66e0">준</div><div class="grow"><small>최준호 → 김철수</small><div class="num">4,000원</div></div></div>
+              <div class="li"><div class="avatar" style="--c1:#7cc0ff;--c2:#1f66e0">준</div><div class="grow"><small>최준호 → 박민수</small><div class="num">3,000원</div></div></div>
+            </div>
+          </div>
+          <div class="copy"><b>복사될 내용</b><br>[토요일 고스톱 정산]<br>이영희 → 김철수 8,000원<br>최준호 → 김철수 4,000원<br>최준호 → 박민수 3,000원</div>
+        </div>
+        <div class="cta"><button class="btn g" type="button">정산 내용 복사하기</button></div>
+      </div></div>
+      <div class="cap"><b>최종 정산</b>카톡에 붙여 넣을 텍스트가 결과물 (실제 송금은 처리하지 않음)</div>
+    </div>
+  </div>
+
+  <h2>상태 컴포넌트</h2>
+  <div class="states">
+    <div class="state"><div class="banner warn"><i>!</i><div><b>연결이 끊겼어요</b>다시 연결하면 최신 손익을 불러와요.</div></div><small>끊김: 오래된 숫자는 보여주지 않고 가립니다.</small></div>
+    <div class="state"><div class="skel" style="width:60%"></div><div style="height:12px"></div><div class="skel"></div><div style="height:12px"></div><div class="skel" style="width:75%"></div><small>복구 중: 손익 자리에 스켈레톤을 표시합니다.</small></div>
+    <div class="state"><div class="banner err"><i>?</i><div><b>기록됐는지 확인하지 못했어요</b>거래 내역에서 먼저 확인한 뒤 다시 시도하세요.</div></div><small>결과 불명: 다음에 할 행동을 문장으로 안내합니다.</small></div>
+    <div class="state"><div class="empty"><svg><use href="#i-bell"/></svg><b>아직 거래가 없어요</b>첫 거래를 기록하면 손익이 바로 보여요.</div><small>빈 상태: 무엇을 하면 채워지는지 알려줍니다.</small></div>
+  </div>
+</div>
+
+<script>
+document.getElementById("themebtn").addEventListener("click", function () {
+  var r = document.documentElement;
+  var dark = r.getAttribute("data-theme") === "dark" || (!r.getAttribute("data-theme") && matchMedia("(prefers-color-scheme: dark)").matches);
+  r.setAttribute("data-theme", dark ? "light" : "dark");
+});
+</script>

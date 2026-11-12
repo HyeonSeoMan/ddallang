@@ -128,6 +128,12 @@ describe("거래 내역 영역", () => {
     expect(screen.getByText(`t-1/방장/${fixtures.room.name}`)).toBeInTheDocument();
   });
 
+  it("[F04] 수정·삭제 자리에 `닉네임 → 닉네임 금액 단위` 요약을 넘겨 같은 금액의 행을 구분하게 한다", () => {
+    seed([tx(1, { amount: 100 }), tx(2, { amount: 100, payerId: "p-2", payeeId: "p-3" })]);
+    renderSection({ renderActions: (_t, { summary }) => <span data-testid="summary">{summary}</span> });
+    expect(screen.getAllByTestId("summary").map((e) => e.textContent)).toEqual(["가온 → 나래 100 원", "나래 → 다온 100 원"]);
+  });
+
   it("접근성 검사를 통과한다", async () => {
     seed([tx(1)], { nextCursor: "c20" });
     const { container } = renderSection();

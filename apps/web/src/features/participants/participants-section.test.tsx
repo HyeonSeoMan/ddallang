@@ -253,12 +253,19 @@ describe("참여자 영역", () => {
   });
 
   it("상태 변경 버튼을 연달아 눌러도 요청이 한 번만 나간다", async () => {
-    server.use(handler("patch", `${base}/p-1`, () => HttpResponse.json({ participant: fixtures.participants[0] })));
+    server.use(
+      handler("patch", `${base}/p-1`, async () => {
+        await delay(80); // 두 번째 클릭이 첫 요청이 진행 중일 때 들어오게 한다(응답이 즉시 오면 완료 뒤 클릭이 된다)
+        return HttpResponse.json({ participant: fixtures.participants[0] });
+      }),
+    );
     renderSection();
     const user = userEvent.setup();
     const button = screen.getByRole("button", { name: "가온 비활성화" });
     await Promise.all([user.click(button), user.click(button)]);
     await waitFor(() => expect(seen).toHaveLength(1));
+    await delay(150);
+    expect(seen).toHaveLength(1); // 늦게 오는 요청이 없다
   });
 
   it("결과 불명 안내는 알림(alert)이고, 갱신으로 이미 목표 상태가 되면 안내와 재시도가 사라진다", async () => {

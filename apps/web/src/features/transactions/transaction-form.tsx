@@ -28,7 +28,10 @@ const EMPTY: Draft = { payerId: "", payeeId: "", amount: "", reason: "", round: 
  * 거래 입력 초안. 메모리 원자라서 연결이 끊겨 영역이 가려져도 유지되고(AC-SYS-001-5) 새로고침하면 사라진다(AC-SYS-002-4).
  * 끊김 중에 작성한 입력은 복구 때 자동 제출되지 않는다(AC-SYS-002-2).
  */
-export const transactionDraftAtom = atom<Draft>(EMPTY);
+export const transactionDraftsAtom = atom<Record<string, Draft>>({});
+
+/** 초안의 키: 방과 요청자(RoomMember)별로 분리한다(S2 §5.1). 다른 방·신원으로 바뀌어도 초안이 이어지지 않는다. */
+export const draftKey = (roomId: string, memberId: string) => `${roomId}:${memberId}`;
 
 const toErrors = (field: TxField, code: ValidationReasonCode) => [fieldReasonMessage(field, code)];
 
@@ -95,9 +98,16 @@ export function TransactionForm() {
   const snapshot = useAtomValue(snapshotAtom);
   const canMutate = useCanMutate();
   const announce = useAnnounce();
-  const [draft, setDraft] = useAtom(transactionDraftAtom);
+  const [drafts, setDrafts] = useAtom(transactionDraftsAtom);
   const [clientErrors, setClientErrors] = useState<FieldErrors | null>(null);
   const roomId = snapshot?.room.id ?? "";
+  const key = draftKey(roomId, snapshot?.me.id ?? "");
+  const draft = drafts[key] ?? EMPTY;
+  const setDraft = (update: Draft | ((prev: Draft) => Draft)) =>
+    setDrafts((all) => {
+      const prev = all[key] ?? EMPTY;
+      return { ...all, [key]: typeof update === "function" ? update(prev) : update };
+    });
   // 작업 범위는 요청자(RoomMember)별로 분리한다(S2 §5.1).
   const mutation = useRoomMutation(mutationScope("create", roomId, snapshot?.me.id ?? ""));
 
@@ -110,7 +120,18 @@ export function TransactionForm() {
   const serverErrors = mutation.state?.kind === "rejected" ? mutation.state.fieldErrors : {};
   const errors: FieldErrors = clientErrors ?? serverErrors;
 
-  const set = (patch: Partial<Draft>) => setDraft((prev) => ({ ...prev, ...patch }));
+  const set = (patch: Partial<Draft>) => {
+    setDraft((prev) => ({ ...prev, ...patch }));
+    // 고친 필드의 이전 검증 오류는 지운다(다음 제출 때 다시 검증한다).
+    setClientErrors((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev };
+      for (const field of Object.keys(patch) as TxField[]) delete next[field];
+      // 지급자를 고치면 수취자 쪽의 "같은 사람" 오류는 더 이상 맞지 않을 수 있으니 함께 지운다(다른 오류는 남긴다).
+      if ("payerId" in patch && next.payeeId?.includes(fieldReasonMessage("payeeId", "SAME_AS_PAYER"))) delete next.payeeId;
+      return Object.keys(next).length > 0 ? next : null;
+    });
+  };
 
   /** 현재 입력이 유효하면 보낼 본문을, 아니면 필드별 오류를 돌려준다. */
   function build(): { body: Record<string, unknown> } | { errors: FieldErrors } {

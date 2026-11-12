@@ -243,7 +243,9 @@ function RoomScreen({ inviteCode }: { inviteCode: string }) {
           entry: <TransactionForm />,
           transactions: (
             <TransactionsSection
-              renderActions={(transaction, { me, room }) => <TransactionActions transaction={transaction} me={me} room={room} />}
+              renderActions={(transaction, { me, room, summary }) => (
+                <TransactionActions transaction={transaction} me={me} room={room} summary={summary} />
+              )}
             />
           ),
           participants: <ParticipantsSection />,

@@ -12,6 +12,7 @@ import { apiUrl, errorResponse } from "@/test/handlers";
 import { server } from "@/test/msw-server";
 import { renderApp } from "@/test/render";
 import { INVITE_CODE, seedRoom } from "@/test/room-seed";
+import { editDraftsAtom } from "./edit-state";
 import { TransactionActions } from "./transaction-actions";
 
 const KEY = "a".repeat(43);
@@ -308,8 +309,9 @@ describe("거래 수정·삭제 컨트롤 (FE-S2-3)", () => {
       expect(screen.getByText("작성자 또는 방장만 수정할 수 있습니다")).toBeInTheDocument();
     });
 
-    it("[R3-F01] 닫힌 상태에서 재시도했을 때 입력 오류가 있으면 폼을 다시 열어 사유를 보여 준다(무반응처럼 보이지 않는다)", async () => {
-      handle("put", `${base}/t-own`, () => HttpResponse.error());
+    it("[F02] 불명 뒤 입력을 바꾸고 취소하면 보냈던 입력으로 되돌아가, 닫힌 상태의 다시 시도는 같은 요청의 같은 키 재시도다", async () => {
+      let calls = 0;
+      handle("put", `${base}/t-own`, () => (++calls === 1 ? HttpResponse.error() : HttpResponse.json({ transaction: own })));
       seedRoom(store, { me: fixtures.guestMember });
       renderRow();
       const user = userEvent.setup();
@@ -318,12 +320,13 @@ describe("거래 수정·삭제 컨트롤 (FE-S2-3)", () => {
       await user.type(screen.getByLabelText("금액"), "300");
       await user.click(screen.getByRole("button", { name: "저장" }));
       await screen.findByText("결과를 확인하지 못했습니다.");
-      await user.clear(screen.getByLabelText("금액")); // 금액을 비운 채
+      await user.clear(screen.getByLabelText("금액")); // 불명 뒤 입력을 바꾸고(비우고)
+      await user.type(screen.getByLabelText("금액"), "999");
       await user.click(screen.getByRole("button", { name: "취소" })); // 닫는다
       await user.click(screen.getByRole("button", { name: "다시 시도" }));
-      // 보내지 않고, 폼이 열려 입력 오류가 보인다.
-      expect(await screen.findByLabelText("금액")).toHaveAccessibleDescription("필수 항목입니다.");
-      expect(seen).toHaveLength(1);
+      await waitFor(() => expect(seen).toHaveLength(2));
+      expect(seen[1]!.body).toEqual(seen[0]!.body); // 보냈던 내용(300) 그대로
+      expect(seen[1]!.key).toBe(seen[0]!.key); // 같은 키: 안내 문구와 일치
     });
 
     it("[R3-F01] 닫힌 상태의 재시도에 서버가 필드별 검증 거부(422)를 주면 폼을 다시 열어 필드 사유를 보여 주고 입력을 유지한다", async () => {
@@ -360,6 +363,84 @@ describe("거래 수정·삭제 컨트롤 (FE-S2-3)", () => {
       await waitFor(() => expect(seen).toHaveLength(1));
       await delay(120);
       expect(screen.getByLabelText("금액")).toHaveValue("4005"); // 새 입력이 저장된 것으로 오인돼 지워지지 않았다
+    });
+  });
+
+  describe("검수(Claude) 반영", () => {
+    it("[F03] 삭제가 성공하면 그 거래의 컨트롤이 사라지고 수정 초안·상태가 남지 않는다", async () => {
+      handle("delete", `${base}/t-own`, () => HttpResponse.json({ transactionId: "t-own", deletedAt: "x" }));
+      seedRoom(store, { me: fixtures.guestMember });
+      const view = renderApp(
+        <main>
+          <TransactionActions transaction={own} me={fixtures.guestMember} room={fixtures.room} />
+        </main>,
+        store,
+      );
+      const user = userEvent.setup();
+      await user.click(screen.getByRole("button", { name: /수정/ })); // 수정 초안을 만들어 둔다
+      await user.click(screen.getByRole("button", { name: "취소" }));
+      await user.click(screen.getByRole("button", { name: /삭제/ }));
+      await user.click(screen.getByRole("button", { name: "삭제" }));
+      await waitFor(() => expect(screen.queryByRole("button", { name: /수정/ })).not.toBeInTheDocument());
+      expect(screen.queryByRole("button")).not.toBeInTheDocument(); // 삭제된 거래를 다시 수정·삭제할 수 없다
+      expect(Object.keys(store.get(editDraftsAtom))).toEqual([]);
+      view.unmount();
+    });
+
+    it("[F04] summary가 있으면 같은 금액의 행도 접근 가능한 이름으로 구분된다", () => {
+      seedRoom(store, { me: fixtures.hostMember });
+      renderApp(
+        <main>
+          <TransactionActions transaction={own} me={fixtures.hostMember} room={fixtures.room} summary="가온 → 나래 100 원" />
+          <TransactionActions transaction={others} me={fixtures.hostMember} room={fixtures.room} summary="나래 → 다온 100 원" />
+        </main>,
+        store,
+      );
+      expect(screen.getByRole("button", { name: "거래 가온 → 나래 100 원 수정" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "거래 나래 → 다온 100 원 수정" })).toBeInTheDocument();
+    });
+
+    it("[F05] 고친 필드의 이전 검증 오류는 지워지고 다른 필드의 오류는 남는다", async () => {
+      seedRoom(store, { me: fixtures.guestMember });
+      renderApp(
+        <main>
+          <TransactionActions transaction={own} me={fixtures.guestMember} room={fixtures.room} />
+        </main>,
+        store,
+      );
+      const user = userEvent.setup();
+      await user.click(screen.getByRole("button", { name: /수정/ }));
+      await user.clear(screen.getByLabelText("금액"));
+      await user.type(screen.getByLabelText("사유 (선택)"), "\n"); // 사유 오류도 만든다
+      await user.click(screen.getByRole("button", { name: "저장" }));
+      expect(screen.getByLabelText("금액")).toHaveAccessibleDescription("필수 항목입니다.");
+      await user.type(screen.getByLabelText("금액"), "50"); // 금액을 고친다
+      expect(screen.getByLabelText("금액")).not.toHaveAccessibleDescription("필수 항목입니다.");
+      expect(seen).toHaveLength(0);
+    });
+
+    it("[F01] 수정 초안은 요청자별로 분리되어 같은 방에서 신원이 바뀌어도 이전 신원의 초안이 보이지 않는다", async () => {
+      seedRoom(store, { me: fixtures.hostMember });
+      const first = renderApp(
+        <main>
+          <TransactionActions transaction={own} me={fixtures.hostMember} room={fixtures.room} />
+        </main>,
+        store,
+      );
+      const user = userEvent.setup();
+      await user.click(screen.getByRole("button", { name: /수정/ }));
+      await user.clear(screen.getByLabelText("금액"));
+      await user.type(screen.getByLabelText("금액"), "777");
+      first.unmount();
+      seedRoom(store, { me: fixtures.guestMember }); // 같은 방, 다른 신원
+      renderApp(
+        <main>
+          <TransactionActions transaction={own} me={fixtures.guestMember} room={fixtures.room} />
+        </main>,
+        store,
+      );
+      expect(screen.queryByLabelText("금액")).not.toBeInTheDocument(); // 이전 신원의 열린 초안이 보이지 않는다
+      expect(screen.getByRole("button", { name: /수정/ })).toBeInTheDocument();
     });
   });
 

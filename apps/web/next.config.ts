@@ -17,5 +17,6 @@ export default function nextConfig(phase: string): NextConfig {
   if (phasesRequiringApiUrl.includes(phase)) {
     parseApiBaseUrl(process.env.NEXT_PUBLIC_API_BASE_URL);
   }
-  return { reactStrictMode: true };
+  // 개발 서버가 `AGENTS.md`를 자동 생성하지 않게 한다(저장소에 원치 않는 파일이 생긴다).
+  return { reactStrictMode: true, agentRules: false };
 }

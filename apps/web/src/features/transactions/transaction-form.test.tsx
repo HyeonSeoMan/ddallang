@@ -308,6 +308,44 @@ describe("거래 입력 폼 (FE-S2-2)", () => {
     });
   });
 
+  describe("검수(Claude) 반영", () => {
+    it("[F01] 입력 초안은 방별로 분리되어 다른 방으로 이동해도 이어지지 않는다", async () => {
+      mount();
+      const user = userEvent.setup();
+      await fill(user, { payer: "가온", payee: "나래", amount: "321", reason: "첫방" });
+      expect(screen.getByLabelText("금액")).toHaveValue("321");
+      // 같은 앱 상태에서 다른 방으로 들어간다.
+      act(() => {
+        const snapshot = store.get(snapshotAtom)!;
+        store.set(applySnapshotAtom, { ...snapshot, room: { ...snapshot.room, id: "room-2" } });
+      });
+      expect(screen.getByLabelText("금액")).toHaveValue("");
+      expect(screen.getByLabelText("사유 (선택)")).toHaveValue("");
+    });
+
+    it("[F05] 입력을 고친 필드의 이전 검증 오류는 지워지고 나머지 오류는 남는다", async () => {
+      mount();
+      const user = userEvent.setup();
+      await user.click(save()); // 지급자·수취자·금액 모두 필수 오류
+      expect(screen.getByLabelText("지급자")).toHaveAccessibleDescription("필수 항목입니다.");
+      await user.selectOptions(screen.getByLabelText("지급자"), "가온");
+      expect(screen.getByLabelText("지급자")).not.toHaveAccessibleDescription("필수 항목입니다.");
+      expect(screen.getByLabelText("수취자")).toHaveAccessibleDescription("필수 항목입니다."); // 아직 고치지 않음
+      await user.type(screen.getByLabelText("금액"), "10");
+      expect(screen.getByLabelText("금액")).not.toHaveAccessibleDescription("필수 항목입니다.");
+    });
+
+    it("[F05] 지급자를 바꾸면 수취자의 '같은 사람' 오류만 함께 지운다", async () => {
+      mount();
+      const user = userEvent.setup();
+      await fill(user, { payer: "가온", payee: "가온", amount: "10" });
+      await user.click(save());
+      expect(screen.getByLabelText("수취자")).toHaveAccessibleDescription("지급자와 수취자는 달라야 합니다.");
+      await user.selectOptions(screen.getByLabelText("지급자"), "나래");
+      expect(screen.getByLabelText("수취자")).not.toHaveAccessibleDescription("지급자와 수취자는 달라야 합니다.");
+    });
+  });
+
   describe("검수 R-F03·R-F05", () => {
     it("[R-F03] 저장 응답을 기다리는 사이 바꾼 입력은 이전 요청이 성공해도 지워지지 않는다", async () => {
       handle(async () => {

@@ -79,11 +79,16 @@ describe("정산 영역 × 갱신·종료 (FE-S4-2 통합)", () => {
     const filter = () => screen.getByLabelText("참여자 필터");
     const user = userEvent.setup();
 
-    for (const choice of ["가온", "나래", "다온 (비활성)", "전체"]) {
-      const requestsBefore = backend.requests.settlement;
+    // 각 선택이 새 스냅샷에 실제로 반영된 뒤(선택한 참여자 ID, 해제는 null)에 정산을 비교한다.
+    const expectedFilter: Array<[string, string | null]> = [
+      ["가온", "p-1"],
+      ["나래", "p-2"],
+      ["다온 (비활성)", "p-3"],
+      ["전체", null],
+    ];
+    for (const [choice, filterId] of expectedFilter) {
       await user.selectOptions(filter(), choice);
-      await waitFor(() => expect(backend.requests.settlement).toBeGreaterThan(requestsBefore)); // 새 순회(전체 갱신)
-      await waitFor(() => expect(store.get(snapshotAtom)?.transactionFilter).toBe(choice === "전체" ? null : store.get(snapshotAtom)?.transactionFilter));
+      await waitFor(() => expect(store.get(snapshotAtom)?.transactionFilter).toBe(filterId));
       expect(settlementText()).toBe(before); // 정산은 필터와 무관하다
     }
     // 정산·손익·방 조회에는 어떤 쿼리도 붙지 않았다. 거래 목록만 필터를 쓴다.

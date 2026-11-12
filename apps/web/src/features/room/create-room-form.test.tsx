@@ -291,6 +291,8 @@ describe("방 생성 화면", () => {
     await delay(120);
     expect(push).not.toHaveBeenCalled();
     expect(store.get(sessionAtom)).toBeNull();
+    // 방은 만들어졌으므로 키는 초대 코드에 연결되고 대기 항목은 남지 않는다.
+    expect(storage.keys()).toEqual(["ddallang:identity:created-code"]);
   });
 
   it("요청이 진행 중이면 컨트롤이 비활성화되어 중복 제출되지 않는다", async () => {

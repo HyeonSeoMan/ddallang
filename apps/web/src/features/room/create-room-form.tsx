@@ -106,21 +106,20 @@ export function CreateRoomForm() {
     try {
       const { data } = await mutation.mutateAsync(sent);
       sentRef.current = null;
-      if (!mounted.current) return;
       link({ attemptId: sent.attempt.attemptId, room: data.room, me: data.me });
     } catch (error) {
-      if (!mounted.current) return;
       const resultUnknown =
         error instanceof NetworkError ||
         (error instanceof ApiError && (error.status >= 500 || (error.status >= 200 && error.status < 300)));
       if (resultUnknown) {
         sentRef.current = sent; // 자동 재전송 없이 같은 시도로 사용자 재시도
-        setUnknown(true);
+        if (mounted.current) setUnknown(true);
         return;
       }
       // 서버가 거부(4xx)했다: 방이 만들어지지 않았으므로 시도를 끝내고 입력을 유지한다.
       sentRef.current = null;
       discardCreateAttempt(sent.attempt.attemptId);
+      if (!mounted.current) return;
       if (error instanceof ApiError) {
         const next: FieldErrors = {};
         for (const detail of error.details) {
@@ -138,7 +137,9 @@ export function CreateRoomForm() {
 
   /** 키를 초대 코드에 연결하고 방 화면으로 간다. 실패하면 새 방을 만들지 않고 연결만 다시 시도하게 한다. */
   function link(created: Created) {
+    // 방이 만들어졌다면 화면을 떠났더라도 키 연결(저장소 작업)은 끝낸다. 화면 갱신·이동만 막는다.
     const linked = completeCreateAttempt(created.attemptId, created.room.inviteCode);
+    if (!mounted.current) return;
     if (!linked.ok) {
       setLinkPending(created);
       setNotice(

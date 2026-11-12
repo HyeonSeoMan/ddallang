@@ -1,7 +1,7 @@
 "use client";
 
 import { useStore } from "jotai";
-import { type FormEvent, useEffect, useReducer, useState } from "react";
+import { type FormEvent, useEffect, useReducer, useRef, useState } from "react";
 import { css } from "styled-system/css";
 import {
   ApiError,
@@ -59,6 +59,13 @@ export function InviteScreen({ inviteCode }: { inviteCode: string }) {
   const [restoring, setRestoring] = useState(false);
 
   const api = getApiClient();
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   /** 입장 요청. 같은 신원 키의 재시도는 복원(200)이라 안전하다. 닉네임은 새 멤버일 때만 보낸다. */
   async function join(nicknameToSend: string | undefined): Promise<JoinResult> {
@@ -139,8 +146,10 @@ export function InviteScreen({ inviteCode }: { inviteCode: string }) {
 
     dispatch({ type: "SUBMIT_NICKNAME" });
     try {
-      enterRoom(await join(check.value));
+      const joined = await join(check.value);
+      if (mounted.current) enterRoom(joined);
     } catch (error) {
+      if (!mounted.current) return;
       dispatch({ type: "JOIN_REJECTED" }); // 닉네임을 유지한 채 입력 단계로 돌아간다
       if (error instanceof ApiError && error.code === "VALIDATION_FAILED") {
         setNicknameErrors(

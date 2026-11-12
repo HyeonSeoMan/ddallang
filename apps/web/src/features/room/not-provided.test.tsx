@@ -113,12 +113,15 @@ describe("S1 비제공 UI 점검", () => {
     expect(pages).toEqual(["invite/[inviteCode]/page.tsx", "page.tsx"]);
   });
 
-  it("소스에 제공하지 않는 기능의 API 호출이 없다(허용 목록: 참여자 상태 PATCH만)", () => {
+  it("소스에 제공하지 않는 기능의 API 호출이 없다(허용 목록: 참여자 상태 PATCH, 거래 수정·삭제 PUT/DELETE)", () => {
     const sources = listFiles(SRC).filter((file) => /\.(ts|tsx)$/.test(file) && !/\.test\.|\/test\//.test(file));
     const offenders: string[] = [];
     // 방·RoomMember·참여자를 수정·삭제하는 메서드 리터럴은 허용된 파일에만 있다.
-    // (거래 수정·삭제 PUT/DELETE는 S2 구현 때 해당 파일을 이 목록에 더한다.)
-    const allowed: Record<string, string[]> = { PATCH: ["participants-section.tsx"], PUT: [], DELETE: [] };
+    const allowed: Record<string, string[]> = {
+      PATCH: ["participants-section.tsx"], // 참여자 상태 변경
+      PUT: ["transaction-actions.tsx"], // 거래 수정(S2)
+      DELETE: ["transaction-actions.tsx"], // 거래 삭제(S2)
+    };
     for (const file of sources) {
       const text = readFileSync(file, "utf8");
       if (/regenerate|reissue|transfer[-_ ]?host|forceLeave|\bkick\b|links?\/new/i.test(text)) offenders.push(file);

@@ -72,7 +72,8 @@ export interface ApiClient {
 export function createApiClient(options: ApiClientOptions): ApiClient {
   const baseUrl = options.baseUrl.replace(/\/+$/, "");
   const doFetch = options.fetch ?? ((...args: Parameters<typeof fetch>) => fetch(...args));
-  const now = options.now ?? Date.now;
+  // 호출 시점에 `Date.now`를 읽는다(함수 참조를 붙잡아 두면 시계를 바꿔도 반영되지 않는다).
+  const now = options.now ?? (() => Date.now());
   let clockOffsetMs: number | null = null;
 
   function recordServerDate(response: Response) {

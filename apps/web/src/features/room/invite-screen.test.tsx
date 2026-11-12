@@ -9,6 +9,7 @@ import { installFakeStorage, type FakeStorage } from "@/test/fake-storage";
 import * as fixtures from "@/test/fixtures";
 import { apiUrl, errorResponse } from "@/test/handlers";
 import { server } from "@/test/msw-server";
+import { createFakeBackend } from "@/test/stateful-server";
 import { renderApp } from "@/test/render";
 import { InviteScreen } from "./invite-screen";
 import { sessionAtom } from "./state";
@@ -66,6 +67,8 @@ beforeEach(() => {
   seen = [];
   storage = installFakeStorage();
   installFakeLocks();
+  // 방 화면에 들어가면 스트림과 5개 조회가 시작되므로 기본 가짜 서버를 둔다(시험이 필요하면 덮어쓴다).
+  server.use(...createFakeBackend().handlers);
 });
 
 describe("초대 링크 화면", () => {

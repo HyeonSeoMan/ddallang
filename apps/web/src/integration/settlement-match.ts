@@ -20,7 +20,10 @@ export function actualRows(area: Element): string[] {
 /** 항목이 없으면 빈 문구, 있으면 행이 서버 순서·내용과 정확히 같아야 한다. */
 export function settlementMatches(area: Element | null, items: ServerItem[], unit = "원"): boolean {
   if (!area) return false;
-  if (items.length === 0) return compact(area.textContent ?? "").includes(compact("정산할 내역이 없습니다."));
+  if (items.length === 0) {
+    // 빈 문구가 있어도 항목 행이 하나라도 남아 있으면 불일치다.
+    return area.querySelectorAll("li").length === 0 && compact(area.textContent ?? "").includes(compact("정산할 내역이 없습니다."));
+  }
   const actual = actualRows(area);
   const expected = expectedRows(items, unit);
   return actual.length === expected.length && actual.every((row, i) => row === expected[i]);

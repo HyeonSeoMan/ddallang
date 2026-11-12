@@ -25,5 +25,6 @@ describe("정산 비교 도우미 (FE-I1·AC 보강)", () => {
     expect(settlementMatches(area([], "<p>정산할 내역이 없습니다.</p>"), [])).toBe(true);
     expect(settlementMatches(area(["참0 → 참1300 원"]), [])).toBe(false);
     expect(settlementMatches(null, [])).toBe(false);
+    expect(settlementMatches(area(["참0 → 참1300 원"], "<p>정산할 내역이 없습니다.</p>"), [])).toBe(false); // 빈 문구와 항목이 함께 있음
   });
 });

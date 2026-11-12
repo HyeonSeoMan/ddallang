@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "typecheck": "NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-http://localhost:3001} next typegen && tsc --noEmit",
     "test": "vitest run",
-    "check:ac": "node scripts/check-ac.mjs"
+    "check:ac": "node scripts/check-ac.mjs",
+    "smoke": "node scripts/smoke-routes.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.106.1",

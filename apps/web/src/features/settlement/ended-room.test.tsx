@@ -98,7 +98,8 @@ describe("종료 후 잠금·비제공 통합 (FE-S4-4)", () => {
   });
 
   it("[AC-SET-007-2] 소스에 확정·재개·버전·송금 상태 API 호출이 없고 종료 요청은 종료 컨트롤 하나에만 있다(자동 종료·재개 경로 없음)", () => {
-    const sources = listFiles(SRC).filter((file) => /\.(ts|tsx)$/.test(file) && !/\.test\.|\/test\//.test(file));
+    // `src/latency/`는 다른 사용자를 흉내 내는 실서버 측정 구동기(FE-S5-6)라 앱 코드가 아니므로 제외한다.
+    const sources = listFiles(SRC).filter((file) => /\.(ts|tsx)$/.test(file) && !/\.test\.|\/test\/|\/latency\//.test(file));
     const offenders: string[] = [];
     const endCallers: string[] = [];
     for (const file of sources) {

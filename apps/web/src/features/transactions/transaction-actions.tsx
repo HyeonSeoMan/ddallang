@@ -117,26 +117,35 @@ export function TransactionActions({ transaction, me, room }: { transaction: Tra
     if (result?.kind === "success") announce("거래를 삭제했습니다.");
   }
 
+  /**
+   * 수정 폼 열기. **초안이 있으면 덮어쓰지 않고 그대로 다시 연다**(결과 불명·거부 상태와 입력 모두 보존).
+   * 서버 값으로 새 초안을 만드는 것은 초안이 없을 때뿐이다.
+   */
   function startEdit() {
     setErrors(null);
-    // 결과 불명인 수정이 남아 있으면 그 상태와 입력을 지우지 않고 그대로 이어서 연다.
-    if (!unresolved) update.clear();
-    if (unresolved && draft) setDraft({ open: true });
-    else
-      setDrafts((prev) => ({
-        ...prev,
-        [transaction.id]: {
-          amount: String(transaction.amount),
-          reason: transaction.reason ?? "",
-          round: transaction.round ?? "",
-          open: true,
-        },
-      }));
+    if (draft) {
+      setDraft({ open: true });
+      return;
+    }
+    update.clear();
+    setDrafts((prev) => ({
+      ...prev,
+      [transaction.id]: {
+        amount: String(transaction.amount),
+        reason: transaction.reason ?? "",
+        round: transaction.round ?? "",
+        open: true,
+      },
+    }));
   }
 
+  /** 취소. 결과 불명인 수정만 보냈던 입력을 남겨 같은 키로 다시 시도할 수 있게 하고, 그 밖에는 초안과 결과를 함께 버린다. */
   function cancelEdit() {
-    if (unresolved) setDraft({ open: false }); // 보냈던 내용을 남겨 같은 키로 다시 시도할 수 있게 한다
-    else dropDraft();
+    if (unresolved) setDraft({ open: false });
+    else {
+      dropDraft();
+      update.clear();
+    }
     setErrors(null);
   }
 
@@ -168,7 +177,7 @@ export function TransactionActions({ transaction, me, room }: { transaction: Tra
         </form>
       ) : (
         <div className={css({ display: "flex", gap: "2" })}>
-          <Button variant="secondary" onClick={startEdit} aria-label={`${label} 수정`}>
+          <Button variant="secondary" onClick={startEdit} disabled={updating} aria-label={`${label} 수정`}>
             수정
           </Button>
           <Button variant="secondary" onClick={() => setConfirming(true)} disabled={deleting} aria-label={`${label} 삭제`}>
@@ -179,8 +188,8 @@ export function TransactionActions({ transaction, me, room }: { transaction: Tra
 
       {!editing ? (
         <>
-          {/* 폼을 닫은 뒤에도 결과 불명인 수정이 남아 있으면 안내한다(재시도는 보냈던 입력으로). */}
-          {unresolved && draft ? (
+          {/* 폼을 닫은 상태에서도 초안이 남아 있으면 결과(불명·거부·만료)를 숨기지 않는다. 재시도는 보냈던 입력으로 한다. */}
+          {draft ? (
             <MutationNotice state={update.state} onRetry={() => void save()} onConfirmNew={() => void save({ confirmNewAttempt: true })} disabled={updating} />
           ) : null}
           <MutationNotice state={remove.state} onRetry={() => void confirmDelete()} onConfirmNew={() => void confirmDelete({ confirmNewAttempt: true })} disabled={deleting} />

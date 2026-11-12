@@ -207,6 +207,66 @@ describe("거래 수정·삭제 컨트롤 (FE-S2-3)", () => {
       expect(seen[1]!.body).toEqual(seen[0]!.body);
     });
 
+    /** 결과 불명 → 취소(폼 닫힘) 상태를 만든다. */
+    async function closedUnknown(user: ReturnType<typeof userEvent.setup>) {
+      await user.click(screen.getByRole("button", { name: /수정/ }));
+      await user.clear(screen.getByLabelText("금액"));
+      await user.type(screen.getByLabelText("금액"), "300");
+      await user.click(screen.getByRole("button", { name: "저장" }));
+      await screen.findByText("결과를 확인하지 못했습니다.");
+      await user.click(screen.getByRole("button", { name: "취소" }));
+    }
+
+    it("[R2-F01] 닫힌 상태의 재시도가 진행 중일 때 수정을 열 수 없고, 응답이 또 유실돼도 안내와 같은 키 재시도·입력이 남는다", async () => {
+      let calls = 0;
+      handle("put", `${base}/t-own`, async () => {
+        calls += 1;
+        if (calls === 2) {
+          await delay(60); // 닫힌 상태의 재시도 응답이 늦게 온다
+          return HttpResponse.error(); // 그리고 또 유실된다
+        }
+        return calls === 1 ? HttpResponse.error() : HttpResponse.json({ transaction: own });
+      });
+      seedRoom(store, { me: fixtures.guestMember });
+      renderRow();
+      const user = userEvent.setup();
+      await closedUnknown(user);
+      await user.click(screen.getByRole("button", { name: "다시 시도" })); // 닫힌 상태에서 재시도
+      expect(screen.getByRole("button", { name: /수정/ })).toBeDisabled(); // 진행 중에는 열 수 없다
+      await screen.findByText("결과를 확인하지 못했습니다.", undefined, { timeout: 2000 });
+      await waitFor(() => expect(screen.getByRole("button", { name: "다시 시도" })).toBeEnabled());
+      expect(seen).toHaveLength(2);
+      expect(seen[1]!.key).toBe(seen[0]!.key); // 같은 키
+      // 다시 열면 보냈던 입력이 그대로다(서버 값으로 덮어쓰지 않는다).
+      await user.click(screen.getByRole("button", { name: /수정/ }));
+      expect(screen.getByLabelText("금액")).toHaveValue("300");
+      expect(screen.getByText("결과를 확인하지 못했습니다.")).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "다시 시도" })); // 세 번째 시도는 성공
+      await waitFor(() => expect(seen).toHaveLength(3));
+      expect(seen[2]!.key).toBe(seen[0]!.key);
+    });
+
+    it("[R2-F02] 닫힌 상태의 재시도가 확정 거부되면 거부 사유를 보이고, 다시 열어도 입력을 덮어쓰지 않는다", async () => {
+      let calls = 0;
+      handle("put", `${base}/t-own`, () =>
+        ++calls === 1 ? HttpResponse.error() : errorResponse("GAME_ENDED", { message: "이미 종료된 게임입니다" }),
+      );
+      seedRoom(store, { me: fixtures.guestMember });
+      renderRow();
+      const user = userEvent.setup();
+      await closedUnknown(user);
+      await user.click(screen.getByRole("button", { name: "다시 시도" }));
+      expect(await screen.findByText("이미 종료된 게임입니다")).toBeInTheDocument(); // 닫힌 상태에서도 보인다
+      await user.click(screen.getByRole("button", { name: /수정/ }));
+      expect(screen.getByLabelText("금액")).toHaveValue("300"); // 덮어쓰지 않았다
+      expect(screen.getByText("이미 종료된 게임입니다")).toBeInTheDocument(); // 거부 사유도 유지
+      // 거부된 수정은 취소하면 초안과 결과를 함께 버린다.
+      await user.click(screen.getByRole("button", { name: "취소" }));
+      expect(screen.queryByText("이미 종료된 게임입니다")).not.toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: /수정/ }));
+      expect(screen.getByLabelText("금액")).toHaveValue("100"); // 서버 값에서 새로 시작
+    });
+
     it("수정에 성공하면 초안이 사라지고, 응답을 기다리는 사이 바꾼 입력은 보존한다", async () => {
       handle("put", `${base}/t-own`, async () => {
         await delay(60);

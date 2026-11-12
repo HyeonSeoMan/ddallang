@@ -69,10 +69,14 @@ describe("고정 거래 기록하기 버튼 (FE-D2, U-6)", () => {
     expect(screen.queryByTestId("record-button-clearance")).not.toBeInTheDocument();
   });
 
-  it("종료된 방에서는 본문이 없는 빈 거래 입력 카드를 그리지 않는다", () => {
+  it("종료된 방에서도 거래 입력 구역은 유지되고(FD-12) 폼이 없는 제목만의 컴팩트 카드로 보인다", () => {
     mount({ status: "ENDED" });
-    expect(screen.queryByRole("heading", { level: 2, name: "거래 입력" })).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 2, name: "거래 내역" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "거래 입력" })).toBeInTheDocument();
+    const entry = document.querySelector<HTMLElement>('[data-section="entry"]')!;
+    expect(entry).toHaveAttribute("data-compact", "true");
+    expect(within(entry).queryByLabelText("지급자")).not.toBeInTheDocument();
+    // 본문이 있는 구역은 컴팩트가 아니다.
+    expect(document.querySelector('[data-section="balances"]')).not.toHaveAttribute("data-compact");
   });
 
   it("연결이 끊기면 거래 입력 구역은 다른 구역처럼 제목만 남는다(가려진 이유는 연결 배너가 알린다)", () => {

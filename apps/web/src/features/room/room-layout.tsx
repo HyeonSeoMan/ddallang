@@ -46,15 +46,15 @@ export function RoomSection({
   const canMutate = useAtomValue(canMutateAtom);
   const heading = visible ? title : ROOM_SECTION_TITLES[id];
   const SectionIcon = SECTION_ICONS[id];
-  // 게임이 끝나면 거래 입력 폼이 없어(S2 §9) 제목만 있는 빈 카드가 된다. 데이터가 보이는 종료 상태에서는 구역을 그리지 않는다.
-  // 끊김 중에는 다른 구역과 같이 제목만 남긴다(가려진 이유는 연결 배너가 알린다).
-  if (id === "entry" && visible && !canMutate) return null;
+  // 구역 구조는 바꾸지 않는다(FD-12). 본문이 없는 구역은 제목만 있는 컴팩트한 카드로 보인다:
+  // 끊김 중(가려진 이유는 연결 배너가 알린다), 그리고 게임이 끝나 거래 입력 폼이 없는 거래 입력 구역(S2 §9).
+  const compact = !visible || (id === "entry" && !canMutate);
   return (
     <section
       aria-labelledby={headingId}
       data-section={id}
       className={css({ mt: "4", p: "5", bg: "paper", borderRadius: "lg", boxShadow: "card" })}
-      data-hidden={visible ? undefined : "true"}
+      data-compact={compact ? "true" : undefined}
     >
       <h2
         id={headingId}
@@ -63,8 +63,14 @@ export function RoomSection({
         <SectionIcon size={28} />
         {heading}
       </h2>
-      {/* 본문이 가려진 동안(끊김)에는 제목만 남아 카드가 무겁지 않게 제목 아래 여백을 두지 않는다. */}
-      {visible ? <div className={css({ mt: "3" })}><ServerDataGate>{children}</ServerDataGate></div> : <ServerDataGate>{children}</ServerDataGate>}
+      {/* 제목만 남는 카드가 무겁지 않도록 컴팩트일 때는 제목 아래 여백을 두지 않는다. */}
+      {compact ? (
+        <ServerDataGate>{children}</ServerDataGate>
+      ) : (
+        <div className={css({ mt: "3" })}>
+          <ServerDataGate>{children}</ServerDataGate>
+        </div>
+      )}
     </section>
   );
 }

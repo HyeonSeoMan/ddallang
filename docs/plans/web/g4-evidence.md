@@ -250,7 +250,7 @@ Orca 내장 브라우저에서 같은 프로필의 두 탭으로 같은 초대 �
 | #34 | FE-S5-6 지연 측정 | Codex 2/3(REVISE → PASS) |
 | #35 | FE-I1 연동 점검 | Codex 2/3(REVISE → PASS), 추론 강도 medium |
 | #37 | AC 4건 실서버 보강·R 15행 재판정 | Codex 2/3(REVISE → PASS), 마지막 Minor 2건 반영분은 재검수 없음 |
-| 검수 공백 후속 PR | S1 방 화면(#29)·S2(#31) 사후 Codex 검수와 수정 | **S1 방 화면: Codex 2/3(REVISE → PASS, 지적 없음)**. **S2: Codex 3/3 모두 REVISE**(1회차 Major 0·Minor 2, 2회차 Minor 1, 3회차 Minor 2 — 모두 Minor이며 앞선 3회의 Major 지적이 해소됐음을 확인한 뒤의 후속 지적) → 전부 반영, **3회차 반영분은 Codex 재검수를 받지 못해** 사용자 결정으로 Claude 독립 검수(새 세션, 읽기 전용)로 대체. Codex PASS는 S2에서 한 번도 받지 못함 |
+| 검수 공백 후속 PR | S1 방 화면(#29)·S2(#31) 사후 Codex 검수와 수정 | **S1 방 화면: Codex 2/3(REVISE → PASS, 지적 없음)**. **S2: Codex 3/3 모두 REVISE**(1회차 Major 0·Minor 2, 2회차 Minor 1, 3회차 Minor 2 — 모두 Minor이며 앞선 3회의 Major 지적이 해소됐음을 확인한 뒤의 후속 지적) → 전부 반영, **3회차 반영분은 Codex 재검수를 받지 못해** 사용자 결정으로 Claude 독립 검수(새 세션, 읽기 전용, 정적)로 대체 — **PASS(Minor 4: 원자 전체 구독·고아 주석은 반영, 마운트 시에만 정리되어 범위당 1건 잔존 가능·로컬 오류 우선 표시는 코드 주석에 한계로 기록, 이 Minor 반영분은 재검수 없음)**. Codex PASS는 S2에서 한 번도 받지 못함 |
 
 Codex 검수는 모두 읽기 전용이다. 대부분 시험·측정을 재실행하지 않고 구현자 기록을 읽었으며(#29의 S5 코어 검수는 관련 시험을 일부 실행했고 typecheck·lint·build·전체 시험은 재실행하지 않음), 검수 방식별 한계는 각 PR 본문에 있다. Codex·Claude PASS는 사용자 승인이 아니다.
 

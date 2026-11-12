@@ -56,6 +56,20 @@ describe("방 정보 영역", () => {
     expect(clipboard.written).toEqual([link]);
   });
 
+  it("[Codex F01] 초대 링크도 다시 복사하면 이전 성공 문구가 지워지고 반복 성공이 새 노드로 안내된다", async () => {
+    seedRoom(store);
+    const user = userEvent.setup(); // user-event가 클립보드 스텁을 붙이므로 모의는 그 뒤에 만든다
+    const clipboard = mockClipboard({ manual: true });
+    renderApp(<RoomInfo />, store);
+    await user.click(screen.getByRole("button", { name: "초대 링크 복사" }));
+    act(() => clipboard.resolve());
+    const first = await screen.findByText("초대 링크를 복사했습니다.");
+    await user.click(screen.getByRole("button", { name: "초대 링크 복사" }));
+    expect(screen.queryByText("초대 링크를 복사했습니다.")).not.toBeInTheDocument();
+    act(() => clipboard.resolve());
+    expect(await screen.findByText("초대 링크를 복사했습니다.")).not.toBe(first);
+  });
+
   it("복사에 실패하면 실패를 알리고 성공으로 표시하지 않는다", async () => {
     seedRoom(store);
     mockClipboard({ fail: true });

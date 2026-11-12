@@ -21,6 +21,8 @@ export interface FakeBackend {
   failing: Set<ReadEndpoint>;
   /** 지금까지 받은 조회 요청 수(엔드포인트별). */
   requests: Record<ReadEndpoint, number>;
+  /** 조회 엔드포인트별로 받은 쿼리 문자열 기록(정산·손익·방 조회에 쿼리가 없는지 검증용). */
+  searches: Record<ReadEndpoint, string[]>;
   /** 거래 목록 조회 쿼리 기록(필터·커서 검증용). */
   transactionQueries: Array<{ participantId: string | null; cursor: string | null }>;
   /** 마지막 `/events` 연결. 시험이 이벤트를 밀어 넣는다. */
@@ -41,6 +43,7 @@ export function createFakeBackend(): FakeBackend {
     latency: {},
     failing: new Set(),
     requests: { room: 0, participants: 0, balances: 0, transactions: 0, settlement: 0 },
+    searches: { room: [], participants: [], balances: [], transactions: [], settlement: [] },
     transactionQueries: [],
     stream: null,
     commit(event, extra = {}) {
@@ -61,8 +64,9 @@ export function createFakeBackend(): FakeBackend {
   };
 
   const read = (endpoint: ReadEndpoint, path: string, body: () => JsonBodyType) =>
-    http.get(apiUrl(`/rooms/${fixtures.room.id}${path}`), async () => {
+    http.get(apiUrl(`/rooms/${fixtures.room.id}${path}`), async ({ request }) => {
       backend.requests[endpoint] += 1;
+      backend.searches[endpoint].push(new URL(request.url).search);
       const wait = backend.latency[endpoint];
       if (wait) await delay(wait);
       if (backend.failing.has(endpoint)) return new HttpResponse(null, { status: 503 });
@@ -81,6 +85,7 @@ export function createFakeBackend(): FakeBackend {
       const participantId = url.searchParams.get("participantId");
       const cursor = url.searchParams.get("cursor");
       backend.transactionQueries.push({ participantId, cursor });
+      backend.searches.transactions.push(url.search);
       const wait = backend.latency.transactions;
       if (wait) await delay(wait);
       if (backend.failing.has("transactions")) return new HttpResponse(null, { status: 503 });

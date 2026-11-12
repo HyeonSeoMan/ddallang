@@ -18,17 +18,19 @@ import { Badge } from "@/ui/badge";
 import { Banner } from "@/ui/banner";
 import { Button } from "@/ui/button";
 import { TextField } from "@/ui/text-field";
+import { ConnectionBanner } from "@/features/realtime/connection-banner";
 import { useRoomConnection } from "@/features/realtime/use-room-connection";
 import { BalancesSection } from "@/features/balances/balances-section";
 import { TransactionActions } from "@/features/transactions/transaction-actions";
 import { TransactionForm } from "@/features/transactions/transaction-form";
 import { TransactionsSection } from "@/features/transactions/transactions-section";
+import { SettlementSection } from "@/features/settlement/settlement-section";
 import { ParticipantsSection } from "@/features/participants/participants-section";
 import { initialInviteStage, type InviteStage, inviteReducer } from "./invite-stage";
 import { IDENTITY_KEY_NOTICE, reasonMessage } from "./messages";
 import { RoomInfo } from "./room-info";
 import { RoomLayout } from "./room-layout";
-import { sessionAtom } from "./state";
+import { sessionAtom, snapshotAtom } from "./state";
 
 const NETWORK_MESSAGE = "응답을 받지 못했습니다. 네트워크를 확인하고 다시 시도해 주세요.";
 
@@ -237,21 +239,35 @@ function RoomScreen({ inviteCode }: { inviteCode: string }) {
   return session?.inviteCode === inviteCode ? (
     <>
       <RoomConnection inviteCode={inviteCode} roomId={session.roomId} />
-      <RoomLayout slots={{
-          info: <RoomInfo />,
-          balances: <BalancesSection />,
-          entry: <TransactionForm />,
-          transactions: (
-            <TransactionsSection
-              renderActions={(transaction, { me, room, summary }) => (
-                <TransactionActions transaction={transaction} me={me} room={room} summary={summary} />
-              )}
-            />
-          ),
-          participants: <ParticipantsSection />,
-        }} />
+      <RoomBody />
     </>
   ) : null;
+}
+
+function RoomBody() {
+  const snapshot = useAtomValue(snapshotAtom);
+  // 정산 영역의 이름은 서버가 정한 `kind`를 따른다(예상 정산 / 최종 정산). 데이터가 보일 때만 적용된다.
+  const titles = snapshot ? { settlement: snapshot.settlement.kind === "FINAL" ? "최종 정산" : "예상 정산" } : {};
+  return (
+    <RoomLayout
+      banner={<ConnectionBanner />}
+      titles={titles}
+      slots={{
+        info: <RoomInfo />,
+        balances: <BalancesSection />,
+        settlement: <SettlementSection />,
+        entry: <TransactionForm />,
+        transactions: (
+          <TransactionsSection
+            renderActions={(transaction, { me, room, summary }) => (
+              <TransactionActions transaction={transaction} me={me} room={room} summary={summary} />
+            )}
+          />
+        ),
+        participants: <ParticipantsSection />,
+      }}
+    />
+  );
 }
 
 function RoomConnection({ inviteCode, roomId }: { inviteCode: string; roomId: string }) {

@@ -16,7 +16,9 @@ export type InviteEvent =
   /** 입장 거부(`NICKNAME_TAKEN`·한도 등). 입력한 닉네임을 유지한 채 닉네임 단계로 돌아간다. */
   | { type: "JOIN_REJECTED" }
   /** 복원 입장이 실패하면 닉네임 단계가 아니라 오류다(키는 있는데 방이 없는 경우 등). */
-  | { type: "RESTORE_FAILED"; code: string };
+  | { type: "RESTORE_FAILED"; code: string }
+  /** 오류 단계에서 사용자가 다시 시도한다(네트워크 오류 등). */
+  | { type: "RETRY" };
 
 export const initialInviteStage: InviteStage = { stage: "checking" };
 
@@ -36,5 +38,7 @@ export function inviteReducer(state: InviteStage, event: InviteEvent): InviteSta
       return state.stage === "joining" ? { stage: "nickname" } : state;
     case "RESTORE_FAILED":
       return state.stage === "joining" ? { stage: "error", code: event.code } : state;
+    case "RETRY":
+      return state.stage === "error" ? { stage: "checking" } : state;
   }
 }

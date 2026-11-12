@@ -1,6 +1,6 @@
 // 연결 제어·재연결(FE-S5-3, S5 §6.5·§6.6): 스트림 하나를 열고 끊김을 판정하며 다시 연결한다.
 // 시간·네트워크·브라우저 이벤트는 모두 주입받아 가짜 시계와 가짜 스트림으로 시험한다(FD-8).
-import { ApiError } from "@/lib/api";
+import { isInaccessibleError } from "./access";
 import type { Coordinator } from "./coordinator";
 import type { EventStreamEnd } from "./event-stream";
 import type { SseItem } from "./sse-parser";
@@ -84,7 +84,6 @@ export function createRoomConnection(deps: ConnectionDeps): RoomConnection {
   let connSeq = 0;
   let controller: AbortController | null = null;
   let coordinator: Coordinator | null = null;
-  let open = false;
   let lastActivity = 0;
   let hiddenSince: number | null = null;
   /** 연속 실패 횟수. 재연결 뒤 첫 갱신 주기가 성공해야만 0으로 돌아간다. */
@@ -93,6 +92,8 @@ export function createRoomConnection(deps: ConnectionDeps): RoomConnection {
   let hasBeenDisconnected = false;
   let limitWait = false;
   let watchdog: ReturnType<typeof setTimeout> | undefined;
+  /** 스트림이 열린 뒤 `ready`가 오지 않는 경우를 끊는 시한(열기 전 시한은 `watchdog`이 맡는다). */
+  let readyTimer: ReturnType<typeof setTimeout> | undefined;
   let retryTimer: ReturnType<typeof setTimeout> | undefined;
   let recoveredTimer: ReturnType<typeof setTimeout> | undefined;
   let removeListeners: Array<() => void> = [];
@@ -113,12 +114,12 @@ export function createRoomConnection(deps: ConnectionDeps): RoomConnection {
   function dropConnection() {
     connSeq += 1;
     clearTimer(watchdog);
+    clearTimer(readyTimer);
     clearTimer(recoveredTimer);
     controller?.abort();
     controller = null;
     coordinator?.dispose();
     coordinator = null;
-    open = false;
     firstCycleDone = false;
     deps.setConnected(false);
   }
@@ -169,7 +170,7 @@ export function createRoomConnection(deps: ConnectionDeps): RoomConnection {
 
   function onRefreshFailed(connId: number, error: unknown) {
     if (connId !== connSeq) return;
-    if (error instanceof ApiError && (error.status === 401 || error.status === 404)) {
+    if (isInaccessibleError(error)) {
       goFatal(); // 재시도 없이 오류를 안내한다
       return;
     }
@@ -183,7 +184,7 @@ export function createRoomConnection(deps: ConnectionDeps): RoomConnection {
         return;
       case "rejected": {
         const { status, retryAfterSeconds } = end.error;
-        if (status === 401 || status === 404) {
+        if (isInaccessibleError(end.error)) {
           goFatal();
           return;
         }
@@ -218,15 +219,22 @@ export function createRoomConnection(deps: ConnectionDeps): RoomConnection {
     controller = ctl;
     const connId = ++connSeq;
     deps.setPhase(hasBeenDisconnected ? "reconnecting" : "connecting");
+    // 연결을 시도하는 동안에도 같은 무수신 시한을 적용한다. 응답 헤더가 오지 않고 `fetch`가 멈춰도 복구된다.
+    lastActivity = deps.now();
+    armWatchdog();
 
     const end = await deps.openStream({
       signal: ctl.signal,
       onOpen() {
         if (connId !== connSeq) return;
-        open = true;
         lastActivity = deps.now();
         armWatchdog();
         deps.setConnected(true);
+        // 열린 뒤 `ready`가 오지 않으면(하트비트만 오는 경우 포함) 데이터가 영원히 비므로 끊고 다시 연결한다.
+        clearTimer(readyTimer);
+        readyTimer = setTimeout(() => {
+          if (connId === connSeq && !coordinator) goDisconnected("reconnect-wait");
+        }, STALE_AFTER_MS);
       },
       onActivity() {
         if (connId !== connSeq) return;
@@ -237,6 +245,7 @@ export function createRoomConnection(deps: ConnectionDeps): RoomConnection {
         if (connId !== connSeq) return;
         if (item.kind === "event" && item.event === "ready") {
           // 새 `ready`마다 연결 세대를 올리고(스냅샷을 비운다) `seen`을 재설정해 전체 재동기화한다.
+          clearTimer(readyTimer);
           coordinator?.dispose();
           const epoch = deps.startEpoch();
           coordinator = deps.createCoordinator(epoch, {
@@ -254,7 +263,7 @@ export function createRoomConnection(deps: ConnectionDeps): RoomConnection {
     if (stopped || fatal) return;
     if (limitWait) return; // 429: Retry-After 이상 간격을 지킨다
     if (controller) {
-      if (open) checkStale(); // 이미 연결 중이거나 열려 있으면 새로 시작하지 않는다
+      checkStale(); // 연결 중이거나 열려 있으면 새로 시작하지 않되 멈춘 연결은 끊는다
       return;
     }
     void connect(); // 대기 중이어도 즉시 시도
@@ -270,7 +279,7 @@ export function createRoomConnection(deps: ConnectionDeps): RoomConnection {
     deps.setPhase("offline");
   }
 
-  /** 열려 있는 연결이 백그라운드 동안 하트비트를 놓쳤을 수 있다면 즉시 끊고 다시 연결한다. */
+  /** 연결(시도 중 포함)이 백그라운드 동안 수신을 놓쳤을 수 있다면 즉시 끊고 다시 연결한다. */
   function checkStale(hiddenFor = 0) {
     if (hiddenFor > HIDDEN_LIMIT_MS || deps.now() - lastActivity > STALE_AFTER_MS) {
       goDisconnected("immediate");
@@ -287,7 +296,7 @@ export function createRoomConnection(deps: ConnectionDeps): RoomConnection {
     hiddenSince = null;
     if (limitWait) return;
     if (controller) {
-      if (open) checkStale(hiddenFor);
+      checkStale(hiddenFor);
       return;
     }
     void connect(); // 대기 중이어도 즉시 시도

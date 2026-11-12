@@ -69,6 +69,14 @@ describe("SSE 파서", () => {
     expect(parseAll("event: x\ndata: {broken\n\n")[0]).toMatchObject({ event: "x", data: null, malformed: true });
   });
 
+  it("스트림 맨 앞의 BOM(U+FEFF)은 버린다", () => {
+    const parser = createSseParser();
+    const items = [...parser.feed("\uFEFFevent: ready\ndata: {\"revision\":1}\n\n"), ...parser.end()];
+    expect(items).toEqual([{ kind: "event", id: null, event: "ready", data: { revision: 1 }, malformed: false }]);
+    // 맨 앞이 아닌 BOM은 필드 이름의 일부로 남아 알 수 없는 필드로 무시된다.
+    expect(parseAll("event: a\n\uFEFFdata: {}\n\n")[0]).toMatchObject({ event: "a", data: null });
+  });
+
   it("data가 없는 이벤트는 data가 null이고 malformed가 아니다", () => {
     expect(parseAll("event: x\n\n")[0]).toMatchObject({ event: "x", data: null, malformed: false });
   });

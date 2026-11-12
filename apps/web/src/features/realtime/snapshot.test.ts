@@ -102,6 +102,35 @@ describe("fetchRoomSnapshot", () => {
     await expect(fetchRoomSnapshot(env.api, request)).rejects.toMatchObject({ status: 404, code: "ROOM_NOT_FOUND" });
   });
 
+  it("접근 불가(401·ROOM_NOT_FOUND)가 다른 실패와 섞이면 접근 불가 오류를 우선한다", async () => {
+    const env = setup((path) => {
+      if (path.endsWith("/balances")) return new Response("{}", { status: 503 });
+      if (path.endsWith("/settlement"))
+        return new Response(JSON.stringify({ error: { code: "ROOM_NOT_FOUND", message: "m" } }), { status: 404 });
+      return ok(path);
+    });
+    await expect(fetchRoomSnapshot(env.api, request)).rejects.toMatchObject({ status: 404, code: "ROOM_NOT_FOUND" });
+  });
+
+  it("중단 신호를 5개 요청 모두에 전달해 진행 중인 조회를 취소한다", async () => {
+    const signals: AbortSignal[] = [];
+    const fetchMock = vi.fn<typeof fetch>(
+      (_input, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          signals.push(init!.signal!);
+          init!.signal!.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+        }),
+    );
+    const api = createApiClient({ baseUrl: "http://api.test", fetch: fetchMock });
+    const controller = new AbortController();
+    const pending = fetchRoomSnapshot(api, request, controller.signal);
+    await Promise.resolve();
+    expect(signals).toHaveLength(5);
+    controller.abort();
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(signals.every((signal) => signal.aborted)).toBe(true);
+  });
+
   it("방 status와 정산 kind가 어긋나면 반영하지 않는다", async () => {
     const mismatch = setup((path) => ok(path, "FINAL", "IN_PROGRESS"));
     expect(await fetchRoomSnapshot(mismatch.api, request)).toEqual({ ok: false, reason: "status-mismatch" });

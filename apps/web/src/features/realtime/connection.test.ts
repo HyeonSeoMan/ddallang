@@ -311,10 +311,13 @@ describe("연결 제어·재연결", () => {
   });
 
   describe("열기 전 오류", () => {
-    it.each([401, 404])("%s는 재시도 없이 접근 불가 상태가 된다", async (status) => {
+    it.each([
+      [401, "UNAUTHENTICATED"],
+      [404, "ROOM_NOT_FOUND"],
+    ])("%s %s는 재시도 없이 접근 불가 상태가 된다", async (status, code) => {
       const h = harness();
       h.connection.start();
-      await h.end({ kind: "rejected", error: new ApiError({ status, code: "X", message: "m" }) });
+      await h.end({ kind: "rejected", error: new ApiError({ status, code, message: "m" }) });
       expect(h.lastPhase()).toBe("inaccessible");
       expect(h.lastConnected()).toBe(false);
       await clock.advance(5 * 60_000);
@@ -322,6 +325,15 @@ describe("연결 제어·재연결", () => {
       h.setOnline(true); // 이벤트로도 다시 시도하지 않는다
       h.setVisible(true);
       expect(h.streams).toHaveLength(1);
+    });
+
+    it("404 ROUTE_NOT_FOUND 같은 다른 404는 접근 불가로 보지 않고 일반 간격으로 재시도한다", async () => {
+      const h = harness();
+      h.connection.start();
+      await h.end({ kind: "rejected", error: new ApiError({ status: 404, code: "ROUTE_NOT_FOUND", message: "m" }) });
+      expect(h.lastPhase()).toBe("reconnecting");
+      await clock.advance(1000);
+      expect(h.streams).toHaveLength(2);
     });
 
     it("갱신 중 401·404도 재시도 없이 접근 불가다", async () => {
@@ -474,6 +486,65 @@ describe("연결 제어·재연결", () => {
       h.setOnline(true);
       expect(h.streams).toHaveLength(2);
       expect(h.coordinators[0]!.disposed).toBe(true);
+    });
+  });
+
+  describe("연결 시도 중 멈춤(검수 F01·F02)", () => {
+    it("응답 헤더가 오지 않고 fetch가 멈추면 40초 뒤 끊고 다시 연결한다", async () => {
+      const h = harness();
+      h.connection.start(); // openStream이 영원히 끝나지 않는다
+      await clock.advance(STALE_AFTER_MS - 1);
+      expect(h.streams).toHaveLength(1);
+      await clock.advance(1);
+      expect(h.streams[0]!.handlers.signal.aborted).toBe(true);
+      await clock.advance(1000);
+      expect(h.streams).toHaveLength(2);
+    });
+
+    it("연결 시도 중 오래 숨겨졌다가 보이면 멈춘 시도를 끊고 즉시 다시 시도한다", async () => {
+      const h = harness();
+      h.connection.start();
+      h.setVisible(false);
+      clock.setSystemTime(Date.now() + HIDDEN_LIMIT_MS + 1);
+      h.setVisible(true);
+      expect(h.streams[0]!.handlers.signal.aborted).toBe(true);
+      expect(h.streams).toHaveLength(2);
+    });
+
+    it("연결 시도 중 짧게 숨겼다 보이거나 online이 와도 시도를 끊지 않는다", async () => {
+      const h = harness();
+      h.connection.start();
+      h.setVisible(false);
+      await clock.advance(1000);
+      h.setVisible(true);
+      h.setOnline(true);
+      expect(h.streams).toHaveLength(1);
+      expect(h.streams[0]!.handlers.signal.aborted).toBe(false);
+    });
+
+    it("열렸지만 40초 안에 ready가 오지 않으면(하트비트만 와도) 끊고 다시 연결한다", async () => {
+      const h = harness();
+      h.connection.start();
+      h.streams[0]!.handlers.onOpen();
+      for (let i = 0; i < 3; i += 1) {
+        await clock.advance(15_000);
+        h.streams[0]!.handlers.onActivity(); // 하트비트만 온다
+        h.streams[0]!.handlers.onItem({ kind: "event", id: null, event: "heartbeat", data: { revision: 1 }, malformed: false });
+      }
+      expect(h.lastConnected()).toBe(false);
+      expect(h.streams[0]!.handlers.signal.aborted).toBe(true);
+      expect(h.coordinators).toHaveLength(0);
+    });
+
+    it("ready가 제때 오면 이 시한은 취소된다", async () => {
+      const h = harness();
+      h.connection.start();
+      await h.openAndReady();
+      for (let i = 0; i < 5; i += 1) {
+        await clock.advance(30_000);
+        h.streams[0]!.handlers.onActivity();
+      }
+      expect(h.lastConnected()).toBe(true);
     });
   });
 

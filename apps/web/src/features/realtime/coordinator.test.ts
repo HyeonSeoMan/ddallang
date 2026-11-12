@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { RoomSnapshot } from "@/features/room/state";
 import * as fixtures from "@/test/fixtures";
-import { createCoordinator, MAX_STATUS_MISMATCH_RETRIES, StatusMismatchError } from "./coordinator";
+import { createCoordinator, mismatchRetryDelay } from "./coordinator";
 import type { SnapshotResult } from "./snapshot";
 import type { SseItem } from "./sse-parser";
 
@@ -38,7 +38,9 @@ function setup(options: { apply?: (s: RoomSnapshot) => boolean } = {}) {
   const pending: Deferred[] = [];
   let started = 0;
   const applied: RoomSnapshot[] = [];
-  const fetchSnapshot = vi.fn(() => {
+  const signals: AbortSignal[] = [];
+  const fetchSnapshot = vi.fn((signal: AbortSignal) => {
+    signals.push(signal);
     started += 1;
     return new Promise<SnapshotResult>((resolve, reject) => pending.push({ resolve, reject }));
   });
@@ -57,7 +59,7 @@ function setup(options: { apply?: (s: RoomSnapshot) => boolean } = {}) {
     pending.shift()!.resolve({ ok: true, snapshot: snapshot(epoch, label) });
     await flush();
   };
-  return { coordinator, deps, applied, pending, succeed, started: () => started };
+  return { coordinator, deps, applied, pending, succeed, signals, started: () => started };
 }
 
 const flush = async () => {
@@ -234,28 +236,51 @@ describe("갱신 코디네이터", () => {
     expect(env.started()).toBe(1);
   });
 
+  it("dispose하면 진행 중인 조회를 중단한다(끊김·언마운트 뒤에 요청이 남지 않는다)", async () => {
+    const env = setup();
+    env.coordinator.handle(ready(1));
+    expect(env.signals[0]!.aborted).toBe(false);
+    env.coordinator.dispose();
+    expect(env.signals[0]!.aborted).toBe(true);
+  });
+
   describe("방 상태와 정산 종류 불일치", () => {
-    it("반영하지 않고 바로 다시 조회하며, 일치하면 반영한다", async () => {
-      const env = setup();
-      env.coordinator.handle(ready(1));
-      env.pending.shift()!.resolve({ ok: false, reason: "status-mismatch" });
-      await flush();
-      expect(env.applied).toHaveLength(0);
-      expect(env.started()).toBe(2);
-      await env.succeed("일치");
-      expect(env.applied).toHaveLength(1);
-      expect(env.coordinator.state.dirty).toBe(false);
+    it("반영하지 않고 짧은 대기 뒤 다시 조회하며 연결 실패로 알리지 않고, 일치하면 반영한다", async () => {
+      vi.useFakeTimers();
+      try {
+        const env = setup();
+        env.coordinator.handle(ready(1));
+        env.pending.shift()!.resolve({ ok: false, reason: "status-mismatch" });
+        await vi.advanceTimersByTimeAsync(mismatchRetryDelay(1) - 1);
+        expect(env.started()).toBe(1); // 대기 중
+        await vi.advanceTimersByTimeAsync(1);
+        expect(env.started()).toBe(2);
+        expect(env.applied).toHaveLength(0);
+        await env.succeed("일치");
+        expect(env.applied).toHaveLength(1);
+        expect(env.coordinator.state.dirty).toBe(false);
+        expect(env.deps.onRefreshFailed).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
-    it(`연속 ${MAX_STATUS_MISMATCH_RETRIES}회를 넘게 어긋나면 갱신 실패로 알린다`, async () => {
-      const env = setup();
-      env.coordinator.handle(ready(1));
-      for (let i = 0; i <= MAX_STATUS_MISMATCH_RETRIES; i += 1) {
-        env.pending.shift()!.resolve({ ok: false, reason: "status-mismatch" });
-        await flush();
+    it("계속 어긋나도 연결 실패로 보지 않고 대기를 늘려(최대 3초) 재조회한다", async () => {
+      expect([1, 2, 3, 4, 5, 9].map(mismatchRetryDelay)).toEqual([250, 500, 1000, 2000, 3000, 3000]);
+      vi.useFakeTimers();
+      try {
+        const env = setup();
+        env.coordinator.handle(ready(1));
+        for (let i = 1; i <= 6; i += 1) {
+          env.pending.shift()!.resolve({ ok: false, reason: "status-mismatch" });
+          await vi.advanceTimersByTimeAsync(mismatchRetryDelay(i));
+        }
+        expect(env.started()).toBe(7);
+        expect(env.applied).toHaveLength(0);
+        expect(env.deps.onRefreshFailed).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
       }
-      expect(env.applied).toHaveLength(0);
-      expect(env.deps.onRefreshFailed).toHaveBeenCalledWith(expect.any(StatusMismatchError));
     });
   });
 });

@@ -11,6 +11,7 @@ import {
   type Transaction,
 } from "@/lib/api";
 import type { RoomSnapshot } from "@/features/room/state";
+import { isInaccessibleError } from "./access";
 
 export interface SnapshotRequest {
   roomId: string;
@@ -32,11 +33,12 @@ export type SnapshotResult =
 export async function fetchRoomSnapshot(
   api: ApiClient,
   request: SnapshotRequest,
+  signal?: AbortSignal,
 ): Promise<SnapshotResult> {
   const base = `/rooms/${encodeURIComponent(request.roomId)}`;
   const headers = bearerHeader(request.identityKey);
   const get = <T>(path: string, query?: Record<string, string | undefined>) =>
-    api.request<T>({ method: "GET", path: `${base}${path}`, query, headers });
+    api.request<T>({ method: "GET", path: `${base}${path}`, query, headers, signal });
 
   const results = await Promise.allSettled([
     get<{ room: Room; me: RoomMember }>(""),
@@ -48,9 +50,10 @@ export async function fetchRoomSnapshot(
     get<{ settlement: Settlement }>("/settlement"),
   ]);
 
-  // 하나라도 실패했으면 첫 오류를 던지고 일부도 반영하지 않는다.
-  for (const result of results) {
-    if (result.status === "rejected") throw result.reason;
+  // 하나라도 실패했으면 일부도 반영하지 않고 오류를 던진다. 접근 불가(401·404)가 섞여 있으면 그것을 우선한다.
+  const rejected = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+  if (rejected.length > 0) {
+    throw (rejected.find((r) => isInaccessibleError(r.reason)) ?? rejected[0]!).reason;
   }
   const [roomResult, participantsResult, balancesResult, transactionsResult, settlementResult] = results;
   const room = (roomResult as PromiseFulfilledResult<ApiResponse<{ room: Room; me: RoomMember }>>).value.data;

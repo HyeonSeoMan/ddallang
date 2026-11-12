@@ -54,7 +54,7 @@ export function useRoomConnection(inviteCode: string, roomId: string): void {
       },
       createCoordinator: (epoch, hooks) =>
         createCoordinator({
-          async fetchSnapshot() {
+          async fetchSnapshot(signal) {
             const identityKey = getStoredKey(inviteCode);
             if (!identityKey) throw noKey();
             return fetchRoomSnapshot(api, {
@@ -62,7 +62,7 @@ export function useRoomConnection(inviteCode: string, roomId: string): void {
               identityKey,
               participantId: store.get(participantFilterAtom),
               epoch,
-            });
+            }, signal);
           },
           applySnapshot: (snapshot) => store.set(applySnapshotAtom, snapshot),
           ...hooks,

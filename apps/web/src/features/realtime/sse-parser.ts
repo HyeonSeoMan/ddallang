@@ -48,6 +48,7 @@ function dispatch(pending: Pending, truncated: boolean): SseItem {
 export function createSseParser(): SseParser {
   let line = "";
   let skipLF = false; // 직전 조각이 `\r`로 끝났다면 이어지는 `\n`은 같은 줄바꿈이다
+  let atStart = true; // 스트림 맨 앞의 BOM(U+FEFF)은 버린다(SSE 스트림 규격)
   let pending = emptyPending();
 
   function processLine(raw: string, out: SseItem[]) {
@@ -80,6 +81,10 @@ export function createSseParser(): SseParser {
   return {
     feed(text) {
       const out: SseItem[] = [];
+      if (atStart && text.length > 0) {
+        atStart = false;
+        if (text.startsWith("\uFEFF")) text = text.slice(1);
+      }
       for (const ch of text) {
         if (skipLF) {
           skipLF = false;

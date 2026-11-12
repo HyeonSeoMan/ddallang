@@ -19,10 +19,15 @@ import {
   call,
   createLiveRoom,
   createTransaction,
+  deleteTransaction,
   endGame,
   type LiveRoom,
   newKey,
+  registerParticipant,
+  setParticipantStatus,
+  updateTransaction,
 } from "@/latency/server";
+import { type ServerItem, settlementMatches } from "./settlement-match";
 import { installNetworkControl, keyPaths, type NetworkControl } from "./stream-control";
 
 let storage: ReturnType<typeof installFakeStorage>;
@@ -70,6 +75,11 @@ const isInactiveBadge = (nickname: string) => (el: HTMLElement) =>
 /** 구역 제목 틀은 남아도 안에 서버 데이터(목록 항목·폼·입력·선택지)가 있으면 그 구역 이름을 돌려준다. */
 const serverDataIn = (el: HTMLElement, headings: string[]) =>
   headings.filter((h) => (section(el, h)?.querySelectorAll("li, form, input, select, option").length ?? 0) > 0);
+const settlementShows = (items: ServerItem[]) => (el: HTMLElement) => settlementMatches(section(el, "예상 정산"), items);
+const serverSettlement = async (live: LiveRoom) =>
+  (await call<{ settlement: { items: ServerItem[] } }>("GET", `/rooms/${live.room.id}/settlement`, live.host.key)).body.settlement.items;
+const buttonNames = (c: LiveClient) =>
+  Array.from(c.container.querySelectorAll("button")).map((b) => b.getAttribute("aria-label") ?? b.textContent ?? "");
 const UNKNOWN_NOTICE = /결과를 확인하지 못했습니다|저장 여부를 확인할 수 없습니다/;
 const hasFinalSettlement = (el: HTMLElement) => section(el, "최종 정산") !== null;
 const SEEN = 20_000;
@@ -132,6 +142,8 @@ describe("실서버 연동 점검 (FE-I1)", () => {
     const key = live.members[1]!.key;
     // 끊기기 전에는 서버 데이터가 보인다(이래야 "사라졌다"가 의미가 있다).
     expect(showsReason("끊김전")(b!.container)).toBe(true);
+    expect(section(b!.container, "누적 손익")?.textContent).toContain("100 원");
+    expect(section(b!.container, "누적 손익")?.textContent).not.toContain("200 원");
     expect(serverDataIn(b!.container, ["거래 내역", "참여자"])).toEqual(["거래 내역", "참여자"]);
 
     control.block(key);
@@ -154,6 +166,10 @@ describe("실서버 연동 점검 (FE-I1)", () => {
     control.unblock(key);
     await mustSee(b!, "복구 뒤 종료 반영", hasFinalSettlement, 60_000);
     await mustSee(b!, "복구 뒤 거래 반영", showsReason("끊김중"), 5_000);
+    // 복구 뒤 손익·참여자·상태·정산도 재조회되어 표시된다(끊김 중 생긴 거래가 손익에 반영되어야 한다).
+    await mustSee(b!, "복구 뒤 누적 손익", (el) => section(el, "누적 손익")?.textContent?.includes("200 원") ?? false, 5_000);
+    for (const nickname of ["참0", "참1"]) await mustSee(b!, `복구 뒤 참여자 ${nickname}`, participantListed(nickname), 5_000);
+    expect(section(b!.container, "최종 정산")?.textContent).toContain("200 원");
     report.push(`끊김 복구: 차단 해제 후 최종 정산 표시까지 ${Date.now() - t0}ms`);
   });
 
@@ -201,6 +217,104 @@ describe("실서버 연동 점검 (FE-I1)", () => {
     const list = await call<{ transactions: Array<{ reason: string | null }> }>("GET", `/rooms/${live.room.id}/transactions`, live.host.key);
     expect(list.body.transactions.filter((t) => t.reason === "응답유실")).toHaveLength(1); // 중복 없음
     report.push(`응답 유실 재시도: 같은 키 ${posts[0]!.idempotencyKey}, 재생 ${posts[1]!.replayed}, 서버 거래 1건`);
+  });
+
+  it("[AC-VIEW-005-5][AC-SET-008-2] 다른 접속자의 거래 생성·수정·삭제와 참여자 변경 뒤 예상 정산이 새로고침 없이 서버 값으로 갱신된다", async () => {
+    control = installNetworkControl();
+    const live = await createLiveRoom(3);
+    const [b] = await open(live, 1);
+    const area = () => section(b!.container, "예상 정산")?.textContent ?? "";
+    const seeServer = async (what: string) => {
+      const items = await serverSettlement(live);
+      await mustSee(b!, what, settlementShows(items));
+      return items;
+    };
+
+    const first = await createTransaction(live, "정산-생성", { payer: 0, payee: 1, amount: 300 });
+    let items = await seeServer("거래 생성 뒤 예상 정산");
+    expect(items.map((i) => i.amount)).toEqual([300]);
+    const afterCreate = area();
+
+    await updateTransaction(live, first.transaction.id, "정산-수정", 500);
+    items = await seeServer("거래 수정 뒤 예상 정산");
+    expect(items.map((i) => i.amount)).toEqual([500]);
+    expect(area()).not.toBe(afterCreate); // 실제로 바뀌었다
+    const afterUpdate = area();
+
+    await createTransaction(live, "정산-둘째", { payer: 2, payee: 0, amount: 200 });
+    items = await seeServer("둘째 거래 뒤 예상 정산");
+    const afterSecond = area();
+    expect(afterSecond).not.toBe(afterUpdate);
+
+    await deleteTransaction(live, first.transaction.id);
+    items = await seeServer("거래 삭제 뒤 예상 정산");
+    expect(items.map((i) => i.amount)).toEqual([200]);
+    expect(area()).not.toBe(afterSecond);
+
+    // 참여자 변경(등록·상태 변경): 정산 값은 같아도 이 접속자가 그 이벤트 뒤에 정산을 **성공적으로 다시 조회**하고 서버와 일치한다
+    // (비활성 참여자도 정산에 포함되어 값이 바뀌지 않는다). 이전 이벤트의 추가 갱신과 섞이지 않도록 조용해진 뒤 기준을 잡는다.
+    const bKey = live.members[1]!.key;
+    const calls = () => control.log.filter((l) => l.method === "GET" && l.path.endsWith("/settlement") && l.key === bKey);
+    const okCalls = () => calls().filter((l) => l.status === 200).length;
+    const quiet = async () => {
+      let last = -1;
+      let since = Date.now();
+      for (;;) {
+        const n = calls().length;
+        if (n !== last || calls().some((l) => l.status === null)) {
+          last = n;
+          since = Date.now();
+        } else if (Date.now() - since >= 800) return;
+        await new Promise((r) => setTimeout(r, 100));
+      }
+    };
+    const refetchAfter = async (change: () => Promise<unknown>, reflected: (el: HTMLElement) => boolean, what: string) => {
+      await quiet();
+      const before = okCalls();
+      await change();
+      await mustSee(b!, what, reflected);
+      await waitFor(() => expect(okCalls()).toBeGreaterThan(before), { timeout: SEEN }); // 이 변경 뒤의 성공한(200) 정산 조회
+      await quiet();
+      expect(calls().filter((l) => l.status !== null && l.status !== 200)).toEqual([]); // 실패한 정산 조회 없음
+    };
+    await refetchAfter(() => registerParticipant(live.host, live.room.id, "참3"), participantListed("참3"), "참여자 등록");
+    await seeServer("참여자 등록 뒤 예상 정산(서버와 일치)");
+    await refetchAfter(
+      () => setParticipantStatus(live.host, live.room.id, live.participants[2]!.id, "INACTIVE"),
+      isInactiveBadge("참2"),
+      "참여자 비활성화",
+    );
+    await seeServer("참여자 비활성화 뒤 예상 정산(서버와 일치)");
+    report.push("예상 정산 갱신: 생성·수정·둘째 생성·삭제마다 서버 정산과 일치하고 화면이 바뀜, 참여자 등록·상태 변경마다 정산 재조회");
+  });
+
+  it("[AC-VIEW-005-4][AC-TXN-009-3][AC-PART-004-3] 종료되면 방장과 작성자 화면의 거래 입력·수정·삭제·참여자 등록·상태 변경·종료 컨트롤이 모두 잠긴다", async () => {
+    const live = await createLiveRoom(2);
+    await createTransaction(live, "잠금시험", { as: live.members[1] }); // 작성자는 접속자 1(비방장)
+    const [a, b] = await open(live, 0, 1);
+    const editButtons = (c: LiveClient) => buttonNames(c).filter((n) => /수정$/.test(n));
+    const deleteButtons = (c: LiveClient) => buttonNames(c).filter((n) => /삭제$/.test(n));
+
+    // 종료 전에는 컨트롤이 실제로 있다(이래야 "없어졌다"가 의미가 있다).
+    for (const c of [a!, b!]) {
+      expect(editButtons(c), `접속자 ${c.index} 수정`).not.toEqual([]);
+      expect(deleteButtons(c), `접속자 ${c.index} 삭제`).not.toEqual([]);
+      expect(within(c.container).queryByLabelText("금액")).not.toBeNull();
+    }
+    expect(within(a!.container).queryByLabelText("참여자 닉네임")).not.toBeNull();
+    expect(buttonNames(a!).some((n) => /비활성화$/.test(n))).toBe(true);
+    expect(buttonNames(a!)).toContain("게임 종료");
+
+    await endGame(live);
+    await mustSee(a!, "방장 화면 종료 반영", hasFinalSettlement);
+    await mustSee(b!, "작성자 화면 종료 반영", hasFinalSettlement);
+    for (const c of [a!, b!]) {
+      expect(editButtons(c), `접속자 ${c.index} 종료 뒤 수정`).toEqual([]);
+      expect(deleteButtons(c), `접속자 ${c.index} 종료 뒤 삭제`).toEqual([]);
+      expect(within(c.container).queryByLabelText("금액")).toBeNull();
+      expect(within(c.container).queryByLabelText("참여자 닉네임")).toBeNull();
+      expect(buttonNames(c).filter((n) => /저장|참여자 등록|비활성화|재활성화|게임 종료/.test(n))).toEqual([]);
+    }
   });
 
   it("오류 코드·헤더 계약: 오류 형식·알려진 코드·`Date`·`Idempotent-Replayed`·`Retry-After`가 FE가 기대한 대로다", async () => {

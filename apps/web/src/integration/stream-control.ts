@@ -1,6 +1,8 @@
 // 실서버 연동 점검용 네트워크 조작(FE-I1): 앱은 전역 `fetch`를 늦게 묶으므로(`fetch(...args)`) 래퍼로 가로챌 수 있다.
 // 접속자 키 단위로 스트림을 끊거나 연결을 막고, 변경 요청의 응답만 잃어버린다(서버에는 반영됨).
 export interface Logged {
+  /** 요청한 접속자의 신원 키(접속자별 요청 수 확인용). */
+  key: string;
   method: string;
   path: string;
   idempotencyKey: string | null;
@@ -54,6 +56,7 @@ export function installNetworkControl(): NetworkControl {
     }
 
     const entry: Logged = {
+      key,
       method,
       path: url.pathname,
       idempotencyKey: headers.get("Idempotency-Key"),

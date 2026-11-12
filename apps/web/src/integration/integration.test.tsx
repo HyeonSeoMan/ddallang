@@ -60,6 +60,17 @@ const showsReason = (reason: string) => (el: HTMLElement) =>
   Array.from(el.querySelectorAll("span")).some((s) => s.textContent === `사유: ${reason}`);
 const participantListed = (nickname: string) => (el: HTMLElement) =>
   Array.from(section(el, "참여자")?.querySelectorAll("li") ?? []).some((li) => li.textContent?.includes(nickname));
+/** 거래 입력 구역의 선택지(지급자·수취자)에 있는 참여자 이름. */
+const selectableNames = (el: HTMLElement) =>
+  Array.from(section(el, "거래 입력")?.querySelectorAll("option") ?? []).map((o) => o.textContent);
+const isInactiveBadge = (nickname: string) => (el: HTMLElement) =>
+  Array.from(section(el, "참여자")?.querySelectorAll("li") ?? []).some(
+    (li) => li.textContent?.includes(nickname) && Array.from(li.querySelectorAll("span")).some((x) => x.textContent === "비활성"),
+  );
+/** 구역 제목 틀은 남아도 안에 서버 데이터(목록 항목·폼·입력·선택지)가 있으면 그 구역 이름을 돌려준다. */
+const serverDataIn = (el: HTMLElement, headings: string[]) =>
+  headings.filter((h) => (section(el, h)?.querySelectorAll("li, form, input, select, option").length ?? 0) > 0);
+const UNKNOWN_NOTICE = /결과를 확인하지 못했습니다|저장 여부를 확인할 수 없습니다/;
 const hasFinalSettlement = (el: HTMLElement) => section(el, "최종 정산") !== null;
 const SEEN = 20_000;
 
@@ -79,6 +90,7 @@ describe("실서버 연동 점검 (FE-I1)", () => {
     await user.type(ui.getByLabelText("참여자 닉네임"), "참2");
     await user.click(ui.getByRole("button", { name: "참여자 등록" }));
     await mustSee(b!, "참여자 등록", participantListed("참2"));
+    await mustSee(b!, "참여자 등록이 거래 입력 선택지에 반영", (el) => selectableNames(el).includes("참2"));
 
     // 거래 저장 → 다른 접속자의 목록·예상 정산(방 단위 표시)이 바뀐다
     await user.selectOptions(ui.getByLabelText("지급자"), "참0");
@@ -89,6 +101,11 @@ describe("실서버 연동 점검 (FE-I1)", () => {
     await mustSee(b!, "거래 저장", showsReason("통합점검"));
     await mustSee(b!, "예상 정산(방 단위)", (el) => section(el, "예상 정산")?.textContent?.includes("1,234 달러") ?? false);
     expect(section(b!.container, "누적 손익")?.textContent).toContain("1,234 달러");
+
+    // 참여자 비활성화 → 다른 접속자의 참여자 표시(비활성 배지)와 거래 입력 선택지(활성만)에 반영
+    await user.click(ui.getByRole("button", { name: "참2 비활성화" }));
+    await mustSee(b!, "참여자 상태 변경", isInactiveBadge("참2"));
+    await mustSee(b!, "상태 변경이 거래 입력 선택지에 반영", (el) => !selectableNames(el).includes("참2"));
 
     // 게임 종료(확인 창 → 확정) → 두 화면이 최종 정산으로 바뀌고 변경 컨트롤이 사라진다
     await user.click(ui.getByRole("button", { name: "게임 종료" }));
@@ -107,20 +124,31 @@ describe("실서버 연동 점검 (FE-I1)", () => {
     report.push(`복사 텍스트 예: ${JSON.stringify(clipboard.written[0])}`);
   });
 
-  it("[AC-SYS-002-1][AC-SYS-002-3][AC-SYS-002-5] 끊김 중 일어난 거래·종료가 복구 뒤 화면에 반영된다(끊김 중에는 서버 값을 숨긴다)", async () => {
+  it("[AC-SYS-002-1][AC-SYS-002-3] 끊김 중 일어난 거래·종료가 복구 뒤 화면에 반영된다(끊김 중에는 서버 값을 숨긴다)", async () => {
     control = installNetworkControl();
     const live = await createLiveRoom(2);
+    await createTransaction(live, "끊김전");
     const [, b] = await open(live, 0, 1);
     const key = live.members[1]!.key;
+    // 끊기기 전에는 서버 데이터가 보인다(이래야 "사라졌다"가 의미가 있다).
+    expect(showsReason("끊김전")(b!.container)).toBe(true);
+    expect(serverDataIn(b!.container, ["거래 내역", "참여자"])).toEqual(["거래 내역", "참여자"]);
 
     control.block(key);
     control.cut(key);
     await waitFor(() => expect(b!.store.get(connectionAtom)).toBe("disconnected"), { timeout: 10_000 });
+    // 끊김 즉시 이전에 보이던 서버 값이 모두 숨겨지고 안내가 나온다(이전 값을 최신처럼 보이지 않는다).
+    await waitFor(() => expect(showsReason("끊김전")(b!.container)).toBe(false), { timeout: 3_000 });
+    expect(serverDataIn(b!.container, ["누적 손익", "거래 내역", "참여자", "예상 정산", "거래 입력"])).toEqual([]);
+    expect(text(b!)).toContain("연결이 끊겨 최신 정보를 표시할 수 없습니다");
+
     await createTransaction(live, "끊김중");
     await endGame(live);
     await new Promise((r) => setTimeout(r, 1_500));
-    expect(showsReason("끊김중")(b!.container)).toBe(false); // 끊김 동안 이전 값을 최신처럼 보이지 않는다
-    expect(text(b!)).toContain("연결");
+    // 끊김이 이어지는 동안(재동기화 전)에도 계속 숨겨져 있다.
+    expect(showsReason("끊김전")(b!.container)).toBe(false);
+    expect(showsReason("끊김중")(b!.container)).toBe(false);
+    expect(serverDataIn(b!.container, ["누적 손익", "거래 내역", "참여자", "예상 정산", "거래 입력"])).toEqual([]);
 
     const t0 = Date.now();
     control.unblock(key);
@@ -129,7 +157,7 @@ describe("실서버 연동 점검 (FE-I1)", () => {
     report.push(`끊김 복구: 차단 해제 후 최종 정산 표시까지 ${Date.now() - t0}ms`);
   });
 
-  it("[AC-TXN-008-5] 저장 응답 유실: 서버에는 저장됐고 화면은 성공을 단정하지 않으며, 같은 키로 수동 재시도하면 중복 없이 재생된다", async () => {
+  it("[AC-TXN-008-5][AC-SYS-002-5] 저장 응답 유실: 서버에는 저장됐고 화면은 성공을 단정하지 않으며, 같은 키로 수동 재시도하면 중복 없이 재생된다", async () => {
     control = installNetworkControl();
     const live = await createLiveRoom(2);
     const [a, b] = await open(live, 0, 1);
@@ -144,6 +172,20 @@ describe("실서버 연동 점검 (FE-I1)", () => {
     await user.click(ui.getByRole("button", { name: "저장" }));
 
     await mustSee(b!, "응답을 잃은 저장이 서버에는 반영됨", showsReason("응답유실"));
+    // 응답을 잃은 화면: 성공으로 단정하지 않고(결과 불명 안내·입력 유지) 자동 재전송도 없다.
+    await waitFor(() => expect(text(a!)).toMatch(UNKNOWN_NOTICE), { timeout: 10_000 });
+    expect((ui.getByLabelText("금액") as HTMLInputElement).value).toBe("500");
+
+    // 이 화면이 끊겼다 복구된 뒤: 재조회로 목록에서 확인할 수 있어도 저장 여부를 확정해 보이지 않고, 자동 재전송은 없다.
+    const aKey = live.members[0]!.key;
+    control.block(aKey);
+    control.cut(aKey);
+    await waitFor(() => expect(a!.store.get(connectionAtom)).toBe("disconnected"), { timeout: 10_000 });
+    control.unblock(aKey);
+    await mustSee(a!, "복구 뒤 재조회로 목록에서 확인 가능", showsReason("응답유실"), 60_000);
+    expect(text(a!)).toMatch(UNKNOWN_NOTICE);
+    expect((ui.getByLabelText("금액") as HTMLInputElement).value).toBe("500");
+    expect(control.log.filter((l) => l.method === "POST" && l.path.endsWith("/transactions"))).toHaveLength(1); // 자동 재전송 없음
     const retry = await waitFor(() => ui.getByRole("button", { name: /다시 시도/ }), { timeout: 10_000 });
     await user.click(retry);
     // 두 번째 요청의 응답이 도착해 `replayed`가 기록될 때까지 기다린다(요청 시작만으로는 아직 모른다).
@@ -197,18 +239,25 @@ describe("실서버 연동 점검 (FE-I1)", () => {
     if (first.headers.get("Idempotent-Replayed") === "true") problems.push("첫 요청에 Idempotent-Replayed: true");
     if (second.headers.get("Idempotent-Replayed") !== "true") problems.push(`재생 응답에 Idempotent-Replayed: true가 없음(상태 ${second.status})`);
 
-    // Retry-After: 같은 접속자 연결 6개째는 429
+    // 같은 접속자 연결: 1~5번째는 열리고 6번째는 429 CONNECTION_LIMIT_EXCEEDED + Retry-After: 30
     const aborts: AbortController[] = [];
-    let limited: Response | null = null;
+    const statuses: number[] = [];
+    let limitedBody: { error?: { code?: string } } = {};
+    let retryAfter: string | null = null;
     for (let n = 0; n < 6; n++) {
       const abort = new AbortController();
       aborts.push(abort);
       const res = await fetch(`${baseUrl()}${rooms}/events`, { headers: { Authorization: `Bearer ${live.host.key}` }, signal: abort.signal });
-      if (res.status === 429) limited = res;
+      statuses.push(res.status);
+      if (res.status === 429) {
+        retryAfter = res.headers.get("Retry-After");
+        limitedBody = (await res.json().catch(() => ({}))) as typeof limitedBody;
+      }
     }
     aborts.forEach((x) => x.abort());
-    if (!limited) problems.push("6번째 스트림 연결이 429가 아님");
-    else if (limited.headers.get("Retry-After") !== "30") problems.push(`429 Retry-After=${limited.headers.get("Retry-After")} (기대 30)`);
+    if (statuses.slice(0, 5).some((x) => x !== 200) || statuses[5] !== 429) problems.push(`스트림 연결 상태 ${statuses.join(",")} (기대 200×5, 429)`);
+    if (limitedBody.error?.code !== "CONNECTION_LIMIT_EXCEEDED") problems.push(`429 코드 ${limitedBody.error?.code} (기대 CONNECTION_LIMIT_EXCEEDED)`);
+    if (retryAfter !== "30") problems.push(`429 Retry-After=${retryAfter} (기대 30)`);
 
     // 종료 뒤 변경은 GAME_ENDED
     await endGame(live);

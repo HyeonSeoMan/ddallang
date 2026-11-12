@@ -211,6 +211,12 @@ describe("초대 화면 단계 상태기계", () => {
     ).toBe("error");
   });
 
+  it("오류 단계에서 다시 시도하면 확인 중으로 돌아간다", () => {
+    expect(run([{ type: "CHECK_FAILED", code: "NETWORK_ERROR" }, { type: "RETRY" }]).stage).toBe("checking");
+    expect(run([{ type: "RETRY" }]).stage).toBe("checking"); // 오류가 아니면 무시(이미 확인 중)
+    expect(run([{ type: "CHECKED", isMember: false }, { type: "RETRY" }]).stage).toBe("nickname");
+  });
+
   it("단계에 맞지 않는 이벤트는 무시한다", () => {
     expect(run([{ type: "JOINED" }]).stage).toBe("checking");
     expect(run([{ type: "SUBMIT_NICKNAME" }]).stage).toBe("checking");

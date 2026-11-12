@@ -1,10 +1,12 @@
 import { css } from "styled-system/css";
+import { CreateRoomForm } from "@/features/room/create-room-form";
 
-// 방 생성 화면 자리(FE-S1-1이 채운다).
 export default function HomePage() {
   return (
-    <main className={css({ p: "4" })}>
-      <h1 className={css({ fontSize: "2xl", fontWeight: "bold" })}>DDALLANG</h1>
+    <main className={css({ maxW: "md", mx: "auto", p: "4" })}>
+      <h1 className={css({ fontSize: "2xl", fontWeight: "bold", mb: "4" })}>DDALLANG</h1>
+      <h2 className={css({ fontSize: "lg", fontWeight: "semibold", mb: "3" })}>방 만들기</h2>
+      <CreateRoomForm />
     </main>
   );
 }

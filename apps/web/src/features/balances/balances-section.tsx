@@ -17,16 +17,18 @@ export function BalancesSection() {
 
   if (balances.length === 0) return <p>참여자가 없습니다.</p>;
   return (
-    <ul className={css({ display: "flex", flexDirection: "column", gap: "2" })}>
+    <ul className={css({ display: "flex", flexDirection: "column" })}>
       {balances.map((b) => (
         <li
           key={b.participantId}
-          className={css({ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "2" })}
+          className={css({ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "2", py: "3", borderTopWidth: "1px", borderColor: "divider", _first: { borderTopWidth: "0" } })}
         >
-          <span>
+          <span className={css({ fontWeight: "semibold" })}>
             {b.nickname} {b.status === "INACTIVE" ? <Badge tone="neutral">비활성</Badge> : null}
           </span>
-          <Money value={b.balance} unit={room.unit} signed />
+          <span className={css({ fontSize: "xl" })}>
+            <Money value={b.balance} unit={room.unit} signed />
+          </span>
         </li>
       ))}
     </ul>

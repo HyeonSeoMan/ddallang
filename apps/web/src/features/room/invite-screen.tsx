@@ -23,6 +23,7 @@ import { useRoomConnection } from "@/features/realtime/use-room-connection";
 import { BalancesSection } from "@/features/balances/balances-section";
 import { TransactionActions } from "@/features/transactions/transaction-actions";
 import { TransactionForm } from "@/features/transactions/transaction-form";
+import { RecordTransactionButton } from "@/features/transactions/record-button";
 import { TransactionsSection } from "@/features/transactions/transactions-section";
 import { EndGame } from "@/features/settlement/end-game";
 import { SettlementSection } from "@/features/settlement/settlement-section";
@@ -253,6 +254,7 @@ function RoomBody() {
     <RoomLayout
       banner={<ConnectionBanner />}
       titles={titles}
+      floating={<RecordTransactionButton />}
       slots={{
         info: (
           <>

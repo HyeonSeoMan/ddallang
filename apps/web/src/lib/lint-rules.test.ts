@@ -37,6 +37,19 @@ describe("ESLint 제한 규칙", { timeout: 30_000 }, () => {
     ).toContain("no-restricted-properties");
   });
 
+  it("sessionStorage·indexedDB·window.navigator.locks도 신원 키 모듈 밖에서 막는다", async () => {
+    expect(await lint("export const v = sessionStorage.getItem('a');\n", feature)).toContain(
+      "no-restricted-globals",
+    );
+    expect(await lint("export const v = indexedDB;\n", feature)).toContain("no-restricted-globals");
+    expect(await lint("export const v = window.sessionStorage;\n", feature)).toContain(
+      "no-restricted-properties",
+    );
+    expect(
+      await lint("export const l = window.navigator.locks;\n", feature),
+    ).toContain("no-restricted-syntax");
+  });
+
   it("navigator.locks 직접 사용을 신원 키 모듈 밖에서 막는다", async () => {
     expect(
       await lint("export const l = navigator.locks.request('a', () => {});\n", feature),

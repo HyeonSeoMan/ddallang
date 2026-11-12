@@ -2,6 +2,8 @@
 
 import { type ReactNode, useId } from "react";
 import { css } from "styled-system/css";
+import { useAtomValue } from "jotai";
+import { dataVisibleAtom } from "./state";
 import { ServerDataGate } from "./server-data-gate";
 
 /** 방 화면 구역 순서(FD-12, 제안): 연결 배너 → 방 정보 → 누적 손익 → 정산 → 거래 입력 → 거래 내역 → 참여자. */
@@ -28,10 +30,13 @@ export function RoomSection({
   children?: ReactNode;
 }) {
   const headingId = useId();
+  // 서버 유래 값에 따라 달라지는 제목(`titles`)은 게이트가 열렸을 때만 쓴다. 끊김 중에는 기본 제목이다.
+  const visible = useAtomValue(dataVisibleAtom);
+  const heading = visible ? title : ROOM_SECTION_TITLES[id];
   return (
     <section aria-labelledby={headingId} data-section={id} className={css({ mt: "5" })}>
       <h2 id={headingId} className={css({ fontSize: "lg", fontWeight: "bold", mb: "2" })}>
-        {title}
+        {heading}
       </h2>
       <ServerDataGate>{children}</ServerDataGate>
     </section>
@@ -42,7 +47,7 @@ export interface RoomLayoutProps {
   /** 연결 배너 자리(S5-4). 서버 유래 값을 담지 않으므로 게이트 밖이다. */
   banner?: ReactNode;
   slots?: Partial<Record<RoomSectionId, ReactNode>>;
-  /** 구역 제목 바꾸기(서버 유래 값에 따라 달라지는 제목은 게이트를 통과한 뒤에만 넘긴다). */
+  /** 구역 제목 바꾸기. 데이터 영역이 보일 때만 적용되고 끊김 중에는 기본 제목이다. */
   titles?: Partial<Record<RoomSectionId, string>>;
 }
 

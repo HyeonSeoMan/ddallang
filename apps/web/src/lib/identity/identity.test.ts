@@ -231,6 +231,28 @@ describe("생성 대기 항목", () => {
     expect(beginCreateAttempt()).toEqual({ ok: false, reason: "key-not-confirmed" });
   });
 
+  it("새 시도를 시작할 때 24시간이 지난 방치된 대기 항목을 정리한다", () => {
+    vi.useFakeTimers({ now: new Date("2026-11-08T03:00:00.000Z") });
+    try {
+      const storage = installFakeStorage();
+      const old = beginCreateAttempt();
+      if (!old.ok) throw new Error("시도 시작 실패");
+      vi.setSystemTime(Date.now() + 24 * 60 * 60 * 1000 - 1);
+      const recent = beginCreateAttempt(); // 아직 24시간 이내라 남는다
+      expect(getCreateAttempt(old.attempt.attemptId)).not.toBeNull();
+      vi.setSystemTime(Date.now() + 2);
+      const next = beginCreateAttempt();
+      expect(next.ok && recent.ok).toBe(true);
+      expect(getCreateAttempt(old.attempt.attemptId)).toBeNull();
+      expect(recent.ok && getCreateAttempt(recent.attempt.attemptId)).not.toBeNull();
+      storage.setItem("ddallang:pending-create:legacy", JSON.stringify({ key: generateIdentityKey() }));
+      beginCreateAttempt();
+      expect(getCreateAttempt("legacy")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("알 수 없는 시도는 null이고 연결할 수 없다", () => {
     installFakeStorage();
     expect(getCreateAttempt("unknown")).toBeNull();

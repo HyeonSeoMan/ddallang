@@ -16,7 +16,8 @@ function freePort() {
 
 const port = await freePort();
 const env = { ...process.env, NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001" };
-const server = spawn("pnpm", ["exec", "next", "start", "-p", String(port)], { env, stdio: "pipe" });
+// pnpm이 next를 자식으로 띄우므로 프로세스 그룹째로 종료한다.
+const server = spawn("pnpm", ["exec", "next", "start", "-p", String(port)], { env, stdio: "pipe", detached: true });
 let output = "";
 server.stdout.on("data", (d) => (output += d));
 server.stderr.on("data", (d) => (output += d));
@@ -45,7 +46,8 @@ try {
   for (const [path, code] of cases) {
     const response = await fetch(`http://localhost:${port}${path}`);
     const html = await response.text();
-    const ok = response.status === 200 && html.includes("inviteCode") && html.includes(code);
+    // 서버 렌더 결과에는 RSC 페이로드에 `"inviteCode":"<코드>"`로 전달된다.
+    const ok = response.status === 200 && html.includes(`inviteCode\\":\\"${code}`);
     console.log(`${ok ? "OK  " : "FAIL"} ${path} -> ${response.status}`);
     if (!ok) failed = true;
   }
@@ -53,6 +55,10 @@ try {
   console.error(error);
   failed = true;
 } finally {
-  server.kill("SIGTERM");
+  try {
+    process.kill(-server.pid, "SIGTERM");
+  } catch {
+    server.kill("SIGTERM");
+  }
 }
 process.exit(failed ? 1 : 0);

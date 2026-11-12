@@ -37,6 +37,11 @@ export function ConfirmDialog({
   const descriptionId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
+  // 문서 수준 Esc 리스너가 항상 최신 값을 보도록 ref로 들고 있다.
+  const latest = useRef({ busy, onCancel });
+  useEffect(() => {
+    latest.current = { busy, onCancel };
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -49,21 +54,32 @@ export function ConfirmDialog({
         cancelRef.current?.focus();
       }
     };
+    // 포커스가 어디 있든 Esc는 취소다(진행 중이면 무시).
+    const onEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.stopPropagation();
+      if (!latest.current.busy) latest.current.onCancel();
+    };
     document.addEventListener("focusin", keepFocusInside);
+    document.addEventListener("keydown", onEscape);
     return () => {
       document.removeEventListener("focusin", keepFocusInside);
+      document.removeEventListener("keydown", onEscape);
       previouslyFocused?.focus?.();
     };
   }, [open]);
 
+  // 진행 중에는 버튼이 비활성화되어 포커스가 body로 빠지므로 대화상자에 두고, 끝나면 취소로 되돌린다.
+  useEffect(() => {
+    if (!open) return;
+    if (busy) dialogRef.current?.focus();
+    else if (!dialogRef.current?.contains(document.activeElement)) cancelRef.current?.focus();
+    else if (document.activeElement === dialogRef.current) cancelRef.current?.focus();
+  }, [open, busy]);
+
   if (!open) return null;
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === "Escape") {
-      event.stopPropagation();
-      if (!busy) onCancel();
-      return;
-    }
     if (event.key !== "Tab") return;
     const focusable = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? []);
     if (focusable.length === 0) {
@@ -100,6 +116,7 @@ export function ConfirmDialog({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
+        tabIndex={-1}
         onKeyDown={onKeyDown}
         className={css({ bg: "paper", color: "ink", borderRadius: "lg", p: "5", maxW: "md", w: "full" })}
       >

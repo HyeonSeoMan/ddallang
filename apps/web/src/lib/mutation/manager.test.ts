@@ -165,6 +165,37 @@ describe("변경 요청 매니저", () => {
     expect(env.manager.getState(SCOPE)).toEqual({ status: "idle" });
   });
 
+  it("2xx인데 본문을 해석하지 못하면 결과 불명이며 키를 버리지 않는다(중복 거래 방지)", async () => {
+    const env = setup();
+    await prime(env);
+    env.responses.push(() => new Response("{broken", { status: 201 }));
+    const first = await env.manager.submit(SCOPE, create());
+    expect(first.status).toBe("unknown");
+    expect(first.status === "unknown" && first.error).toMatchObject({ code: "INVALID_RESPONSE" });
+    env.responses.push(env.ok());
+    await env.manager.submit(SCOPE, create());
+    expect(env.calls[1]!.headers["Idempotency-Key"]).toBe(env.calls[0]!.headers["Idempotency-Key"]);
+  });
+
+  it("24시간 이내에는 confirmNewAttempt를 줘도 같은 키로 재시도한다", async () => {
+    const env = setup();
+    await prime(env);
+    env.responses.push(() => {
+      throw new TypeError("Failed to fetch");
+    });
+    await env.manager.submit(SCOPE, create());
+    env.responses.push(env.ok());
+    await env.manager.submit(SCOPE, create(), { confirmNewAttempt: true });
+    expect(env.calls[1]!.headers["Idempotency-Key"]).toBe(env.calls[0]!.headers["Idempotency-Key"]);
+  });
+
+  it("차이를 모르고 동기화 함수도 없으면 기기 시각으로 보내지 않는다", async () => {
+    const env = setup({ serverOffsetMs: "unknown" });
+    const outcome = await env.manager.submit(SCOPE, create());
+    expect(outcome).toMatchObject({ status: "not-sent", reason: "clock-unknown" });
+    expect(env.fetchMock).not.toHaveBeenCalled();
+  });
+
   it("5xx는 결과 불명으로 다루고 같은 키로 재시도할 수 있다", async () => {
     const env = setup();
     await prime(env);
@@ -260,6 +291,8 @@ describe("변경 요청 매니저", () => {
     ])("%s: 보정한 현재 시각을 보낸다(초 단위 Date 오차 1초 이내)", async (_name, skew) => {
       const { sent, trueTime } = await firstAttemptAt(skew);
       expect(Math.abs(sent - trueTime)).toBeLessThanOrEqual(1000);
+      // 보정하지 않았다면 기기 시각(= 참 시각 + 오차)이 실렸을 것이다. 오차가 있는 행은 그와 달라야 한다.
+      if (skew !== 0) expect(Math.abs(sent - (trueTime + skew))).toBeGreaterThan(1000);
     });
 
     it("차이를 모르면 방 조회로 먼저 알아낸 뒤 보낸다", async () => {

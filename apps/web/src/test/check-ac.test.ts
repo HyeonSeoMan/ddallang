@@ -20,15 +20,15 @@ describe("check:ac", () => {
     expect(parseAcIds(matrix)).toEqual(["AC-ROOM-001-1", "AC-TXN-007-5", "AC-SET-005-2"]);
   });
 
-  it("시험 제목의 태그만 센다(주석·skip·todo 제외)", () => {
+  it("시험(it/test) 제목의 태그만 센다(주석·describe·skip·todo 제외)", () => {
     const source = [
       "// [AC-ROOM-001-1] 주석은 세지 않는다",
       'it("[AC-TXN-007-5] 같은 키 재시도", () => {});',
       "it.skip(`[AC-SET-005-2] 건너뜀`, () => {});",
-      'describe("그룹 [AC-ROOM-001-1]", () => {});',
+      'describe("그룹 [AC-ROOM-001-1]", () => {});', // describe 제목만으로는 충족되지 않는다
       'it.each([1, 2])("[AC-SET-005-2] 반복 %s", () => {});',
     ].join("\n");
-    expect([...collectTaggedAcs(source)].sort()).toEqual(["AC-ROOM-001-1", "AC-SET-005-2", "AC-TXN-007-5"]);
+    expect([...collectTaggedAcs(source)].sort()).toEqual(["AC-SET-005-2", "AC-TXN-007-5"]);
   });
 
   it("일부러 태그를 뺀 AC를 누락으로 찾아낸다", () => {

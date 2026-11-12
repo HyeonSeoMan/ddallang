@@ -7,15 +7,21 @@ const eventSourceGlobal = {
   name: "EventSource",
   message: "SSE는 fetch 스트리밍으로 구현한다(FD-8). EventSource는 쓰지 않는다.",
 };
-const localStorageGlobal = {
-  name: "localStorage",
-  message: "저장소 접근은 신원 키 모듈(src/lib/identity)만 한다(FD-4).",
-};
-const storageProperties = ["window", "globalThis", "self"].map((object) => ({
-  object,
-  property: "localStorage",
-  message: "저장소 접근은 신원 키 모듈(src/lib/identity)만 한다(FD-4).",
+const storageGlobals = ["localStorage", "sessionStorage", "indexedDB"].map((name) => ({
+  name,
+  message: "브라우저 저장소 접근은 신원 키 모듈(src/lib/identity)만 한다(FD-4).",
 }));
+const storageProperties = ["window", "globalThis", "self"].flatMap((object) =>
+  ["localStorage", "sessionStorage", "indexedDB"].map((property) => ({
+    object,
+    property,
+    message: "브라우저 저장소 접근은 신원 키 모듈(src/lib/identity)만 한다(FD-4).",
+  })),
+);
+const windowLocks = {
+  selector: "MemberExpression[property.name='locks'][object.property.name='navigator']",
+  message: "Web Locks 접근은 신원 키 모듈(src/lib/identity)만 한다(FD-4).",
+};
 const eventSourceProperties = ["window", "globalThis", "self"].map((object) => ({
   object,
   property: "EventSource",
@@ -41,14 +47,14 @@ const restrictionRules = ({ allowStorage }) => ({
   "no-restricted-globals": [
     "error",
     eventSourceGlobal,
-    ...(allowStorage ? [] : [localStorageGlobal]),
+    ...(allowStorage ? [] : storageGlobals),
   ],
   "no-restricted-properties": [
     "error",
     ...eventSourceProperties,
     ...(allowStorage ? [] : [...storageProperties, locksProperty]),
   ],
-  "no-restricted-syntax": ["error", ...noInnerHtml],
+  "no-restricted-syntax": ["error", ...noInnerHtml, ...(allowStorage ? [] : [windowLocks])],
   // 신원 키가 로그에 남지 않도록 콘솔 출력을 막는다(FD-4).
   "no-console": "error",
 });

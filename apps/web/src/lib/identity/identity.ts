@@ -6,6 +6,8 @@ const IDENTITY_PREFIX = "ddallang:identity:";
 const PENDING_PREFIX = "ddallang:pending-create:";
 const LOCK_PREFIX = "ddallang-identity:";
 const PROBE_KEY = "ddallang:storage-probe";
+/** 방치된 생성 대기 항목을 정리하는 기준(검수 F07). 24시간이면 결과 불명 재시도 흐름은 끝난 것으로 본다. */
+export const PENDING_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 export type IdentityFailure =
   /** `navigator.locks`가 없다. 입장을 막고 안내한다. */
@@ -101,6 +103,8 @@ export async function acquireIdentityKey(inviteCode: string): Promise<KeyResult>
         return { ok: false, reason: "storage-failed" } satisfies KeyResult;
       }
       if (isValidIdentityKey(existing)) return { ok: true, key: existing } satisfies KeyResult;
+      // 형식이 틀린 값(손상)은 서버가 어차피 401로 거부하는 쓸 수 없는 키이므로 새로 만든다.
+      // Spec에 명시는 없다(검수 F06). 복구할 수 있는 신원이 아니라는 판단이며 문서화가 필요하면 상위에 올린다.
       return writeAndConfirm(storage, IDENTITY_PREFIX + inviteCode, generateIdentityKey());
     });
   } catch {
@@ -128,6 +132,27 @@ function readPendingKey(storage: Storage, attemptId: string): string | null {
   }
 }
 
+/** 오래된(기본 24시간 초과) 생성 대기 항목을 지운다. 생성 시각이 없는 옛 항목도 지운다. */
+function pruneStaleCreateAttempts(storage: Storage): void {
+  try {
+    const stale: string[] = [];
+    for (let index = 0; index < storage.length; index += 1) {
+      const name = storage.key(index);
+      if (!name?.startsWith(PENDING_PREFIX)) continue;
+      let createdAt: unknown;
+      try {
+        createdAt = (JSON.parse(storage.getItem(name) ?? "null") as { createdAt?: unknown } | null)?.createdAt;
+      } catch {
+        createdAt = undefined;
+      }
+      if (typeof createdAt !== "number" || Date.now() - createdAt > PENDING_MAX_AGE_MS) stale.push(name);
+    }
+    for (const name of stale) storage.removeItem(name);
+  } catch {
+    // 정리에 실패해도 새 시도는 계속한다.
+  }
+}
+
 /**
  * 방 생성 시도를 시작한다: 새 시도 ID와 새 키를 만들어 "생성 대기" 항목으로 저장하고 다시 읽어 확인한다.
  * 서로 다른 정상적인 방 생성 시도는 각각 새 키를 쓴다.
@@ -135,10 +160,11 @@ function readPendingKey(storage: Storage, attemptId: string): string | null {
 export function beginCreateAttempt(): AttemptResult {
   const storage = getStorage();
   if (!storage) return { ok: false, reason: "storage-failed" };
+  pruneStaleCreateAttempts(storage);
   const attemptId = generateAttemptId();
   const key = generateIdentityKey();
   try {
-    storage.setItem(PENDING_PREFIX + attemptId, JSON.stringify({ key }));
+    storage.setItem(PENDING_PREFIX + attemptId, JSON.stringify({ key, createdAt: Date.now() }));
   } catch {
     return { ok: false, reason: "storage-failed" };
   }

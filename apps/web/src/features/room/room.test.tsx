@@ -166,10 +166,18 @@ describe("방 화면 구역", () => {
     expect(screen.getByRole("heading", { name: "누적 손익" })).toBeInTheDocument();
   });
 
-  it("구역 제목을 덮어쓸 수 있다(정산 영역의 예상·최종 정산)", () => {
-    const { wrapper } = withStore();
+  it("구역 제목 덮어쓰기(예상·최종 정산)는 데이터가 보일 때만 적용된다", () => {
+    const { store, wrapper } = withStore();
     render(<RoomLayout titles={{ settlement: "예상 정산" }} />, { wrapper });
+    expect(screen.getByRole("heading", { name: "정산" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "예상 정산" })).not.toBeInTheDocument();
+    act(() => {
+      store.set(setConnectionAtom, "connected");
+      store.set(applySnapshotAtom, makeSnapshot(store.set(startEpochAtom)));
+    });
     expect(screen.getByRole("heading", { name: "예상 정산" })).toBeInTheDocument();
+    act(() => store.set(setConnectionAtom, "disconnected"));
+    expect(screen.queryByRole("heading", { name: "예상 정산" })).not.toBeInTheDocument();
   });
 });
 

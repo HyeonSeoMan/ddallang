@@ -37,7 +37,7 @@ export type MutationOutcome<T> =
 export interface SubmitOptions {
   /**
    * 사용자가 "목록에 없음을 확인하고 직접 다시 저장"했음을 뜻한다. 기존 시도를 버리고 새 키·새 시각으로 보낸다.
-   * 24시간이 지난 `needs-confirmation` 뒤에만 쓴다.
+   * 24시간이 지난 `needs-confirmation` 뒤에만 효력이 있다. 그 전에는 무시하고 같은 키로 재시도한다.
    */
   confirmNewAttempt?: boolean;
 }
@@ -88,9 +88,13 @@ function formatFirstAttemptAt(ms: number): string {
   return new Date(ms).toISOString();
 }
 
-/** 결과를 알 수 없는 응답인가: 서버가 처리 여부를 확정해 주지 않은 5xx. */
+/**
+ * 결과를 알 수 없는 오류인가. 서버가 처리 여부를 확정해 주지 않은 5xx, 그리고 2xx인데 본문을
+ * 해석하지 못한 경우(`INVALID_RESPONSE`)다. 후자는 서버가 이미 저장했을 수 있어 키를 버리면 중복이 생긴다.
+ * (Spec은 응답 없음만 명시한다. 안전한 쪽으로 같은 키 재시도를 허용하는 구현 선택이다.)
+ */
 function isUnknownResult(error: ApiError): boolean {
-  return error.status >= 500;
+  return error.status >= 500 || (error.status >= 200 && error.status < 300);
 }
 
 export interface MutationManager {
@@ -122,7 +126,8 @@ export function createMutationManager(options: MutationManagerOptions): Mutation
     const fingerprint = fingerprintOf(request);
     let attempt: Attempt | undefined;
 
-    if (existing && !submitOptions.confirmNewAttempt && existing.fingerprint === fingerprint) {
+    const confirmed = submitOptions.confirmNewAttempt === true && existing !== undefined && isExpired(existing);
+    if (existing && !confirmed && existing.fingerprint === fingerprint) {
       if (isExpired(existing)) {
         return { status: "needs-confirmation", reason: "expired", firstAttemptAt: existing.firstAttemptAt };
       }
@@ -139,7 +144,8 @@ export function createMutationManager(options: MutationManagerOptions): Mutation
           return { status: "not-sent", reason: "clock-unknown", error };
         }
       }
-      if (api.getClockOffsetMs() === null && options.syncClock) {
+      // 차이를 알아내지 못하면(동기화 함수가 없는 경우 포함) 기기 시각으로 보내지 않는다(S2 §9).
+      if (api.getClockOffsetMs() === null) {
         return { status: "not-sent", reason: "clock-unknown", error: new Error("서버 시각을 알 수 없습니다.") };
       }
       attempt = { key: newKey(), firstAttemptAt: api.serverNow(), fingerprint, state: "in-progress" };
@@ -170,8 +176,9 @@ export function createMutationManager(options: MutationManagerOptions): Mutation
         attempt.state = "unknown";
         return { status: "unknown", error };
       }
-      attempts.delete(scope);
-      throw error; // 호출자의 취소 등 예기치 않은 오류
+      // 요청을 보낸 뒤의 취소·예기치 않은 오류: 서버가 처리했을 수 있으므로 키를 버리지 않는다.
+      attempt.state = "unknown";
+      throw error;
     }
   }
 

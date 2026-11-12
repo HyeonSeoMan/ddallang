@@ -170,6 +170,21 @@ describe("ConfirmDialog", () => {
     expect(screen.getByRole("button", { name: "취소" })).toHaveFocus();
   });
 
+  it("진행 중 포커스는 대화상자에 남고, 끝나면 취소로 돌아가 Esc가 동작한다", async () => {
+    const onCancel = vi.fn();
+    const props = { title: "t", description: "d", confirmLabel: "확인", onConfirm: vi.fn(), onCancel };
+    const { rerender } = render(<ConfirmDialog open {...props} />);
+    expect(screen.getByRole("button", { name: "취소" })).toHaveFocus();
+    rerender(<ConfirmDialog open busy {...props} />);
+    expect(screen.getByRole("dialog")).toHaveFocus();
+    await userEvent.keyboard("{Escape}");
+    expect(onCancel).not.toHaveBeenCalled();
+    rerender(<ConfirmDialog open {...props} />);
+    expect(screen.getByRole("button", { name: "취소" })).toHaveFocus();
+    await userEvent.keyboard("{Escape}");
+    expect(onCancel).toHaveBeenCalledOnce();
+  });
+
   it("진행 중에는 버튼이 비활성화되고 Esc도 무시한다", async () => {
     const onCancel = vi.fn();
     render(

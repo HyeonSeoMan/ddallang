@@ -6,9 +6,9 @@ import { fileURLToPath } from "node:url";
 
 const AC_ROW = /^\|\s*(AC-[A-Z]+-\d+-\d+)\s*\|/;
 const TAG = /\[(AC-[A-Z]+-\d+-\d+)\]/g;
-// it/test/describe(.each(...)) ("제목") 형태의 제목 문자열만 센다. skip·todo는 세지 않는다.
+// it/test(.each(...)) ("제목") 형태의 시험 제목 문자열만 센다. describe 제목, skip·todo는 세지 않는다.
 const TEST_CALL =
-  /\b(?:it|test|describe)((?:\.[A-Za-z]+(?:\([^)]*\))?)*)\(\s*(["'`])((?:(?!\2)[^\\]|\\.)*?)\2/g;
+  /\b(?:it|test)((?:\.[A-Za-z]+(?:\([^)]*\))?)*)\(\s*(["'`])((?:(?!\2)[^\\]|\\.)*?)\2/g;
 
 /** @param {string} matrixText */
 export function parseAcIds(matrixText) {

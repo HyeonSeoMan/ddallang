@@ -43,7 +43,7 @@ export function RecordTransactionButton() {
         })}
       >
         <div className={css({ maxW: "md", mx: "auto", pointerEvents: "auto" })}>
-          <Button variant="primary" onClick={goToEntry} className={css({ w: "full", minH: "14", fontSize: "lg" })}>
+          <Button variant="primary" size="large" onClick={goToEntry}>
             거래 기록하기
           </Button>
         </div>

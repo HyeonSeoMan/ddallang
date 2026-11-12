@@ -4,7 +4,6 @@ import { css, cx } from "styled-system/css";
 type Variant = "primary" | "accent" | "secondary" | "danger";
 
 const base = css({
-  minH: "touch",
   minW: "touch",
   px: "5",
   borderRadius: "md",
@@ -22,11 +21,20 @@ const variants: Record<Variant, string> = {
   danger: css({ bg: "danger", color: "dangerText", boxShadow: "chip" }),
 };
 
+/** 높이는 크기 변형이 정한다(같은 속성을 `className`으로 덮어쓰면 클래스 순서에 따라 지는 일이 생긴다). */
+type Size = "default" | "large";
+
+const sizes: Record<Size, string> = {
+  default: css({ minH: "touch" }),
+  large: css({ minH: "14", fontSize: "lg", w: "full" }),
+};
+
 export interface ButtonProps extends ComponentProps<"button"> {
   variant?: Variant;
+  size?: Size;
 }
 
 /** 터치 목표 44px 이상. 폼 안에서 우연히 제출되지 않도록 기본 `type`은 `button`이다. */
-export function Button({ variant = "primary", className, type = "button", ...props }: ButtonProps) {
-  return <button type={type} className={cx(base, variants[variant], className)} {...props} />;
+export function Button({ variant = "primary", size = "default", className, type = "button", ...props }: ButtonProps) {
+  return <button type={type} className={cx(base, variants[variant], sizes[size], className)} {...props} />;
 }

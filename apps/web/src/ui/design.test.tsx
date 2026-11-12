@@ -93,6 +93,21 @@ describe("버튼 변형과 토큰(FD-18)", () => {
     expect(button).toBeDisabled();
   });
 
+  it("large 크기는 기본 터치 목표보다 큰 높이 클래스를 쓰고 기본 높이 클래스와 겹치지 않는다", () => {
+    render(
+      <>
+        <Button>기본</Button>
+        <Button size="large">크게</Button>
+      </>,
+    );
+    const small = screen.getByRole("button", { name: "기본" }).className.split(" ");
+    const large = screen.getByRole("button", { name: "크게" }).className.split(" ");
+    const minH = (classes: string[]) => classes.filter((c) => c.startsWith("min-h_"));
+    expect(minH(small)).toHaveLength(1);
+    expect(minH(large)).toHaveLength(1);
+    expect(minH(large)[0]).not.toBe(minH(small)[0]);
+  });
+
   it("모서리와 그림자 토큰은 시안의 단계를 따른다", () => {
     expect(radii.card).toBe("24px");
     expect(radii.control).toBe("16px");

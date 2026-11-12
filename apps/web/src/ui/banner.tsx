@@ -16,7 +16,7 @@ export function Banner({ tone = "info", children }: { tone?: Tone; children: Rea
   return (
     <div
       role={urgent ? "alert" : "status"}
-      className={cx(css({ p: "3", borderRadius: "md", fontWeight: "semibold" }), toneClass[tone])}
+      className={cx(css({ p: "4", borderRadius: "md", fontWeight: "semibold", boxShadow: "chip" }), toneClass[tone])}
     >
       {children}
     </div>

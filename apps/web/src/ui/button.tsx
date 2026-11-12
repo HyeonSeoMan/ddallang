@@ -1,22 +1,25 @@
 import type { ComponentProps } from "react";
 import { css, cx } from "styled-system/css";
 
-type Variant = "primary" | "secondary" | "danger";
+type Variant = "primary" | "accent" | "secondary" | "danger";
 
 const base = css({
   minH: "touch",
   minW: "touch",
-  px: "4",
+  px: "5",
   borderRadius: "md",
-  fontWeight: "semibold",
+  fontWeight: "bold",
   cursor: "pointer",
-  _disabled: { opacity: 0.6, cursor: "not-allowed" },
+  transition: "transform 80ms ease, box-shadow 80ms ease",
+  _active: { transform: "translateY(2px)", boxShadow: "buttonPressed" },
+  _disabled: { opacity: 0.6, cursor: "not-allowed", boxShadow: "none", transform: "none" },
 });
 
 const variants: Record<Variant, string> = {
-  primary: css({ bg: "primary", color: "primaryText" }),
-  secondary: css({ bg: "secondary", color: "secondaryText" }),
-  danger: css({ bg: "danger", color: "dangerText" }),
+  primary: css({ bg: "primary", color: "primaryText", boxShadow: "button" }),
+  accent: css({ bg: "accent", color: "accentText", boxShadow: "buttonAccent" }),
+  secondary: css({ bg: "secondary", color: "secondaryText", boxShadow: "chip" }),
+  danger: css({ bg: "danger", color: "dangerText", boxShadow: "chip" }),
 };
 
 export interface ButtonProps extends ComponentProps<"button"> {

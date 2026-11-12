@@ -93,26 +93,36 @@ export const registerParticipant = (host: Member, roomId: string, nickname: stri
 export const setParticipantStatus = (host: Member, roomId: string, id: string, status: "ACTIVE" | "INACTIVE") =>
   ok("참여자 상태 변경", call("PATCH", `/rooms/${roomId}/participants/${id}`, host.key, { status }));
 
-export const createTransaction = (live: LiveRoom, reason: string) =>
+/** 거래 생성. 기본은 방장이 참여자 0 → 1에게 100을 지급한다. 지급·수취·금액·작성 접속자는 바꿀 수 있다. */
+export const createTransaction = (
+  live: LiveRoom,
+  reason: string,
+  options: { payer?: number; payee?: number; amount?: number; as?: Member } = {},
+) =>
   ok<{ transaction: { id: string } }>(
     "거래 생성",
     call(
       "POST",
       `/rooms/${live.room.id}/transactions`,
-      live.host.key,
-      { payerId: live.participants[0]!.id, payeeId: live.participants[1]!.id, amount: 100, reason },
+      (options.as ?? live.host).key,
+      {
+        payerId: live.participants[options.payer ?? 0]!.id,
+        payeeId: live.participants[options.payee ?? 1]!.id,
+        amount: options.amount ?? 100,
+        reason,
+      },
       true,
     ),
   );
 
-export const updateTransaction = (live: LiveRoom, id: string, reason: string) =>
+export const updateTransaction = (live: LiveRoom, id: string, reason: string, amount = 200) =>
   ok(
     "거래 수정",
     call(
       "PUT",
       `/rooms/${live.room.id}/transactions/${id}`,
       live.host.key,
-      { amount: 200, reason },
+      { amount, reason },
       true,
     ),
   );

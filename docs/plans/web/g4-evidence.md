@@ -16,7 +16,7 @@
 | `pnpm build` | 통과(exit 0) | `NEXT_PUBLIC_API_BASE_URL=http://localhost:3001` 지정 |
 | `pnpm smoke` | 통과(exit 0) | 빌드 산출물을 `next start`로 띄워 `/invite/<임의 코드>` 등 직접 접속 200, 정의되지 않은 경로 404 |
 | `pnpm test:latency` | 통과(7개) — PR #34 시점 실행, §4 | 실서버 필요, 기본 시험 제외 |
-| `pnpm test:integration` | 통과(5개) — PR #35 시점 실행, §5 | 실서버 필요, 기본 시험 제외 |
+| `pnpm test:integration` | 통과(7개) — AC 보강 뒤 연속 2회 실행, §5 | 실서버 필요, 기본 시험 제외 |
 
 실서버 두 시험은 이 문서 작성을 위해 다시 돌리지 않았다(기본 게이트는 이번에 다시 돌렸다). **지연 측정은 PR #34 시점에 실행했고, 이후 PR #35에서 공유 도우미(`src/latency/client.tsx`·`server.ts`: `unit` 인자, `store` 노출, 마운트 실패 메시지)가 바뀌었다.** 기본 인자는 유지됐고 Codex가 정적으로 확인했지만 지연 측정을 그 뒤에 다시 돌리지는 않았다. 연동 점검은 #35의 최종 코드로 실행했다. 명령 출력 원본은 작성 세션의 임시 파일에만 있고 저장소에는 두지 않았다.
 
@@ -49,7 +49,7 @@
 | AC-PART-002-3 | BE+FE | FE-S2-2 | M | features/transactions/transaction-form.test.tsx | — |
 | AC-PART-002-4 | BE+FE | FE-S2-2 | M | features/realtime/s5-two-clients.test.tsx<br>features/transactions/transaction-form.test.tsx | — |
 | AC-PART-003-1 | BE+FE | FE-S1-5 | M | features/room/not-provided.test.tsx | — |
-| AC-PART-004-3 | FE | FE-S1-4 | M | features/participants/participants-section.test.tsx<br>features/settlement/ended-room.test.tsx | — |
+| AC-PART-004-3 | FE | FE-S1-4 | M | features/participants/participants-section.test.tsx<br>features/settlement/ended-room.test.tsx | integration/integration.test.tsx |
 | AC-TXN-001-3 | BE+FE | FE-S2-2 | M | features/transactions/transaction-form.test.tsx | — |
 | AC-TXN-001-5 | BE+FE | FE-S2-2, FE-S2-4 | M | features/transactions/s2-provided.test.tsx | — |
 | AC-TXN-001-6 | BE+FE | FE-S2-2 | M | features/transactions/transaction-form.test.tsx<br>lib/validation/transaction.test.ts | — |
@@ -64,7 +64,7 @@
 | AC-TXN-008-2 | FE | FE-S2-2 | M | features/transactions/transaction-form.test.tsx | — |
 | AC-TXN-008-3 | FE | FE-F8, FE-S2-1 | M | features/transactions/transaction-form.test.tsx<br>lib/mutation/manager.test.ts | — |
 | AC-TXN-008-5 | BE+FE | FE-S2-1, FE-S5-5 | R | features/realtime/s5-two-clients.test.tsx<br>features/transactions/transaction-form.test.tsx | integration/integration.test.tsx |
-| AC-TXN-009-3 | FE | FE-S2-2, FE-S2-3, FE-S4-4 | M | features/settlement/ended-room.test.tsx<br>features/transactions/transaction-actions.test.tsx<br>features/transactions/transaction-form.test.tsx | — |
+| AC-TXN-009-3 | FE | FE-S2-2, FE-S2-3, FE-S4-4 | M | features/settlement/ended-room.test.tsx<br>features/transactions/transaction-actions.test.tsx<br>features/transactions/transaction-form.test.tsx | integration/integration.test.tsx |
 | AC-TXN-009-4 | BE+FE | FE-S2-4 | M | features/transactions/s2-provided.test.tsx | — |
 | AC-VIEW-001-1 | FE | FE-F6, FE-S3-1 | M | features/room/room.test.tsx | — |
 | AC-VIEW-001-2 | BE+FE | FE-S3-1 | M | features/balances/balances-section.test.tsx | — |
@@ -75,7 +75,7 @@
 | AC-VIEW-005-1 | BE+FE | FE-S5-2, FE-S5-5 | R | features/realtime/coordinator.test.ts<br>features/realtime/s5-two-clients.test.tsx<br>features/realtime/use-room-connection.test.tsx | integration/integration.test.tsx |
 | AC-VIEW-005-2 | BE+FE | FE-S5-2, FE-S5-5 | R | features/realtime/coordinator.test.ts<br>features/realtime/s5-two-clients.test.tsx<br>features/realtime/use-room-connection.test.tsx | integration/integration.test.tsx |
 | AC-VIEW-005-3 | BE+FE | FE-S5-5, FE-S2-2 | R | features/realtime/s5-two-clients.test.tsx | integration/integration.test.tsx |
-| AC-VIEW-005-4 | BE+FE | FE-S5-5, FE-S4-4 | R | features/realtime/s5-two-clients.test.tsx<br>features/settlement/ended-room.test.tsx | — |
+| AC-VIEW-005-4 | BE+FE | FE-S5-5, FE-S4-4 | R | features/realtime/s5-two-clients.test.tsx<br>features/settlement/ended-room.test.tsx | integration/integration.test.tsx |
 | AC-VIEW-005-5 | BE+FE | FE-S5-5, FE-S4-2 | R | features/realtime/s5-two-clients.test.tsx<br>features/settlement/settlement-integration.test.tsx | integration/integration.test.tsx |
 | AC-VIEW-005-6 | FE | FE-S5-5 | M | features/realtime/s5-ui.test.tsx | — |
 | AC-VIEW-005-7 | FE | FE-S5-2, FE-S3-3 | M | features/realtime/snapshot.test.ts<br>features/transactions/s3-integration.test.tsx | — |
@@ -118,31 +118,31 @@
 | AC-TXN-008-5 (저장 응답 유실) | 통합 시험 3: 서버 반영, 화면은 결과 불명·입력 유지, 끊김·복구 뒤 재조회로 목록 확인돼도 결과 불명 유지, POST 1회(자동 재전송 없음), 같은 키 수동 재시도는 `Idempotent-Replayed: true`·중복 없음 | 확인함 |
 | AC-SYS-002-5 | 같은 통합 시험 3 | 확인함 |
 | AC-SYS-002-3 (끊김 중 종료가 복구 뒤 반영) | 통합 시험 2: 끊김 중 종료 → 차단 해제 후 약 1.3초에 `최종 정산` 반영 | 확인함 |
-| AC-SYS-002-1 (복구 후 손익·목록·참여자·상태·정산 재조회 표시) | 통합 시험 2: 끊기기 전 데이터 표시 → 끊김 즉시 서버 데이터 숨김 → 복구 뒤 거래 목록(끊김 중 생긴 거래)·상태·최종 정산 표시 | **부분**: 복구 뒤 **손익·참여자 표시는 실서버 시험이 단언하지 않는다**(모의 시험은 있음) |
+| AC-SYS-002-1 (복구 후 손익·목록·참여자·상태·정산 재조회 표시) | 통합 시험 2: 끊기기 전 데이터 표시(손익 `100 원`) → 끊김 즉시 서버 데이터 숨김 → 복구 뒤 거래 목록(끊김 중 생긴 거래)·누적 손익(`200 원`으로 갱신)·참여자(참0·참1)·상태·최종 정산(`200 원`) 표시 | 확인함(보강). 손익을 0으로 만드는 앱 변이는 시험이 잡았으나 끊기기 전 사전 단언에서 먼저 실패했다(복구 뒤 단언만 따로 변이로 확인하지는 않음) |
 | AC-VIEW-005-1 (A의 거래 등록 → B의 누적 손익·거래 목록 갱신) | 통합 시험 1: 방장 화면 폼으로 거래 저장 → 다른 화면의 거래 목록(사유)·누적 손익(`1,234 달러`) 반영 | 확인함 |
 | AC-VIEW-005-2 (수정·삭제도 B에 반영) | 통합 시험은 수정·삭제를 하지 않는다. **지연 측정(§4)이 실서버에서 API로 수정·삭제를 일으키고 실제 화면 10개의 사유 표시·행 부재 반영을 잰 것이 증거**(폼 조작이 아님) | 확인함(API 구동 근거) |
 | AC-VIEW-005-3 (참여자 등록·상태 변경 → 참여자 표시·거래 입력 선택지) | 통합 시험 1: 등록 → 참여자·선택지에 나타남, 비활성화 → 비활성 배지·선택지에서 빠짐 | 확인함 |
-| AC-VIEW-005-4 (종료 → B의 입력·수정·삭제 UI 잠김, 최종 정산) | 모의 두 접속자 시험·종료 후 잠금 시험. 실서버 통합 시험 1은 종료 뒤 다른 화면의 `최종 정산`과 **거래 입력 부재만** 확인(005-4 태그 없음) | **부분**: 수정·삭제 UI 잠금의 실서버 확인 없음(모의 시험만) |
-| AC-VIEW-005-5 (거래 변경으로 예상 정산이 바뀌면 B의 예상 정산 갱신) | 통합 시험 1: **거래 생성** 뒤 다른 화면의 예상 정산에 `1,234 달러` | **부분**: 수정·삭제 뒤 예상 정산 갱신은 실서버 미확인(지연 측정은 사유·행 부재만 검사, 모의 시험은 있음) |
-| AC-SET-008-2 (다른 접속자의 거래 생성·수정·삭제, 참여자 변경 뒤 예상 정산 갱신) | 위 005-5와 같은 증거(생성만) | **부분**: 수정·삭제·참여자 변경 뒤 예상 정산 갱신은 실서버 미확인(해당 단언이 예상 정산 값을 보지 않는다) |
+| AC-VIEW-005-4 (종료 → B의 입력·수정·삭제 UI 잠김, 최종 정산) | 모의 두 접속자 시험·종료 후 잠금 시험 + 실서버 통합 시험 7: 방장 화면과 **거래 작성자(비방장) 화면** 모두에서 종료 전에는 수정·삭제 컨트롤·거래 입력이 있고(방장은 참여자 등록·비활성화·게임 종료도), 종료 뒤 `최종 정산`과 함께 **모두 사라짐** | 확인함(보강). 종료 뒤에도 수정·삭제를 보이는 앱 변이를 시험이 잡았다 |
+| AC-VIEW-005-5 (거래 변경으로 예상 정산이 바뀌면 B의 예상 정산 갱신) | 통합 시험 1(생성) + 실서버 통합 시험 6: 다른 접속자의 거래 **생성·수정·삭제**마다 이 화면의 예상 정산이 서버 정산 응답과 항목 수·지급자·수취자·금액까지 일치하고 직전과 달라짐 | 확인함(보강). 정산 항목을 비우는 앱 변이를 시험이 잡았다 |
+| AC-SET-008-2 (다른 접속자의 거래 생성·수정·삭제, 참여자 변경 뒤 예상 정산 갱신) | 위 005-5와 같은 증거 + 통합 시험 6의 참여자 변경: 등록·상태 변경(비활성화)마다 이 화면이 정산을 **다시 조회**(요청 수 증가)하고 서버 정산과 일치 | 확인함(보강). 정산은 비활성 참여자를 포함하므로(S4 §6.1) 참여자 변경만으로는 정산 금액이 바뀌지 않아 "재조회 후 서버 값과 일치"까지 확인했다 |
 | AC-SET-007-1 (종료 직후 별도 조작 없이 `FINAL` 조회) | 통합 시험 1: 종료 직후 두 화면 모두 `최종 정산` 표시 | 확인함 |
 | AC-VIEW-005-8 (화면 반영 지연) | §4 FE 측정 통과. **백엔드 BE-S5-4·BE-S4-7 측정은 이 문서가 확인하지 않았다** | **FE 몫만 통과, AC 완료로 세지 않음**(plan §8: 백엔드 측정과 **모두** 통과해야 완료) |
 
-**R 15행 집계**: 확인함 10(AC-ROOM-001-14, ROOM-003-3, ROOM-006-11, TXN-008-5, SYS-002-3, SYS-002-5, VIEW-005-1, 005-2, 005-3, SET-007-1), 부분 4(SYS-002-1, VIEW-005-4, VIEW-005-5, SET-008-2), 미완료 1(VIEW-005-8). "확인함"은 AC의 FE 몫 서술을 실서버 근거가 모두 덮는다는 뜻이며, 근거의 한계(1회 시도, API 구동, 클라이언트 쪽 장애 재현)는 §5·§9에 있다.
+**R 15행 집계**: 확인함 14(AC-ROOM-001-14, ROOM-003-3, ROOM-006-11, TXN-008-5, SYS-002-1, SYS-002-3, SYS-002-5, VIEW-005-1, 005-2, 005-3, 005-4, 005-5, SET-007-1, SET-008-2), 부분 0, 미완료 1(VIEW-005-8). 처음 증거 묶음(PR #36)에서 부분이던 4행(SYS-002-1, VIEW-005-4, VIEW-005-5, SET-008-2)은 실서버 시험 6·7 추가와 시험 2 보강으로 올렸다. "확인함"은 AC의 FE 몫 서술을 실서버 근거가 모두 덮는다는 뜻이며, 근거의 한계(1회 시도, API 구동, 클라이언트 쪽 장애 재현)는 §5·§9에 있다.
 
 ### 3.1 횡단 시험 이관표(`tasks.md` §I) 9행별 확인
 
 | # | 이관표 행(AC) | 소유 Task | 기본 시험(모의 서버, `pnpm test`) | 실서버·실브라우저 | 상태·한계 |
 | --- | --- | --- | --- | --- | --- |
 | 1 | 참여자 변경이 거래 입력 선택지에 반영(AC-VIEW-005-3), 재활성화 뒤 선택지(AC-PART-002-4) | FE-S2-2, FE-S5-5 | `s5-two-clients.test.tsx` "[AC-VIEW-005-3][AC-PART-002-4] A가 참여자를 등록·비활성화하면 B의 참여자 표시와 거래 입력 선택지에 반영", `transaction-form.test.tsx` "[AC-PART-002-4] 참여자가 재활성화되어 새 스냅샷이 반영되면 선택지에 들어온다" | 통합 시험 1: 등록 → 선택지에 나타남, 비활성화 → 비활성 배지·선택지에서 빠짐 | 등록·비활성화는 실서버 확인. **재활성화 뒤 선택지는 모의 시험만**(실서버 미확인) |
-| 2 | 종료 시 거래 입력·수정·삭제·참여자 컨트롤 잠금(AC-VIEW-005-4, AC-TXN-009-3, AC-PART-004-3) | FE-S4-4 | `ended-room.test.tsx`(방장·비방장·종료 후 입장자의 컨트롤 부재, 확정·재개 UI·API 부재 소스 스캔), 컨트롤별 단위 시험(`participants-section`, `transaction-actions`, `transaction-form`), `s5-two-clients.test.tsx`(종료를 받은 다른 화면) | 통합 시험 1: 종료 뒤 두 화면 모두 `최종 정산`, 다른 접속자 화면에 거래 입력 없음 | **실서버에서는 종료 후 방장 화면의 수정·삭제·참여자 컨트롤 잠금을 따로 확인하지 않았다**(모의 시험은 확인) |
-| 3 | 거래 변경 시 예상 정산 갱신(AC-VIEW-005-5, AC-SET-008-2) | FE-S5-5, FE-S4-2 | `s5-two-clients.test.tsx`, `settlement-integration.test.tsx` | 통합 시험 1: 거래 **생성** 뒤 다른 화면의 예상 정산에 `1,234 달러` | **부분**: 수정·삭제·참여자 변경 뒤 예상 정산 갱신은 실서버 미확인(모의 시험만) |
+| 2 | 종료 시 거래 입력·수정·삭제·참여자 컨트롤 잠금(AC-VIEW-005-4, AC-TXN-009-3, AC-PART-004-3) | FE-S4-4 | `ended-room.test.tsx`(방장·비방장·종료 후 입장자의 컨트롤 부재, 확정·재개 UI·API 부재 소스 스캔), 컨트롤별 단위 시험(`participants-section`, `transaction-actions`, `transaction-form`), `s5-two-clients.test.tsx`(종료를 받은 다른 화면) | 통합 시험 7: 종료 전 컨트롤 존재 확인 후 종료 뒤 방장·작성자 화면의 거래 입력·수정·삭제·참여자 등록·상태 변경·게임 종료 컨트롤이 모두 없음 | 확인함(보강) |
+| 3 | 거래 변경 시 예상 정산 갱신(AC-VIEW-005-5, AC-SET-008-2) | FE-S5-5, FE-S4-2 | `s5-two-clients.test.tsx`, `settlement-integration.test.tsx` | 통합 시험 1(생성), 통합 시험 6(생성·수정·삭제·참여자 변경) | 확인함(보강). 참여자 변경은 값이 아니라 재조회·서버 일치를 확인 |
 | 4 | 저장 응답 유실 뒤 재조회(AC-SYS-002-5, AC-TXN-008-5) | FE-S2-1, FE-S5-5 | `s5-two-clients.test.tsx`, `transaction-form.test.tsx` | 통합 시험 3(§3 표 참조) | 확인함(클라이언트 fetch 래퍼로 유실을 재현) |
 | 5 | 끊김 중 종료가 복구 뒤 반영(AC-SYS-002-3) | FE-S5-5 | `s5-two-clients.test.tsx` | 통합 시험 2 | 확인함 |
 | 6 | 단위 표시·복사 반영(AC-ROOM-001-14, AC-ROOM-003-3) | FE-S3-1, S3-2, S4-2, S4-3 | `balances-section`·`settlement-section`·`transactions-section` 시험 | 통합 시험 1: 방 단위 "달러"가 손익·예상 정산·복사 텍스트에 쓰임 | 확인함 |
 | 7 | 화면 반영 지연(AC-VIEW-005-8) | FE-S5-6 (+BE-S5-4, BE-S4-7) | — | §4 FE 측정 통과 | **FE 몫만 통과. 백엔드 측정은 이 문서가 확인하지 않아 AC 완료로 세지 않음** |
 | 8 | 같은 브라우저 두 탭 첫 입장(AC-ROOM-006-11) | FE-S1-6(모의), FE-I1·FE-Z1(실브라우저) | `two-tabs.test.tsx`, `identity.test.ts`(가짜 잠금) | 실브라우저 수동 1회(§6.4) | 확인함(1회, 두 클릭의 완전 동시성은 보장 못 함) |
-| 9 | 실서버 확인이 필요한 R 15행 | FE-I1 | — | §3 표(R 15행 전체)와 §5 | 15행 중 확인함 10, 부분 4(AC-SYS-002-1, VIEW-005-4, VIEW-005-5, SET-008-2), 미완료 1(AC-VIEW-005-8, 위 7). 집계는 §3 |
+| 9 | 실서버 확인이 필요한 R 15행 | FE-I1 | — | §3 표(R 15행 전체)와 §5 | 15행 중 확인함 14, 부분 0, 미완료 1(AC-VIEW-005-8, 위 7). 집계는 §3 |
 
 ## 4. 화면 반영 지연 측정 결과 (FE-S5-6, PR #34)
 
@@ -166,13 +166,15 @@
 
 ## 5. 실서버 연동 점검 결과 (FE-I1, PR #35)
 
-환경: 로컬 백엔드·별도 DB, 같은 기기, 수정 후 연속 2회 5개 모두 통과. **5개 시험은 jsdom에서 실제 화면 컴포넌트를 렌더링해 실서버와 통신하며 실브라우저 점검이 아니다**(실브라우저 점검은 §6).
+환경: 로컬 백엔드·별도 DB, 같은 기기, AC 보강 뒤 연속 2회 7개 모두 통과(PR #35 시점에는 1~5번 5개). **7개 시험은 jsdom에서 실제 화면 컴포넌트를 렌더링해 실서버와 통신하며 실브라우저 점검이 아니다**(실브라우저 점검은 §6).
 
 1. 두 접속자(실제 화면 2개): 참여자 등록·비활성화·거래 저장·게임 종료가 다른 화면에 반영, 방 단위 표시·복사 텍스트 일치.
 2. 끊김 복구: 끊기기 전 표시 확인 후 끊김 즉시 구역 안 서버 데이터 숨김, 복구 뒤 종료·거래 반영.
 3. 응답 유실: 위 §3의 AC-TXN-008-5·AC-SYS-002-5.
 4. 오류 코드·헤더 계약: INVITE_NOT_FOUND 404·UNAUTHENTICATED 401·NICKNAME_TAKEN 409·VALIDATION_FAILED 422·HOST_ONLY 403·GAME_ENDED 409 모두 `{error:{code,message,details[]}}` 형식·FE가 아는 코드, `Date` 헤더, `Idempotent-Replayed`(재생 응답에만 `true`), 같은 접속자 연결 1~5번째 200·6번째 429 CONNECTION_LIMIT_EXCEEDED + `Retry-After: 30`. **차이 없음.**
 5. 모의 fixture vs 실서버 응답 모양(방·참여자·손익·거래·정산): fixture에만 있는 필드 0개, 실서버에만 있는 필드 0개.
+6. (AC 보강) 예상 정산 갱신: 다른 접속자의 거래 생성·수정·삭제마다 화면 정산이 서버 정산과 일치하고 바뀜, 참여자 등록·비활성화마다 정산 재조회·서버 일치.
+7. (AC 보강) 종료 뒤 잠금: 방장·거래 작성자(비방장) 화면에서 종료 전 존재하던 입력·수정·삭제·참여자·종료 컨트롤이 종료 뒤 모두 사라짐.
 - 한계: 끊김·응답 유실은 클라이언트 fetch 래퍼로 흉내 냈다(서버·망 장애 아님). CORS 외 배포 환경·다중 인스턴스 합산 연결 한도·실제 망은 대상 아님. 시험 도구 결함 3건(가짜 저장소 전역 되돌림, 응답 도착 전 읽기 경합, 잘못된 구역 부재 단언)은 시험 쪽 수정이며 FE 결함 아님.
 
 ## 6. 접근성
@@ -261,7 +263,7 @@ Codex 검수는 모두 읽기 전용이다. 대부분 시험·측정을 재실�
 7. 끊김·응답 유실은 클라이언트 fetch 래퍼로 재현했다. 서버·프록시·실제 망 장애, CORS 외 배포 환경, 다중 인스턴스 합산 연결 한도(탭 6개째 429)는 실제 환경에서 보지 않았다.
 8. 열린 결정(이전 세션 기록): 손상된 신원 키 덮어쓰기(F06)는 Spec에 없다. 백엔드 저장소 위치(iCloud 동기화되는 `~/Documents`)는 사용자가 보류했다.
 9. 실서버 시험(`pnpm test:latency`·`pnpm test:integration`)은 기본 시험에 포함되지 않아 CI 게이트가 아니라 릴리스 전 수동 실행이다. 실행에는 백엔드·PostgreSQL이 필요하다.
-10. R 15행 중 **부분 4행**(AC-SYS-002-1: 복구 뒤 손익·참여자 표시 미단언, AC-VIEW-005-4: 종료 뒤 수정·삭제 UI 잠금 실서버 미확인, AC-VIEW-005-5·AC-SET-008-2: 수정·삭제·참여자 변경 뒤 예상 정산 갱신 실서버 미확인)은 모의 시험까지만 근거가 있다. 이관표(§3.1)의 재활성화 뒤 선택지(AC-PART-002-4)와 종료 후 방장 화면의 수정·삭제·참여자 컨트롤 잠금(AC-TXN-009-3·AC-PART-004-3)도 모의 시험만 있다.
+10. 위 R 15행의 "확인함"은 로컬 백엔드·같은 기기·jsdom 렌더링·클라이언트 쪽 장애 재현이라는 한계 안의 확인이다(§4·§5). 이관표(§3.1)의 재활성화 뒤 선택지(AC-PART-002-4)는 모의 시험만 있고 실서버 확인이 없다.
 11. `check:ac`는 태그 **존재** 검사다. AC 완료의 증거는 §2의 시험 통과와 §3~§6이다.
 
 ## 10. 승인 필요

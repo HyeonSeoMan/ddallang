@@ -27,6 +27,7 @@ import {
   setParticipantStatus,
   updateTransaction,
 } from "@/latency/server";
+import { type ServerItem, settlementMatches } from "./settlement-match";
 import { installNetworkControl, keyPaths, type NetworkControl } from "./stream-control";
 
 let storage: ReturnType<typeof installFakeStorage>;
@@ -74,23 +75,7 @@ const isInactiveBadge = (nickname: string) => (el: HTMLElement) =>
 /** 구역 제목 틀은 남아도 안에 서버 데이터(목록 항목·폼·입력·선택지)가 있으면 그 구역 이름을 돌려준다. */
 const serverDataIn = (el: HTMLElement, headings: string[]) =>
   headings.filter((h) => (section(el, h)?.querySelectorAll("li, form, input, select, option").length ?? 0) > 0);
-/** 서버의 예상 정산 항목을 화면의 `예상 정산` 구역이 그대로 보이는가(항목 수·지급자·수취자·금액). 비면 빈 문구. */
-type ServerItem = { payerNickname: string; payeeNickname: string; amount: number };
-const settlementShows = (items: ServerItem[]) => (el: HTMLElement) => {
-  const area = section(el, "예상 정산");
-  if (!area) return false;
-  if (items.length === 0) return area.textContent?.includes("정산할 내역이 없습니다.") ?? false;
-  const rows = Array.from(area.querySelectorAll("li"));
-  return (
-    rows.length === items.length &&
-    items.every((item) =>
-      rows.some((li) => {
-        const t = li.textContent ?? "";
-        return t.includes(item.payerNickname) && t.includes(item.payeeNickname) && t.includes(`${item.amount.toLocaleString("en-US")} 원`);
-      }),
-    )
-  );
-};
+const settlementShows = (items: ServerItem[]) => (el: HTMLElement) => settlementMatches(section(el, "예상 정산"), items);
 const serverSettlement = async (live: LiveRoom) =>
   (await call<{ settlement: { items: ServerItem[] } }>("GET", `/rooms/${live.room.id}/settlement`, live.host.key)).body.settlement.items;
 const buttonNames = (c: LiveClient) =>
@@ -266,17 +251,40 @@ describe("실서버 연동 점검 (FE-I1)", () => {
     expect(items.map((i) => i.amount)).toEqual([200]);
     expect(area()).not.toBe(afterSecond);
 
-    // 참여자 변경(등록·상태 변경): 정산 값은 같아도 이 접속자가 정산을 다시 조회하고 서버 값과 일치한다(비활성 참여자도 정산에 포함).
-    const settlementGets = () => control.log.filter((l) => l.method === "GET" && l.path.endsWith("/settlement") && l.key === live.members[1]!.key).length;
-    let before = settlementGets();
-    await registerParticipant(live.host, live.room.id, "참3");
-    await mustSee(b!, "참여자 등록", participantListed("참3"));
-    await waitFor(() => expect(settlementGets()).toBeGreaterThan(before), { timeout: SEEN });
-    before = settlementGets();
-    await setParticipantStatus(live.host, live.room.id, live.participants[2]!.id, "INACTIVE");
-    await mustSee(b!, "참여자 비활성화", isInactiveBadge("참2"));
-    await waitFor(() => expect(settlementGets()).toBeGreaterThan(before), { timeout: SEEN });
-    await seeServer("참여자 변경 뒤 예상 정산(서버와 일치)");
+    // 참여자 변경(등록·상태 변경): 정산 값은 같아도 이 접속자가 그 이벤트 뒤에 정산을 **성공적으로 다시 조회**하고 서버와 일치한다
+    // (비활성 참여자도 정산에 포함되어 값이 바뀌지 않는다). 이전 이벤트의 추가 갱신과 섞이지 않도록 조용해진 뒤 기준을 잡는다.
+    const bKey = live.members[1]!.key;
+    const calls = () => control.log.filter((l) => l.method === "GET" && l.path.endsWith("/settlement") && l.key === bKey);
+    const okCalls = () => calls().filter((l) => l.status === 200).length;
+    const quiet = async () => {
+      let last = -1;
+      let since = Date.now();
+      for (;;) {
+        const n = calls().length;
+        if (n !== last || calls().some((l) => l.status === null)) {
+          last = n;
+          since = Date.now();
+        } else if (Date.now() - since >= 800) return;
+        await new Promise((r) => setTimeout(r, 100));
+      }
+    };
+    const refetchAfter = async (change: () => Promise<unknown>, reflected: (el: HTMLElement) => boolean, what: string) => {
+      await quiet();
+      const before = okCalls();
+      await change();
+      await mustSee(b!, what, reflected);
+      await waitFor(() => expect(okCalls()).toBeGreaterThan(before), { timeout: SEEN }); // 이 변경 뒤의 성공한(200) 정산 조회
+      await quiet();
+      expect(calls().filter((l) => l.status !== null && l.status !== 200)).toEqual([]); // 실패한 정산 조회 없음
+    };
+    await refetchAfter(() => registerParticipant(live.host, live.room.id, "참3"), participantListed("참3"), "참여자 등록");
+    await seeServer("참여자 등록 뒤 예상 정산(서버와 일치)");
+    await refetchAfter(
+      () => setParticipantStatus(live.host, live.room.id, live.participants[2]!.id, "INACTIVE"),
+      isInactiveBadge("참2"),
+      "참여자 비활성화",
+    );
+    await seeServer("참여자 비활성화 뒤 예상 정산(서버와 일치)");
     report.push("예상 정산 갱신: 생성·수정·둘째 생성·삭제마다 서버 정산과 일치하고 화면이 바뀜, 참여자 등록·상태 변경마다 정산 재조회");
   });
 
@@ -284,11 +292,13 @@ describe("실서버 연동 점검 (FE-I1)", () => {
     const live = await createLiveRoom(2);
     await createTransaction(live, "잠금시험", { as: live.members[1] }); // 작성자는 접속자 1(비방장)
     const [a, b] = await open(live, 0, 1);
-    const editControls = (c: LiveClient) => buttonNames(c).filter((n) => /(수정|삭제)$/.test(n) && n !== "게임 종료");
+    const editButtons = (c: LiveClient) => buttonNames(c).filter((n) => /수정$/.test(n));
+    const deleteButtons = (c: LiveClient) => buttonNames(c).filter((n) => /삭제$/.test(n));
 
     // 종료 전에는 컨트롤이 실제로 있다(이래야 "없어졌다"가 의미가 있다).
     for (const c of [a!, b!]) {
-      expect(editControls(c), `접속자 ${c.index} 수정·삭제`).not.toEqual([]);
+      expect(editButtons(c), `접속자 ${c.index} 수정`).not.toEqual([]);
+      expect(deleteButtons(c), `접속자 ${c.index} 삭제`).not.toEqual([]);
       expect(within(c.container).queryByLabelText("금액")).not.toBeNull();
     }
     expect(within(a!.container).queryByLabelText("참여자 닉네임")).not.toBeNull();
@@ -299,7 +309,8 @@ describe("실서버 연동 점검 (FE-I1)", () => {
     await mustSee(a!, "방장 화면 종료 반영", hasFinalSettlement);
     await mustSee(b!, "작성자 화면 종료 반영", hasFinalSettlement);
     for (const c of [a!, b!]) {
-      expect(editControls(c), `접속자 ${c.index} 종료 뒤 수정·삭제`).toEqual([]);
+      expect(editButtons(c), `접속자 ${c.index} 종료 뒤 수정`).toEqual([]);
+      expect(deleteButtons(c), `접속자 ${c.index} 종료 뒤 삭제`).toEqual([]);
       expect(within(c.container).queryByLabelText("금액")).toBeNull();
       expect(within(c.container).queryByLabelText("참여자 닉네임")).toBeNull();
       expect(buttonNames(c).filter((n) => /저장|참여자 등록|비활성화|재활성화|게임 종료/.test(n))).toEqual([]);

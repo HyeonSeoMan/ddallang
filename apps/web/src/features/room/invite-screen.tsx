@@ -20,6 +20,8 @@ import { Button } from "@/ui/button";
 import { TextField } from "@/ui/text-field";
 import { useRoomConnection } from "@/features/realtime/use-room-connection";
 import { BalancesSection } from "@/features/balances/balances-section";
+import { TransactionActions } from "@/features/transactions/transaction-actions";
+import { TransactionForm } from "@/features/transactions/transaction-form";
 import { TransactionsSection } from "@/features/transactions/transactions-section";
 import { ParticipantsSection } from "@/features/participants/participants-section";
 import { initialInviteStage, type InviteStage, inviteReducer } from "./invite-stage";
@@ -238,7 +240,14 @@ function RoomScreen({ inviteCode }: { inviteCode: string }) {
       <RoomLayout slots={{
           info: <RoomInfo />,
           balances: <BalancesSection />,
-          transactions: <TransactionsSection />,
+          entry: <TransactionForm />,
+          transactions: (
+            <TransactionsSection
+              renderActions={(transaction, { me, room, summary }) => (
+                <TransactionActions transaction={transaction} me={me} room={room} summary={summary} />
+              )}
+            />
+          ),
           participants: <ParticipantsSection />,
         }} />
     </>

@@ -4,7 +4,7 @@ import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import { type ReactNode, useState } from "react";
 import { css } from "styled-system/css";
 import { ApiError, bearerHeader, getApiClient, type RoomMember, type Room, type Transaction } from "@/lib/api";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, formatMoney } from "@/lib/format";
 import { getStoredKey } from "@/lib/identity";
 import { participantFilterAtom, requestRefreshAtom } from "@/features/realtime/state";
 import { type RoomSnapshot, sessionAtom, snapshotAtom } from "@/features/room/state";
@@ -18,6 +18,8 @@ const LOAD_MORE_ERROR = "더 불러오지 못했습니다. 잠시 뒤 다시 시
 export interface TransactionRowContext {
   me: RoomMember;
   room: Room;
+  /** 거래 요약(예: `가온 → 나래 100 원`). 컨트롤의 접근 가능한 이름에 써서 같은 금액의 행을 구분한다. */
+  summary: string;
 }
 
 /** 같은 순회 안에서 같은 `id`가 두 번 오면 하나만 둔다(S3 §6.4, 방어). 서버 순서는 그대로다. */
@@ -146,7 +148,7 @@ export function TransactionsSection({
               {t.reason ? <span>사유: {t.reason}</span> : null}
               {t.round ? <span>라운드: {t.round}</span> : null}
               <span className={css({ color: "inkMuted", fontSize: "sm" })}>{formatDateTime(t.createdAt)}</span>
-              {renderActions?.(t, { me, room })}
+              {renderActions?.(t, { me, room, summary: `${nameOf(t.payerId)} → ${nameOf(t.payeeId)} ${formatMoney(t.amount, room.unit)}` })}
             </li>
           ))}
         </ul>

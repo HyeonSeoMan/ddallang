@@ -1,6 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll, vi } from "vitest";
+import { resetMutationManagers } from "@/features/transactions/mutation-state";
 import { restoreNavigatorStubs } from "@/test/navigator-stub";
 import { server } from "@/test/msw-server";
 
@@ -12,6 +13,7 @@ afterEach(() => {
   server.resetHandlers();
   vi.unstubAllGlobals();
   restoreNavigatorStubs();
+  resetMutationManagers();
 });
 
 afterAll(() => server.close());

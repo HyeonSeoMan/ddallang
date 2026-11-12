@@ -34,6 +34,8 @@ export function EndGame() {
   const announce = useAnnounce();
   const requestRefresh = useSetAtom(requestRefreshAtom);
   const [confirming, setConfirming] = useState(false);
+  // 24시간 경과 뒤 "다시 종료"로 연 대화상자인지: 확인하면 새 키로 보낸다(확인 절차는 첫 시도와 같다).
+  const [newAttempt, setNewAttempt] = useState(false);
   const roomId = snapshot?.room.id ?? "";
   const mutation = useRoomMutation(mutationScope("end", roomId, snapshot?.me.id ?? ""), {
     expiredGuide: END_MESSAGES.expired,
@@ -67,13 +69,20 @@ export function EndGame() {
 
   return (
     <div className={css({ display: "flex", flexDirection: "column", gap: "2" })}>
-      <Button variant="danger" onClick={() => setConfirming(true)} disabled={pending}>
+      <Button variant="danger" onClick={() => {
+          setNewAttempt(false);
+          setConfirming(true);
+        }}
+        disabled={pending}>
         게임 종료
       </Button>
       <MutationNotice
         state={mutation.state}
         onRetry={() => void end()}
-        onConfirmNew={() => void end({ confirmNewAttempt: true })}
+        onConfirmNew={() => {
+          setNewAttempt(true);
+          setConfirming(true);
+        }}
         disabled={pending}
         messages={END_MESSAGES}
       />
@@ -83,7 +92,7 @@ export function EndGame() {
         description={END_BODY}
         confirmLabel="게임 종료"
         busy={pending}
-        onConfirm={() => void end()}
+        onConfirm={() => void end(newAttempt ? { confirmNewAttempt: true } : undefined)}
         onCancel={() => setConfirming(false)}
       />
     </div>

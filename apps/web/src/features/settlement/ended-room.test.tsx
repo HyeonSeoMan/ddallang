@@ -39,6 +39,7 @@ beforeEach(() => {
 });
 
 async function mountEnded(me = fixtures.hostMember) {
+  backend.me = me; // 화면은 재조회한 방 응답의 me를 쓰므로 서버 응답도 같은 접속자로 맞춘다
   store.set(sessionAtom, { inviteCode: INVITE_CODE, roomId: fixtures.room.id, me });
   const view = renderApp(<InviteScreen inviteCode={INVITE_CODE} />, store);
   await waitFor(() => expect(store.get(connectionAtom) === "connected" && store.get(snapshotAtom) !== null).toBe(true), { timeout: 4000 });
@@ -70,6 +71,7 @@ describe("종료 후 잠금·비제공 통합 (FE-S4-4)", () => {
 
   it("[AC-TXN-009-3] 종료 후 입장한 접속자(비방장)에게도 변경 컨트롤이 없고 목록·손익·정산은 보인다", async () => {
     const { container } = await mountEnded(fixtures.guestMember);
+    expect(store.get(snapshotAtom)?.me.isHost).toBe(false); // 실제로 비방장 스냅샷을 검사하는지 확인
     const ui = within(container);
     expect(ui.queryAllByRole("button", { name: FORBIDDEN_BUTTONS })).toHaveLength(0);
     expect(ui.queryByLabelText("금액")).not.toBeInTheDocument();

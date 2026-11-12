@@ -1,7 +1,7 @@
 // 상태 있는 가짜 서버(FD-16): 갱신 주기 시나리오 전용이며 작게 유지한다.
 // `revision`·이벤트·조회 응답이 서로 맞아야 하는 시험만 쓴다. 순손익·정산은 시험이 정한 값을 그대로 돌려준다.
 import { delay, type HttpHandler, http, HttpResponse, type JsonBodyType } from "msw";
-import type { Balance, Participant, Room, Settlement, Transaction } from "@/lib/api";
+import type { Balance, Participant, Room, RoomMember, Settlement, Transaction } from "@/lib/api";
 import { createFakeSse, type FakeSse } from "./fake-sse";
 import * as fixtures from "./fixtures";
 import { apiUrl, errorResponse } from "./handlers";
@@ -18,6 +18,8 @@ export type ReadEndpoint = "room" | "participants" | "balances" | "transactions"
 
 export interface FakeBackend {
   room: Room;
+  /** 방 조회가 돌려주는 접속자(기본 방장). 비방장 시험은 서버 응답을 바꾼다. */
+  me: RoomMember;
   participants: Participant[];
   balances: Balance[];
   transactions: Transaction[];
@@ -53,6 +55,7 @@ export interface FakeBackend {
 export function createFakeBackend(): FakeBackend {
   const backend: FakeBackend = {
     room: structuredClone(fixtures.room),
+    me: structuredClone(fixtures.hostMember),
     participants: structuredClone(fixtures.participants),
     balances: structuredClone(fixtures.balances),
     transactions: structuredClone(fixtures.transactions),
@@ -115,7 +118,7 @@ export function createFakeBackend(): FakeBackend {
     });
 
   backend.handlers = [
-    read("room", "", () => ({ room: backend.room, me: fixtures.hostMember })),
+    read("room", "", () => ({ room: backend.room, me: backend.me })),
     read("participants", "/participants", () => ({ participants: backend.participants })),
     read("balances", "/balances", () => ({ balances: backend.balances })),
     // 거래 목록: 필터(`participantId`)와 20건 단위 커서(`c<offset>`)를 흉내 낸다. 서버의 정렬 규칙은 다시 구현하지 않고

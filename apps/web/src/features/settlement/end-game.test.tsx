@@ -1,4 +1,4 @@
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createStore } from "jotai";
 import { delay, http, HttpResponse } from "msw";
@@ -222,7 +222,16 @@ describe("게임 종료 흐름 (FE-S4-1)", () => {
         await user.click(screen.getByRole("button", { name: "다시 시도" }));
         expect(await screen.findByText(/첫 시도 후 24시간이 지났습니다/)).toBeInTheDocument();
         expect(seen).toHaveLength(1); // 새 키로 자동 재전송하지 않았다
+        // 새 시도도 확인 대화상자를 거친다: 열기만 해서는, 취소·Esc로는 요청이 가지 않는다.
         await user.click(screen.getByRole("button", { name: /다시 종료/ }));
+        const dialog = await screen.findByRole("dialog");
+        expect(within(dialog).getByRole("button", { name: "취소" })).toHaveFocus();
+        expect(seen).toHaveLength(1);
+        await user.keyboard("{Escape}");
+        await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+        expect(seen).toHaveLength(1);
+        await user.click(screen.getByRole("button", { name: /다시 종료/ }));
+        await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "게임 종료" }));
         await waitFor(() => expect(seen).toHaveLength(2));
         expect(seen[1]!.key).not.toBe(seen[0]!.key);
       } finally {

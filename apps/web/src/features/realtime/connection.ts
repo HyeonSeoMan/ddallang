@@ -90,7 +90,8 @@ export function createRoomConnection(deps: ConnectionDeps): RoomConnection {
   let failures = 0;
   let firstCycleDone = false;
   let hasBeenDisconnected = false;
-  let limitWait = false;
+  /** 429 이후 이 시각 전에는 어떤 이벤트(online·visibilitychange·offline→online)로도 다시 연결하지 않는다. */
+  let limitUntil = 0;
   let watchdog: ReturnType<typeof setTimeout> | undefined;
   /** 스트림이 열린 뒤 `ready`가 오지 않는 경우를 끊는 시한(열기 전 시한은 `watchdog`이 맡는다). */
   let readyTimer: ReturnType<typeof setTimeout> | undefined;
@@ -142,6 +143,7 @@ export function createRoomConnection(deps: ConnectionDeps): RoomConnection {
     if (stopped || fatal || !env.isOnline()) return;
     const delay = Math.max(reconnectDelay(failures, deps.random()), minDelayMs);
     failures += 1;
+    if (minDelayMs > 0) limitUntil = deps.now() + delay; // 서버가 정한 재시도 제한(429 Retry-After)
     retryTimer = setTimeout(() => void connect(), delay);
   }
 
@@ -192,7 +194,6 @@ export function createRoomConnection(deps: ConnectionDeps): RoomConnection {
           // `Retry-After` 이상 간격으로만 재시도하고 연결 수 한도를 안내한다.
           dropConnection();
           hasBeenDisconnected = true;
-          limitWait = true;
           deps.setPhase("limit");
           scheduleReconnect((retryAfterSeconds ?? DEFAULT_LIMIT_WAIT_MS / 1000) * 1000);
           return;
@@ -208,7 +209,7 @@ export function createRoomConnection(deps: ConnectionDeps): RoomConnection {
   async function connect() {
     if (stopped || fatal) return;
     clearTimer(retryTimer);
-    limitWait = false;
+    limitUntil = 0;
     if (!env.isOnline()) {
       deps.setPhase("offline");
       return;
@@ -259,9 +260,14 @@ export function createRoomConnection(deps: ConnectionDeps): RoomConnection {
     handleEnd(connId, end);
   }
 
+  const limited = () => deps.now() < limitUntil;
+
   function onOnline() {
     if (stopped || fatal) return;
-    if (limitWait) return; // 429: Retry-After 이상 간격을 지킨다
+    if (limited()) {
+      deps.setPhase("limit"); // 429: Retry-After 이상 간격을 지킨다(예약된 재시도가 시각이 되면 연결한다)
+      return;
+    }
     if (controller) {
       checkStale(); // 연결 중이거나 열려 있으면 새로 시작하지 않되 멈춘 연결은 끊는다
       return;
@@ -272,10 +278,10 @@ export function createRoomConnection(deps: ConnectionDeps): RoomConnection {
   function onOffline() {
     if (stopped || fatal) return;
     // `connected`는 `navigator.onLine`이 거짓이 아니어야 한다.
-    clearTimer(retryTimer);
+    // 429 대기 중이면 예약된 재시도와 제한 시각을 유지한다(오프라인→온라인 전환이 제한을 풀지 못한다).
+    if (!limited()) clearTimer(retryTimer);
     dropConnection();
     hasBeenDisconnected = true;
-    limitWait = false;
     deps.setPhase("offline");
   }
 
@@ -294,7 +300,7 @@ export function createRoomConnection(deps: ConnectionDeps): RoomConnection {
     }
     const hiddenFor = hiddenSince === null ? 0 : deps.now() - hiddenSince;
     hiddenSince = null;
-    if (limitWait) return;
+    if (limited()) return;
     if (controller) {
       checkStale(hiddenFor);
       return;

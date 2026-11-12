@@ -103,6 +103,19 @@ describe("useRoomConnection (가짜 서버 통합)", () => {
     await waitFor(() => expect(visible()).toBe(true), { timeout: 4000 });
   }, 10_000);
 
+  it("[Codex F02] 조회 하나가 즉시 실패하면 나머지가 느려도 곧바로 데이터를 가리고 끊김으로 전환한다", async () => {
+    mount();
+    await waitFor(() => expect(visible()).toBe(true));
+    backend.latency.participants = 5000; // 나머지는 10초 시한 가까이 지연된다
+    backend.latency.settlement = 5000;
+    backend.failing.add("balances"); // 하나는 즉시 503
+    const startedAt = Date.now();
+    backend.commit("transaction.created");
+    await waitFor(() => expect(store.get(connectionAtom)).toBe("disconnected"), { timeout: 1500 });
+    expect(Date.now() - startedAt).toBeLessThan(1500);
+    expect(store.get(snapshotAtom)).toBeNull(); // 오래된 데이터가 계속 보이지 않는다
+  }, 10_000);
+
   it("스트림 열기가 401이면 재시도 없이 접근 불가 상태다", async () => {
     server.use(http.get(apiUrl(`/rooms/${fixtures.room.id}/events`), () => errorResponse("UNAUTHENTICATED")));
     mount();

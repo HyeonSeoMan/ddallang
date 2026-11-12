@@ -102,14 +102,22 @@ describe("fetchRoomSnapshot", () => {
     await expect(fetchRoomSnapshot(env.api, request)).rejects.toMatchObject({ status: 404, code: "ROOM_NOT_FOUND" });
   });
 
-  it("접근 불가(401·ROOM_NOT_FOUND)가 다른 실패와 섞이면 접근 불가 오류를 우선한다", async () => {
-    const env = setup((path) => {
-      if (path.endsWith("/balances")) return new Response("{}", { status: 503 });
-      if (path.endsWith("/settlement"))
-        return new Response(JSON.stringify({ error: { code: "ROOM_NOT_FOUND", message: "m" } }), { status: 404 });
-      return ok(path);
+  it("[Codex F02] 한 조회가 실패하면 나머지가 지연 중이어도 즉시 실패를 알리고 나머지를 중단한다", async () => {
+    const signals: AbortSignal[] = [];
+    const fetchMock = vi.fn<typeof fetch>((input, init) => {
+      const path = new URL(String(input)).pathname;
+      signals.push(init!.signal!);
+      if (path.endsWith("/balances")) return Promise.resolve(new Response("{}", { status: 503 }));
+      return new Promise<Response>((_resolve, reject) => {
+        init!.signal!.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+      }); // 나머지는 10초 동안 응답하지 않는다
     });
-    await expect(fetchRoomSnapshot(env.api, request)).rejects.toMatchObject({ status: 404, code: "ROOM_NOT_FOUND" });
+    const api = createApiClient({ baseUrl: "http://api.test", fetch: fetchMock });
+    const startedAt = Date.now();
+    await expect(fetchRoomSnapshot(api, request)).rejects.toMatchObject({ status: 503 });
+    expect(Date.now() - startedAt).toBeLessThan(1000); // 10초 시한을 기다리지 않는다
+    expect(signals).toHaveLength(5);
+    expect(signals.filter((signal) => signal.aborted)).toHaveLength(4); // 실패한 하나를 뺀 나머지 중단
   });
 
   it("중단 신호를 5개 요청 모두에 전달해 진행 중인 조회를 취소한다", async () => {

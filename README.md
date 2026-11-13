@@ -76,6 +76,7 @@ pnpm test
 - 화면을 직접 볼 때는 로컬 `ddallang-server`(기본 `http://localhost:3001`, PostgreSQL 16은 `docker compose`)에 연결한다. 백엔드 `CORS_ORIGINS`에 프론트 출처(`http://localhost:3000`)가 들어 있어야 한다.
 - 실서버 연동 점검과 지연 측정은 모의 단계가 끝난 뒤 별도 Task(FE-I1, FE-S5-6)로 했다.
 - **배포된 백엔드**(Render 무료 플랜, 백엔드 `docs/frontend-handoff.md`): `https://ddallang-api.onrender.com`. 프론트엔드는 코드 변경 없이 `NEXT_PUBLIC_API_BASE_URL`만 바꿔 연결한다(값은 **빌드 때 고정**). 현재 백엔드 `CORS_ORIGINS`는 `http://localhost:3000`뿐이므로, 로컬에서 배포본을 쓰려면 `pnpm dev`(3000 포트)로 띄우고 프론트엔드를 배포하면 그 출처를 백엔드 `CORS_ORIGINS`에 추가해 백엔드를 재배포해야 한다.
+- **프론트엔드 호스팅은 Vercel(Hobby)**로 시작한다(비상업 개인 용도 전제). 설정·브라우저 에이전트용 지침·백엔드 CORS 허용 절차는 `docs/deploy/vercel.md`.
 - 무료 플랜의 백엔드는 15분 넘게 요청이 없으면 잠들고 첫 요청이 50초 넘게 걸린다. 읽기 요청의 시간 제한은 Spec의 10초이므로, 앱은 화면이 열릴 때 `GET /health`를 한 번 보내 서버를 미리 깨운다(`src/lib/wake-api.ts`, 인증 없음, 실패해도 무시).
 
 ## 개발 현황

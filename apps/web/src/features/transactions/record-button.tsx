@@ -1,30 +1,25 @@
 "use client";
 
-import { css } from "styled-system/css";
+import { useAtomValue } from "jotai";
+import Link from "next/link";
+import { css, cx } from "styled-system/css";
+import { roomBasePath } from "@/features/room/room-header";
 import { useCanMutate } from "@/features/room/server-data-gate";
-import { Button } from "@/ui/button";
+import { sessionAtom } from "@/features/room/state";
+import { buttonClass } from "@/ui/button";
 
-const CONTROL = "select:not([disabled]), input:not([disabled]), textarea:not([disabled])";
-
-/** 마지막 구역이 버튼 뒤에 가려지지 않도록 확보하는 여백(버튼 높이 + 여유). */
+/** 마지막 카드가 버튼 뒤에 가려지지 않도록 확보하는 여백(버튼 높이 + 여유). */
 export const RECORD_BUTTON_CLEARANCE_PX = 104;
 
 /**
- * 화면 아래 고정 `거래 기록하기` 버튼(U-6, FD-18 (4)). 누르면 거래 입력 구역으로 이동하고 첫 입력에 포커스를 둔다.
- * 새 화면·시트를 열지 않는다(U-7). 거래 입력 폼과 같은 조건(`canMutate`)에서만 보인다: 게임이 종료되었거나
- * 연결이 끊겨 서버 유래 영역이 가려진 동안은 폼이 없으므로 이 버튼도 없다(S2 §9, S4 §9, S5 §6.5).
+ * 현황 아래에 고정된 `거래 기록하기` 버튼(U-6). 기록 페이지로 이동하는 링크이며 모양만 버튼이다.
+ * 거래 입력 폼과 같은 조건(`canMutate`)에서만 보인다: 게임이 종료되었거나 연결이 끊겨 서버 유래 영역이 가려진
+ * 동안은 폼이 없으므로 이 버튼도 없다(S2 §9, S4 §9, S5 §6.5).
  */
 export function RecordTransactionButton() {
   const canMutate = useCanMutate();
-  if (!canMutate) return null;
-
-  function goToEntry() {
-    const section = document.querySelector<HTMLElement>('[data-section="entry"]');
-    if (!section) return;
-    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
-    section.scrollIntoView?.({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
-    section.querySelector<HTMLElement>(CONTROL)?.focus({ preventScroll: true });
-  }
+  const session = useAtomValue(sessionAtom);
+  if (!canMutate || !session) return null;
 
   return (
     <>
@@ -43,9 +38,15 @@ export function RecordTransactionButton() {
         })}
       >
         <div className={css({ maxW: "md", mx: "auto", pointerEvents: "auto" })}>
-          <Button variant="primary" size="large" onClick={goToEntry}>
+          <Link
+            href={`${roomBasePath(session.inviteCode)}/record`}
+            className={cx(
+              buttonClass({ variant: "primary", size: "large" }),
+              css({ display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none" }),
+            )}
+          >
             거래 기록하기
-          </Button>
+          </Link>
         </div>
       </div>
     </>

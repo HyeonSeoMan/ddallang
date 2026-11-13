@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue, useStore } from "jotai";
-import { type FormEvent, useEffect, useReducer, useRef, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useReducer, useRef, useState } from "react";
 import { css } from "styled-system/css";
 import {
   ApiError,
@@ -19,21 +19,11 @@ import { Banner } from "@/ui/banner";
 import { BrandHeader, cardClass } from "@/ui/brand-header";
 import { Button } from "@/ui/button";
 import { TextField } from "@/ui/text-field";
-import { ConnectionBanner } from "@/features/realtime/connection-banner";
 import { useRoomConnection } from "@/features/realtime/use-room-connection";
-import { BalancesSection } from "@/features/balances/balances-section";
-import { TransactionActions } from "@/features/transactions/transaction-actions";
-import { TransactionForm } from "@/features/transactions/transaction-form";
-import { RecordTransactionButton } from "@/features/transactions/record-button";
-import { TransactionsSection } from "@/features/transactions/transactions-section";
-import { EndGame } from "@/features/settlement/end-game";
-import { SettlementSection } from "@/features/settlement/settlement-section";
-import { ParticipantsSection } from "@/features/participants/participants-section";
 import { initialInviteStage, type InviteStage, inviteReducer } from "./invite-stage";
 import { IDENTITY_KEY_NOTICE, reasonMessage } from "./messages";
-import { RoomInfo } from "./room-info";
-import { RoomLayout } from "./room-layout";
-import { sessionAtom, snapshotAtom } from "./state";
+import { RoomShell } from "./room-shell";
+import { sessionAtom } from "./state";
 
 const NETWORK_MESSAGE = "응답을 받지 못했습니다. 네트워크를 확인하고 다시 시도해 주세요.";
 
@@ -53,7 +43,11 @@ interface JoinResult {
  * `/invite/{inviteCode}` 화면(FE-S1-2, S1 §4.2·§4.3·§9). 한 화면이 확인 중 → 닉네임 입력 → 입장 중 → 방 화면
  * 단계로 바뀐다(FD-2). 입장 전에는 방 이름·정산 단위·진행 상태만 보인다. 방 코드 입력·최근 방 목록은 없다.
  */
-export function InviteScreen({ inviteCode }: { inviteCode: string }) {
+/**
+ * 입장 화면과 방 화면의 틀. 방 단계에서는 현재 페이지(`children`: 현황·기록·정산·방)를 `RoomShell` 안에 그린다.
+ * 라우트 레이아웃에 있어 페이지를 옮겨도 입장 상태와 실시간 연결이 유지된다.
+ */
+export function InviteScreen({ inviteCode, children }: { inviteCode: string; children?: ReactNode }) {
   const store = useStore();
   const [state, dispatch] = useReducer(
     inviteReducer,
@@ -178,11 +172,12 @@ export function InviteScreen({ inviteCode }: { inviteCode: string }) {
 
   return (
     <main data-invite-code={inviteCode} data-stage={state.stage}>
+      {state.stage !== "room" ? (
       <div className={css({ maxW: "md", mx: "auto", p: "4" })}>
         <BrandHeader />
 
-        <div className={state.stage === "room" ? undefined : cardClass}>
-        {preview && state.stage !== "room" ? (
+        <div className={cardClass}>
+        {preview ? (
           <section aria-label="방 정보" className={css({ mb: "4" })}>
             <p className={css({ fontSize: "lg", fontWeight: "bold" })}>{preview.name}</p>
             <p>정산 단위: {preview.unit}</p>
@@ -232,53 +227,22 @@ export function InviteScreen({ inviteCode }: { inviteCode: string }) {
         ) : null}
         </div>
       </div>
+      ) : null}
 
-      {state.stage === "room" ? <RoomScreen inviteCode={inviteCode} /> : null}
+      {state.stage === "room" ? <RoomScreen inviteCode={inviteCode}>{children}</RoomScreen> : null}
     </main>
   );
 }
 
 /** 입장(복원)에 성공한 뒤의 방 화면. 스트림을 연결하고 서버 유래 영역은 연결 게이트 뒤에 둔다. */
-function RoomScreen({ inviteCode }: { inviteCode: string }) {
+function RoomScreen({ inviteCode, children }: { inviteCode: string; children?: ReactNode }) {
   const session = useAtomValue(sessionAtom);
   return session?.inviteCode === inviteCode ? (
     <>
       <RoomConnection inviteCode={inviteCode} roomId={session.roomId} />
-      <RoomBody />
+      <RoomShell inviteCode={inviteCode}>{children}</RoomShell>
     </>
   ) : null;
-}
-
-function RoomBody() {
-  const snapshot = useAtomValue(snapshotAtom);
-  // 정산 영역의 이름은 서버가 정한 `kind`를 따른다(예상 정산 / 최종 정산). 데이터가 보일 때만 적용된다.
-  const titles = snapshot ? { settlement: snapshot.settlement.kind === "FINAL" ? "최종 정산" : "예상 정산" } : {};
-  return (
-    <RoomLayout
-      banner={<ConnectionBanner />}
-      titles={titles}
-      floating={<RecordTransactionButton />}
-      slots={{
-        info: (
-          <>
-            <RoomInfo />
-            <EndGame />
-          </>
-        ),
-        balances: <BalancesSection />,
-        settlement: <SettlementSection />,
-        entry: <TransactionForm />,
-        transactions: (
-          <TransactionsSection
-            renderActions={(transaction, { me, room, summary }) => (
-              <TransactionActions transaction={transaction} me={me} room={room} summary={summary} />
-            )}
-          />
-        ),
-        participants: <ParticipantsSection />,
-      }}
-    />
-  );
 }
 
 function RoomConnection({ inviteCode, roomId }: { inviteCode: string; roomId: string }) {

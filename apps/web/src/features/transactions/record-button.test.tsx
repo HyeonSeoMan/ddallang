@@ -1,27 +1,20 @@
-// FE-D2 완료 기준(FD-18 (4), U-6·U-7): 고정 `거래 기록하기` 버튼과 구역 모양. AC 태그는 없다(새 AC가 없다).
+// 고정 `거래 기록하기` 버튼(링크)과 구역 모양. 페이지 분리 뒤에는 기록 페이지로 이동하는 링크다. AC 태그는 없다(새 AC가 없다).
 import { act, screen, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { createStore } from "jotai";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import { roomBasePath } from "@/features/room/room-header";
 import { ROOM_SECTION_TITLES, RoomLayout } from "@/features/room/room-layout";
 import { setConnectionAtom } from "@/features/room/state";
 import { expectNoA11yViolations } from "@/test/a11y";
 import { renderApp } from "@/test/render";
-import { seedRoom } from "@/test/room-seed";
+import { INVITE_CODE, seedRoom } from "@/test/room-seed";
 import { RECORD_BUTTON_CLEARANCE_PX, RecordTransactionButton } from "./record-button";
 import { TransactionForm } from "./transaction-form";
 
 let store: ReturnType<typeof createStore>;
-const scrollIntoView = vi.fn();
 
 beforeEach(() => {
   store = createStore();
-  scrollIntoView.mockClear();
-  Element.prototype.scrollIntoView = scrollIntoView;
-});
-
-afterEach(() => {
-  Reflect.deleteProperty(Element.prototype, "scrollIntoView");
 });
 
 function mount(options: Parameters<typeof seedRoom>[1] = {}) {
@@ -34,38 +27,21 @@ function mount(options: Parameters<typeof seedRoom>[1] = {}) {
   );
 }
 
-const recordButton = () => screen.queryByRole("button", { name: "거래 기록하기" });
+const recordLink = () => screen.queryByRole("link", { name: "거래 기록하기" });
 
-describe("고정 거래 기록하기 버튼 (FE-D2, U-6)", () => {
-  it("진행 중이고 연결된 방에서 보이고, 누르면 거래 입력 구역으로 이동해 첫 입력에 포커스를 둔다", async () => {
+describe("고정 거래 기록하기 링크 (U-6, 페이지 분리)", () => {
+  it("진행 중이고 연결된 방에서 보이고, 기록 페이지로 가는 링크다", () => {
     mount();
-    const button = recordButton();
-    expect(button).toBeInTheDocument();
-    expect(button).toHaveAttribute("type", "button");
-
-    await userEvent.click(button!);
-
-    const entry = document.querySelector<HTMLElement>('[data-section="entry"]')!;
-    expect(scrollIntoView).toHaveBeenCalledOnce();
-    expect(scrollIntoView.mock.contexts[0]).toBe(entry);
-    expect(within(entry).getByLabelText("지급자")).toHaveFocus();
+    const link = recordLink();
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveAttribute("href", `${roomBasePath(INVITE_CODE)}/record`);
+    // 이동 동작이므로 버튼이 아니라 링크다(모양만 버튼).
+    expect(screen.queryByRole("button", { name: "거래 기록하기" })).not.toBeInTheDocument();
   });
 
-  it("모션 줄이기 설정이면 부드러운 스크롤을 쓰지 않는다", async () => {
-    const matchMedia = vi.fn().mockReturnValue({ matches: true });
-    vi.stubGlobal("matchMedia", matchMedia);
-    try {
-      mount();
-      await userEvent.click(recordButton()!);
-      expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "auto", block: "start" });
-    } finally {
-      vi.unstubAllGlobals();
-    }
-  });
-
-  it("게임이 종료된 방에서는 버튼도 여백도 없다(거래 입력 폼이 없는 상태와 같다)", () => {
+  it("게임이 종료된 방에서는 링크도 여백도 없다(거래 입력 폼이 없는 상태와 같다)", () => {
     mount({ status: "ENDED" });
-    expect(recordButton()).not.toBeInTheDocument();
+    expect(recordLink()).not.toBeInTheDocument();
     expect(screen.queryByTestId("record-button-clearance")).not.toBeInTheDocument();
   });
 
@@ -82,16 +58,15 @@ describe("고정 거래 기록하기 버튼 (FE-D2, U-6)", () => {
   it("연결이 끊기면 거래 입력 구역은 다른 구역처럼 제목만 남는다(가려진 이유는 연결 배너가 알린다)", () => {
     mount();
     act(() => store.set(setConnectionAtom, "disconnected"));
-    const heading = screen.getByRole("heading", { level: 2, name: "거래 입력" });
-    expect(heading).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "거래 입력" })).toBeInTheDocument();
     expect(screen.queryByLabelText("지급자")).not.toBeInTheDocument();
   });
 
-  it("연결이 끊기면 버튼과 여백이 사라진다(복구 뒤 표시는 스냅샷 세대가 정한다, 이 시험 범위 밖)", () => {
+  it("연결이 끊기면 링크와 여백이 사라진다(복구 뒤 표시는 스냅샷 세대가 정한다, 이 시험 범위 밖)", () => {
     mount();
-    expect(recordButton()).toBeInTheDocument();
+    expect(recordLink()).toBeInTheDocument();
     act(() => store.set(setConnectionAtom, "disconnected"));
-    expect(recordButton()).not.toBeInTheDocument();
+    expect(recordLink()).not.toBeInTheDocument();
     expect(screen.queryByTestId("record-button-clearance")).not.toBeInTheDocument();
   });
 
@@ -107,18 +82,14 @@ describe("고정 거래 기록하기 버튼 (FE-D2, U-6)", () => {
     expect(last.compareDocumentPosition(clearance) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it("버튼은 접근성 위반이 없고 키보드로 누를 수 있다", async () => {
+  it("접근성 위반이 없다", async () => {
     const { container } = mount();
     await expectNoA11yViolations(container);
-    const button = recordButton()!;
-    button.focus();
-    await userEvent.keyboard("{Enter}");
-    expect(scrollIntoView).toHaveBeenCalledOnce();
   });
 });
 
-describe("방 화면 구역 모양 (FE-D2, FD-12·FD-18)", () => {
-  it("구역 순서는 방 정보 → 누적 손익 → 정산 → 거래 입력 → 거래 내역 → 참여자로 바뀌지 않는다", () => {
+describe("구역 모양 (FD-12·FD-18)", () => {
+  it("RoomLayout은 구역을 방 정보 → 누적 손익 → 정산 → 거래 입력 → 거래 내역 → 참여자 순으로 그린다", () => {
     mount();
     const titles = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
     expect(titles).toEqual(Object.values(ROOM_SECTION_TITLES));

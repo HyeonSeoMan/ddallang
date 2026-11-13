@@ -2,6 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import { createStore } from "jotai";
 import { beforeEach, describe, expect, it } from "vitest";
 import { InviteScreen } from "@/features/room/invite-screen";
+import { AllPages } from "@/test/all-pages";
 import { connectionAtom, sessionAtom, snapshotAtom } from "@/features/room/state";
 import { mockClipboard } from "@/test/clipboard";
 import { installFakeLocks } from "@/test/fake-locks";
@@ -28,7 +29,7 @@ beforeEach(() => {
 
 function mount() {
   store.set(sessionAtom, { inviteCode: INVITE_CODE, roomId: fixtures.room.id, me: fixtures.hostMember });
-  return renderApp(<InviteScreen inviteCode={INVITE_CODE} />, store);
+  return renderApp(<InviteScreen inviteCode={INVITE_CODE}><AllPages /></InviteScreen>, store);
 }
 
 describe("정산 영역 × 갱신·종료 (FE-S4-2 통합)", () => {

@@ -68,7 +68,18 @@ export function EndGame() {
   }
 
   return (
-    <div className={css({ display: "flex", flexDirection: "column", gap: "2" })}>
+    // 정산 목록과 구분한다: 되돌릴 수 없는 동작이라 위에 구분선과 여백을 둔다(정산 페이지).
+    <div
+      className={css({
+        display: "flex",
+        flexDirection: "column",
+        gap: "2",
+        mt: "5",
+        pt: "5",
+        borderTopWidth: "1px",
+        borderColor: "divider",
+      })}
+    >
       <Button variant="danger" onClick={() => {
           setNewAttempt(false);
           setConfirming(true);

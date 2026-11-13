@@ -15,9 +15,10 @@ import { renderApp } from "@/test/render";
 import { seedRoom } from "@/test/room-seed";
 import { createFakeBackend } from "@/test/stateful-server";
 import { InviteScreen } from "./invite-screen";
+import { AllPages } from "@/test/all-pages";
 import { RoomInfo } from "./room-info";
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => null }));
 
 const SRC = join(process.cwd(), "src");
 
@@ -100,17 +101,23 @@ describe("S1 비제공 UI 점검", () => {
     );
     const store = createStore();
     seedRoom(store); // 방금 만든 방: 요청 없이 방 화면
-    renderApp(<InviteScreen inviteCode={fixtures.INVITE_CODE} />, store);
+    renderApp(<InviteScreen inviteCode={fixtures.INVITE_CODE}><AllPages /></InviteScreen>, store);
     await waitFor(() => expect(screen.getByRole("heading", { name: "참여자" })).toBeInTheDocument());
     expect(document.body.textContent).not.toMatch(FORBIDDEN_CONTROL);
   });
 
-  it("정의된 화면 라우트는 `/`와 `/invite/[inviteCode]` 둘뿐이다(그 밖의 경로는 404)", () => {
+  it("정의된 화면 라우트는 `/`와 초대 링크 아래 4개 페이지(현황·기록·정산·방)뿐이다(`/rooms/…` 등 그 밖의 경로는 404)", () => {
     const pages = listFiles(join(SRC, "app"))
       .filter((file) => /(^|\/)(page|route)\.(ts|tsx)$/.test(file))
       .map((file) => relative(join(SRC, "app"), file))
       .sort();
-    expect(pages).toEqual(["invite/[inviteCode]/page.tsx", "page.tsx"]);
+    expect(pages).toEqual([
+      "invite/[inviteCode]/page.tsx",
+      "invite/[inviteCode]/record/page.tsx",
+      "invite/[inviteCode]/room/page.tsx",
+      "invite/[inviteCode]/settlement/page.tsx",
+      "page.tsx",
+    ]);
   });
 
   it("소스에 제공하지 않는 기능의 API 호출이 없다(허용 목록: 참여자 상태 PATCH, 거래 수정·삭제 PUT/DELETE)", () => {

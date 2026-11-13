@@ -138,6 +138,24 @@ describe("거래 입력 폼 (FE-S2-2)", () => {
     expect(await screen.findAllByText("거래를 저장했습니다.")).not.toHaveLength(0);
   });
 
+  it("저장한 뒤에도 같은 폼에 머물며 눈에 보이는 저장 안내를 보이고, 다음 입력을 시작하면 안내가 사라진다(페이지 분리)", async () => {
+    handle(() => created());
+    mount();
+    const user = userEvent.setup();
+    expect(screen.queryByTestId("saved-notice")).not.toBeInTheDocument();
+    await fill(user, { payer: "가온", payee: "나래", amount: "300" });
+    await user.click(save());
+    const notice = await screen.findByTestId("saved-notice");
+    expect(notice).toHaveTextContent("거래를 저장했습니다.");
+    // 스크린리더에는 알림 영역이 이미 같은 문장을 읽으므로 눈에 보이는 안내는 접근성 트리에서 숨긴다.
+    expect(notice).toHaveAttribute("aria-hidden", "true");
+    // 같은 폼이 비워진 채로 남아 연속 입력할 수 있다.
+    expect(screen.getByLabelText("지급자")).toBeInTheDocument();
+    expect(screen.getByLabelText("금액")).toHaveValue("");
+    await user.type(screen.getByLabelText("금액"), "1");
+    expect(screen.queryByTestId("saved-notice")).not.toBeInTheDocument();
+  });
+
   it("입력 없는 사유·라운드는 본문에서 뺀다", async () => {
     handle(() => created());
     mount();

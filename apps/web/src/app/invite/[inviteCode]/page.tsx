@@ -1,7 +1,6 @@
-import { InviteScreen } from "@/features/room/invite-screen";
+import { StatusPage } from "@/features/room/room-pages";
 
-// 초대 코드는 런타임에 생기므로 미리 만들 수 없다. 요청 때 렌더링한다(FD-2, FD-17).
-export default async function InvitePage({ params }: { params: Promise<{ inviteCode: string }> }) {
-  const { inviteCode } = await params;
-  return <InviteScreen inviteCode={inviteCode} />;
+// 현황(누적 손익·거래 내역). 입장 단계 화면은 레이아웃의 `InviteScreen`이 맡는다.
+export default function InvitePage() {
+  return <StatusPage />;
 }

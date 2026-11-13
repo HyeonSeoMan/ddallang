@@ -39,7 +39,7 @@ function EndedRedirect({ inviteCode, pathname }: { inviteCode: string; pathname:
 export function RoomShell({ inviteCode, children }: { inviteCode: string; children: ReactNode }) {
   const pathname = usePathname();
   return (
-    <div className={css({ maxW: "md", mx: "auto", px: "4", pb: "4", pt: "calc(12px + env(safe-area-inset-top, 0px))" })}>
+    <div className={css({ maxW: "md", mx: "auto", px: "4", pb: "4" })}>
       {pathname ? <EndedRedirect inviteCode={inviteCode} pathname={pathname} /> : null}
       <RoomHeader inviteCode={inviteCode} />
       <ConnectionBanner />

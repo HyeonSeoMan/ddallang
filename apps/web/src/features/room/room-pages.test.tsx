@@ -74,6 +74,16 @@ describe("헤더 탭", () => {
     expect(within(screen.getByRole("navigation", { name: "방 페이지" })).getAllByRole("link")).toHaveLength(4);
   });
 
+  it("헤더는 위쪽 틈까지 덮는 고정 래퍼 안에 있다(스크롤되는 카드가 틈으로 비치지 않게)", () => {
+    mount(<RoomHeader inviteCode={INVITE_CODE} />);
+    const wrapper = screen.getByTestId("room-header-sticky");
+    expect(wrapper).toContainElement(screen.getByRole("banner"));
+    // 헤더(banner) 자체가 아니라 래퍼가 고정과 배경을 맡는다.
+    expect(wrapper.className).toMatch(/pos_sticky/);
+    expect(wrapper.className).toMatch(/top_0/);
+    expect(wrapper.className).toMatch(/bg-g(radient)?_|linear-gradient/);
+  });
+
   it("접근성 위반이 없다", async () => {
     const { container } = mount(<RoomHeader inviteCode={INVITE_CODE} />);
     await expectNoA11yViolations(container);

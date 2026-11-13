@@ -50,12 +50,20 @@ export function RoomHeader({ inviteCode }: { inviteCode: string }) {
   const tabs = TABS.filter((tab) => !(ended && tab.key === "record"));
 
   return (
-    <header
+    // 위쪽 틈(안전 영역 포함)으로 스크롤되는 카드가 비치지 않도록 고정 래퍼가 캔버스 색으로 덮고, 헤더 아래는 부드럽게 사라진다.
+    <div
+      data-testid="room-header-sticky"
       className={css({
         position: "sticky",
-        top: "calc(12px + env(safe-area-inset-top, 0px))",
+        top: "0",
         zIndex: 20,
-        mb: "4",
+        pt: "calc(12px + env(safe-area-inset-top, 0px))",
+        pb: "4",
+        background: "linear-gradient(token(colors.canvas) calc(100% - 16px), transparent)",
+      })}
+    >
+    <header
+      className={css({
         p: "3",
         borderRadius: "26px",
         borderWidth: "1px",
@@ -125,5 +133,6 @@ export function RoomHeader({ inviteCode }: { inviteCode: string }) {
         ))}
       </nav>
     </header>
+    </div>
   );
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import type { ReactNode } from "react";
+import { ApiWakeUp } from "@/providers/api-wake-up";
 import { Providers } from "@/providers/providers";
 import { FeatureGate } from "@/ui/feature-gate";
 import "@/styles/global.css";
@@ -25,6 +26,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ko" className={pretendard.variable}>
       <body>
+        <ApiWakeUp />
         <Providers>
           <FeatureGate>{children}</FeatureGate>
         </Providers>

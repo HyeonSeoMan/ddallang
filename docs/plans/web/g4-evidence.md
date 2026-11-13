@@ -402,7 +402,7 @@ G4 판정(프론트엔드 구현 완료 인정)과 이 증거 묶음의 `main` �
 | `pnpm typecheck` | 통과(exit 0) | |
 | `pnpm lint` | 통과(exit 0) | |
 | `pnpm build` | 통과(exit 0) | 라우트 `/`, `/invite/[inviteCode]`, `/invite/[inviteCode]/record`·`/room`·`/settlement` |
-| `pnpm test` | 51파일 643개 통과(exit 0) | 직전 `main` 기준 50파일 627개 → 순증 16개(신규 `room-pages.test.tsx` 16개, 저장 후 머물기 시험 1개, 다시 쓴 `record-button.test.tsx`의 증감 −1) |
+| `pnpm test` | 51파일 643개 통과(exit 0) | 직전 `main` 기준 50파일 627개 → 순증 16개(신규 `room-pages.test.tsx` 16개 + 저장 후 머물기 시험 1개 − 다시 쓴 `record-button.test.tsx`의 순감 1개: 10개 → 9개) |
 | `pnpm check:ac` | 통과(exit 0) | 모든 AC(79개)에 태그 시험이 있다 |
 | `pnpm smoke` | 통과(exit 0) | 초대 링크와 새 경로 3개가 200이고 `/rooms`·`/join`·`/invite`·`/invite/abc/extra`는 404 |
 
@@ -415,11 +415,11 @@ G4 판정(프론트엔드 구현 완료 인정)과 이 증거 묶음의 `main` �
 | `s5-two-clients`·`s5-ui`·`invite-screen`·`two-tabs`·`ended-room`·`settlement-integration`·`not-provided`(렌더링) | `<InviteScreen …/>` → `<InviteScreen …><AllPages /></InviteScreen>` (`src/test/all-pages.tsx`가 페이지 4개를 합쳐 렌더링). `two-tabs`·`not-provided`는 `next/navigation` 모의에 `usePathname: () => null` 추가 | **없음** (단언 그대로) |
 | `latency/client.tsx` | 같은 렌더링 변경 | 없음 |
 | `not-provided` (라우트 시험) | 허용 라우트 집합을 `/`+`/invite/[code]` 둘 → `/`+초대 링크 아래 4개 페이지로 | **요구 변경**(FD-2 하위 경로 추가) |
-| `record-button.test.tsx` | 버튼 시험을 링크 시험으로 다시 씀: 이전 6개(스크롤·포커스 이동·모션 줄이기 등)는 사라지고 링크 `href`·종료/끊김 시 숨김·여백·접근성이 남음. 구역 모양 시험(`RoomLayout` 순서·compact·제목 아이콘)은 유지 | **요구 변경**(`거래 기록하기`가 스크롤 이동 → 기록 페이지 링크). 이전의 "첫 입력 포커스·모션 줄이기" 단언은 새 요구에 없어 삭제 |
+| `record-button.test.tsx` | 제목이 바뀐 시험 5개(보임, 종료 시 없음, 끊김 시 없음, 접근성, `RoomLayout` 구역 순서)는 대상이 버튼에서 링크로(`role=link`·`href`)만 달라졌다. 종료·끊김 때 구역(compact)·여백·제목 아이콘 시험은 그대로 유지 | **요구 변경**(`거래 기록하기`가 스크롤 이동 → 기록 페이지 링크). **단언이 사라진 것은 3가지**: 클릭 시 거래 입력 구역으로 스크롤·첫 입력 포커스, 모션 줄이기 설정에서 부드러운 스크롤 끄기, 접근성 시험 안의 Enter 키 동작(링크는 브라우저 기본 동작이라 앱이 처리하지 않는다). 새 요구에는 해당 동작이 없다 |
 | `transaction-form.test.tsx` | 저장 뒤 머물기 시험 1개 추가 | 추가만 |
 | `room-pages.test.tsx`(신규) | 경로→페이지, 헤더 탭, 페이지별 구성, 종료 방 이동 | 추가만 |
 
-- 삭제된 단언은 `RecordTransactionButton`의 스크롤·포커스·모션 줄이기뿐이며 FD-18 (4)가 기록 페이지 링크로 수정되면서 요구 자체가 바뀌었다.
+- 삭제된 단언은 `RecordTransactionButton`의 스크롤·첫 입력 포커스·모션 줄이기·Enter 키뿐이며 FD-18 (4)가 기록 페이지 링크로 수정되면서 요구 자체가 바뀌었다(`git diff eddf030~1 eddf030 -- …/record-button.test.tsx`로 확인).
 - `src/integration/integration.test.tsx`(실서버)는 `InviteScreen`을 `latency/client.tsx` 경유로 쓴다. 타입 검사는 통과했지만 **실서버가 없어 이 시험은 실행하지 못했다**(`pnpm test:integration`, FE-I1과 같은 이유).
 
 ### 12.3 실제 Chrome 점검 (headless, 390px, `next start`)

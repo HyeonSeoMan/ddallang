@@ -34,7 +34,12 @@ export interface ButtonProps extends ComponentProps<"button"> {
   size?: Size;
 }
 
+/** 버튼 모양의 클래스. 이동 동작은 `<a>`(링크)가 맡고 모양만 버튼을 따를 때 쓴다. */
+export function buttonClass({ variant = "primary", size = "default" }: { variant?: Variant; size?: Size } = {}): string {
+  return cx(base, variants[variant], sizes[size]);
+}
+
 /** 터치 목표 44px 이상. 폼 안에서 우연히 제출되지 않도록 기본 `type`은 `button`이다. */
 export function Button({ variant = "primary", size = "default", className, type = "button", ...props }: ButtonProps) {
-  return <button type={type} className={cx(base, variants[variant], sizes[size], className)} {...props} />;
+  return <button type={type} className={cx(buttonClass({ variant, size }), className)} {...props} />;
 }

@@ -75,26 +75,41 @@ export function RoomSection({
   );
 }
 
-export interface RoomLayoutProps {
-  /** 연결 배너 자리(S5-4). 서버 유래 값을 담지 않으므로 게이트 밖이다. */
-  banner?: ReactNode;
+export interface RoomSectionsProps {
+  /** 그릴 구역. 생략하면 전부이며 순서는 항상 `ROOM_SECTION_TITLES`의 순서(FD-12)다. */
+  only?: readonly RoomSectionId[];
   slots?: Partial<Record<RoomSectionId, ReactNode>>;
   /** 구역 제목 바꾸기. 데이터 영역이 보일 때만 적용되고 끊김 중에는 기본 제목이다. */
   titles?: Partial<Record<RoomSectionId, string>>;
-  /** 화면 아래에 떠 있는 요소(고정 `거래 기록하기` 버튼, U-6). 마지막 구역을 가리지 않도록 스스로 자리를 만든다. */
-  floating?: ReactNode;
 }
 
-/** 모바일 우선 한 열(가로 스크롤 없음). 각 Task가 자기 구역의 `slots`를 채운다. */
-export function RoomLayout({ banner, slots = {}, titles = {}, floating }: RoomLayoutProps) {
+/** 컨테이너 없는 구역 묶음. 페이지(현황·기록·정산·방)는 자기 구역만 골라 쓴다(FD-12 개정, 페이지 분리). */
+export function RoomSections({ only, slots = {}, titles = {} }: RoomSectionsProps) {
+  const ids = (Object.keys(ROOM_SECTION_TITLES) as RoomSectionId[]).filter((id) => !only || only.includes(id));
   return (
-    <div className={css({ maxW: "md", mx: "auto", p: "4" })}>
-      {banner}
-      {(Object.keys(ROOM_SECTION_TITLES) as RoomSectionId[]).map((id) => (
+    <>
+      {ids.map((id) => (
         <RoomSection key={id} id={id} title={titles[id]}>
           {slots[id]}
         </RoomSection>
       ))}
+    </>
+  );
+}
+
+export interface RoomLayoutProps extends RoomSectionsProps {
+  /** 연결 배너 자리(S5-4). 서버 유래 값을 담지 않으므로 게이트 밖이다. */
+  banner?: ReactNode;
+  /** 화면 아래에 떠 있는 요소. 마지막 구역을 가리지 않도록 스스로 자리를 만든다. */
+  floating?: ReactNode;
+}
+
+/** 모바일 우선 한 열(가로 스크롤 없음). 구역을 전부 한 화면에 쌓는 이전 구성이며 시험과 비교용으로 남겨 둔다. */
+export function RoomLayout({ banner, floating, ...sections }: RoomLayoutProps) {
+  return (
+    <div className={css({ maxW: "md", mx: "auto", p: "4" })}>
+      {banner}
+      <RoomSections {...sections} />
       {floating}
     </div>
   );

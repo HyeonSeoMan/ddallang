@@ -10,8 +10,9 @@ import { server } from "@/test/msw-server";
 import { renderApp } from "@/test/render";
 import { createFakeBackend } from "@/test/stateful-server";
 import { InviteScreen } from "./invite-screen";
+import { AllPages } from "@/test/all-pages";
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => null }));
 
 const CODE = fixtures.INVITE_CODE;
 let storage: FakeStorage;
@@ -47,8 +48,8 @@ describe("같은 브라우저 두 탭의 첫 입장 (FE-S1-6)", () => {
     const setItemSpy = vi.spyOn(storage, "setItem");
 
     // 탭 A·B: 같은 localStorage·같은 Web Locks를 공유하고 각자 별도 앱 상태(store)를 가진다.
-    const tabA = renderApp(<InviteScreen inviteCode={CODE} />);
-    const tabB = renderApp(<InviteScreen inviteCode={CODE} />);
+    const tabA = renderApp(<InviteScreen inviteCode={CODE}><AllPages /></InviteScreen>);
+    const tabB = renderApp(<InviteScreen inviteCode={CODE}><AllPages /></InviteScreen>);
     await waitFor(() => expect(screen.getAllByLabelText("닉네임")).toHaveLength(2));
     const nicknameInputs = screen.getAllByLabelText("닉네임");
 
@@ -89,7 +90,7 @@ describe("같은 브라우저 두 탭의 첫 입장 (FE-S1-6)", () => {
         HttpResponse.json({ room: { name: "방", unit: "원", status: "IN_PROGRESS" }, isMember: false }),
       ),
     );
-    renderApp(<InviteScreen inviteCode={CODE} />);
+    renderApp(<InviteScreen inviteCode={CODE}><AllPages /></InviteScreen>);
     const user = userEvent.setup();
     await user.type(await screen.findByLabelText("닉네임"), "손님");
     await user.click(screen.getByRole("button", { name: "입장" }));

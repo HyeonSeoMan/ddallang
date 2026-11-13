@@ -6,6 +6,7 @@ import { createStore } from "jotai";
 import { connectionPhaseAtom } from "@/features/realtime/state";
 import { connectionAtom, sessionAtom, snapshotAtom } from "@/features/room/state";
 import { InviteScreen } from "@/features/room/invite-screen";
+import { AllPages } from "@/test/all-pages";
 import { renderApp } from "@/test/render";
 import type { LiveRoom } from "./server";
 
@@ -31,7 +32,7 @@ export async function mountClient(
   saveKey(alias, member.key);
   const store = createStore();
   store.set(sessionAtom, { inviteCode: alias, roomId: live.room.id, me: member.me });
-  const view = renderApp(<InviteScreen inviteCode={alias} />, store);
+  const view = renderApp(<InviteScreen inviteCode={alias}><AllPages /></InviteScreen>, store);
   await waitFor(() => {
     if (store.get(connectionAtom) !== "connected" || store.get(snapshotAtom) === null) {
       throw new Error(`연결 대기(단계 ${store.get(connectionPhaseAtom)})`);

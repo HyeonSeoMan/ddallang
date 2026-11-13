@@ -39,9 +39,13 @@ try {
   await waitReady();
   // 앱 본문은 필수 기능 검사(FeatureGate) 뒤 브라우저에서만 그려지므로, 서버 응답에서는 "경로가 앱에 연결되고
   // 초대 코드가 전달됐는지"(200과 RSC 페이로드의 `inviteCode`)를 확인한다. 실제 렌더링은 브라우저 점검(FE-Z1)이다.
+  // 초대 링크와 그 아래 4개 페이지(현황·기록·정산·방)가 모두 같은 레이아웃에 연결되어야 한다(페이지 분리).
   const cases = [
     ["/invite/zz-never-created-code", "zz-never-created-code"],
     ["/invite/Ab_-9xYz0123456789abcdef", "Ab_-9xYz0123456789abcdef"],
+    ["/invite/zz-never-created-code/record", "zz-never-created-code"],
+    ["/invite/zz-never-created-code/settlement", "zz-never-created-code"],
+    ["/invite/zz-never-created-code/room", "zz-never-created-code"],
   ];
   for (const [path, code] of cases) {
     const response = await fetch(`http://localhost:${port}${path}`);

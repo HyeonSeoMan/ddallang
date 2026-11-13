@@ -12,6 +12,7 @@ import { server } from "@/test/msw-server";
 import { createFakeBackend } from "@/test/stateful-server";
 import { renderApp } from "@/test/render";
 import { InviteScreen } from "./invite-screen";
+import { AllPages } from "@/test/all-pages";
 import { sessionAtom } from "./state";
 
 const CODE = "invite-code-0000000000000000";
@@ -78,7 +79,7 @@ describe("초대 링크 화면", () => {
         errorResponse("INVITE_NOT_FOUND", { message: "초대 링크를 찾을 수 없습니다" }),
       ),
     );
-    renderApp(<InviteScreen inviteCode={CODE} />);
+    renderApp(<InviteScreen inviteCode={CODE}><AllPages /></InviteScreen>);
     expect(await screen.findByText("초대 링크를 찾을 수 없습니다")).toBeInTheDocument();
     expect(screen.queryByLabelText("닉네임")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "다시 시도" })).not.toBeInTheDocument();
@@ -95,7 +96,7 @@ describe("초대 링크 화면", () => {
       }),
     );
     const store = createStore();
-    const { container } = renderApp(<InviteScreen inviteCode={CODE} />, store);
+    const { container } = renderApp(<InviteScreen inviteCode={CODE}><AllPages /></InviteScreen>, store);
     expect(screen.getByText("확인 중…")).toBeInTheDocument();
 
     const nicknameInput = await screen.findByLabelText("닉네임");
@@ -124,7 +125,7 @@ describe("초대 링크 화면", () => {
   it("[AC-ROOM-005-1] 이미 입장한 브라우저는 닉네임을 다시 묻지 않고 같은 키로 복원한다", async () => {
     storage.setItem(`ddallang:identity:${CODE}`, STORED_KEY);
     server.use(inviteHandler({ isMember: true }), joinHandler(() => joined(200)));
-    renderApp(<InviteScreen inviteCode={CODE} />);
+    renderApp(<InviteScreen inviteCode={CODE}><AllPages /></InviteScreen>);
 
     expect(await screen.findByRole("heading", { name: "누적 손익" })).toBeInTheDocument();
     expect(screen.queryByLabelText("닉네임")).not.toBeInTheDocument();
@@ -144,7 +145,7 @@ describe("초대 링크 화면", () => {
         return joined(200);
       }),
     );
-    renderApp(<InviteScreen inviteCode={CODE} />);
+    renderApp(<InviteScreen inviteCode={CODE}><AllPages /></InviteScreen>);
     expect(await screen.findByText("입장 중…")).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "누적 손익" }, { timeout: 2000 })).toBeInTheDocument();
   });
@@ -159,7 +160,7 @@ describe("초대 링크 화면", () => {
         }),
       ),
     );
-    renderApp(<InviteScreen inviteCode={CODE} />);
+    renderApp(<InviteScreen inviteCode={CODE}><AllPages /></InviteScreen>);
     const user = userEvent.setup();
     await user.type(await screen.findByLabelText("닉네임"), "열한번째");
     await user.click(screen.getByRole("button", { name: "입장" }));
@@ -172,7 +173,7 @@ describe("초대 링크 화면", () => {
       inviteHandler(),
       joinHandler(() => errorResponse("NICKNAME_TAKEN", { message: "이미 사용 중인 닉네임입니다" })),
     );
-    renderApp(<InviteScreen inviteCode={CODE} />);
+    renderApp(<InviteScreen inviteCode={CODE}><AllPages /></InviteScreen>);
     const user = userEvent.setup();
     await user.type(await screen.findByLabelText("닉네임"), "손님");
     await user.click(screen.getByRole("button", { name: "입장" }));
@@ -191,7 +192,7 @@ describe("초대 링크 화면", () => {
         errorResponse("VALIDATION_FAILED", { details: [{ field: "nickname", code: "INVALID_CHARACTER" }] }),
       ),
     );
-    renderApp(<InviteScreen inviteCode={CODE} />);
+    renderApp(<InviteScreen inviteCode={CODE}><AllPages /></InviteScreen>);
     const user = userEvent.setup();
     const input = await screen.findByLabelText("닉네임");
     await user.click(screen.getByRole("button", { name: "입장" }));
@@ -213,7 +214,7 @@ describe("초대 링크 화면", () => {
 
   it("종료된 방도 입장할 수 있고 종료 상태를 표시한다", async () => {
     server.use(inviteHandler({ status: "ENDED" }), joinHandler());
-    renderApp(<InviteScreen inviteCode={CODE} />);
+    renderApp(<InviteScreen inviteCode={CODE}><AllPages /></InviteScreen>);
     expect(await screen.findByText("게임 종료")).toBeInTheDocument();
     expect(screen.getByText(/종료된 방입니다. 입장하면 최종 정산을 볼 수 있습니다/)).toBeInTheDocument();
     const user = userEvent.setup();
@@ -232,7 +233,7 @@ describe("초대 링크 화면", () => {
           : HttpResponse.json({ room: { name: "방", unit: "원", status: "IN_PROGRESS" }, isMember: false });
       }),
     );
-    renderApp(<InviteScreen inviteCode={CODE} />);
+    renderApp(<InviteScreen inviteCode={CODE}><AllPages /></InviteScreen>);
     expect(await screen.findByText(/응답을 받지 못했습니다/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "다시 시도" }));
     expect(await screen.findByLabelText("닉네임")).toBeInTheDocument();
@@ -244,14 +245,14 @@ describe("초대 링크 화면", () => {
       inviteHandler({ isMember: true }),
       joinHandler(() => errorResponse("INVITE_NOT_FOUND", { message: "초대 링크를 찾을 수 없습니다" })),
     );
-    renderApp(<InviteScreen inviteCode={CODE} />);
+    renderApp(<InviteScreen inviteCode={CODE}><AllPages /></InviteScreen>);
     expect(await screen.findByText("초대 링크를 찾을 수 없습니다")).toBeInTheDocument();
     expect(screen.queryByLabelText("닉네임")).not.toBeInTheDocument();
   });
 
   it("저장소·잠금을 쓸 수 없으면 입장 요청 없이 안내한다", async () => {
     server.use(inviteHandler(), joinHandler());
-    renderApp(<InviteScreen inviteCode={CODE} />);
+    renderApp(<InviteScreen inviteCode={CODE}><AllPages /></InviteScreen>);
     const user = userEvent.setup();
     await user.type(await screen.findByLabelText("닉네임"), "손님");
     storage.options.failOnSet = true;
@@ -264,7 +265,7 @@ describe("초대 링크 화면", () => {
   it("방을 방금 만들어 세션이 있으면 요청 없이 바로 방 화면이다", () => {
     const store = createStore();
     store.set(sessionAtom, { inviteCode: CODE, roomId: "room-1", me: fixtures.hostMember });
-    renderApp(<InviteScreen inviteCode={CODE} />, store);
+    renderApp(<InviteScreen inviteCode={CODE}><AllPages /></InviteScreen>, store);
     expect(screen.getByRole("heading", { name: "누적 손익" })).toBeInTheDocument();
     expect(seen).toHaveLength(0);
   });

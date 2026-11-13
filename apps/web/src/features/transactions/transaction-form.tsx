@@ -95,6 +95,8 @@ export function TransactionForm() {
   const announce = useAnnounce();
   const [drafts, setDrafts] = useAtom(transactionDraftsAtom);
   const [clientErrors, setClientErrors] = useState<FieldErrors | null>(null);
+  // 저장한 뒤 이 페이지에 머문다(페이지 분리). 눈에 보이는 안내이며 다음 입력을 시작하면 사라진다.
+  const [savedNotice, setSavedNotice] = useState(false);
   const roomId = snapshot?.room.id ?? "";
   const key = draftKey(roomId, snapshot?.me.id ?? "");
   const draft = drafts[key] ?? EMPTY;
@@ -119,6 +121,7 @@ export function TransactionForm() {
   const errors: FieldErrors = { ...dismissedServer.filter(serverErrors), ...(clientErrors ?? {}) };
 
   const set = (patch: Partial<Draft>) => {
+    setSavedNotice(false);
     setDraft((prev) => ({ ...prev, ...patch }));
     // 고친 필드의 서버 거부 오류도 숨긴다(고치지 않은 필드의 오류는 남는다). 지급자를 고치면 "같은 사람" 오류도 함께 걷는다.
     const fixed = Object.keys(patch) as TxField[];
@@ -185,6 +188,7 @@ export function TransactionForm() {
           : prev,
       );
       mutation.clear();
+      setSavedNotice(true);
       announce("거래를 저장했습니다.");
     }
   }
@@ -196,6 +200,16 @@ export function TransactionForm() {
 
   return (
     <form onSubmit={onSubmit} noValidate className={css({ display: "flex", flexDirection: "column", gap: "3" })}>
+      {savedNotice ? (
+        // 스크린리더에는 알림 영역(`announce`)이 같은 문장을 이미 읽으므로 중복해서 읽지 않게 숨긴다.
+        <p
+          aria-hidden="true"
+          data-testid="saved-notice"
+          className={css({ p: "4", borderRadius: "md", bg: "successBg", color: "successText", fontWeight: "semibold", boxShadow: "chip" })}
+        >
+          거래를 저장했습니다.
+        </p>
+      ) : null}
       <ParticipantSelect
         label="지급자"
         value={payerId}

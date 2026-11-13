@@ -4,6 +4,7 @@ import { createStore } from "jotai";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it } from "vitest";
 import { InviteScreen } from "@/features/room/invite-screen";
+import { AllPages } from "@/test/all-pages";
 import { connectionAtom, sessionAtom, snapshotAtom } from "@/features/room/state";
 import { transactionDraftsAtom } from "@/features/transactions/transaction-form";
 import { installFakeLocks } from "@/test/fake-locks";
@@ -33,7 +34,7 @@ beforeEach(() => {
 
 function mount() {
   store.set(sessionAtom, { inviteCode: INVITE_CODE, roomId: fixtures.room.id, me: fixtures.hostMember });
-  return renderApp(<InviteScreen inviteCode={INVITE_CODE} />, store);
+  return renderApp(<InviteScreen inviteCode={INVITE_CODE}><AllPages /></InviteScreen>, store);
 }
 
 /** 서버 변경 컨트롤(거래 등록·수정·삭제·참여자 변경·종료)을 가리키는 버튼 이름. */

@@ -4,6 +4,7 @@ import { join, relative } from "node:path";
 import { createStore } from "jotai";
 import { beforeEach, describe, expect, it } from "vitest";
 import { InviteScreen } from "@/features/room/invite-screen";
+import { AllPages } from "@/test/all-pages";
 import { connectionAtom, sessionAtom, snapshotAtom } from "@/features/room/state";
 import { expectNoA11yViolations } from "@/test/a11y";
 import { installFakeLocks } from "@/test/fake-locks";
@@ -41,7 +42,7 @@ beforeEach(() => {
 async function mountEnded(me = fixtures.hostMember) {
   backend.me = me; // 화면은 재조회한 방 응답의 me를 쓰므로 서버 응답도 같은 접속자로 맞춘다
   store.set(sessionAtom, { inviteCode: INVITE_CODE, roomId: fixtures.room.id, me });
-  const view = renderApp(<InviteScreen inviteCode={INVITE_CODE} />, store);
+  const view = renderApp(<InviteScreen inviteCode={INVITE_CODE}><AllPages /></InviteScreen>, store);
   await waitFor(() => expect(store.get(connectionAtom) === "connected" && store.get(snapshotAtom) !== null).toBe(true), { timeout: 4000 });
   return view;
 }

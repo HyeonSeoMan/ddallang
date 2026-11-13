@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { createStore } from "jotai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { InviteScreen } from "@/features/room/invite-screen";
+import { AllPages } from "@/test/all-pages";
 import { connectionAtom, sessionAtom, snapshotAtom } from "@/features/room/state";
 import { UNKNOWN_AFTER_RECOVERY, UNKNOWN_RESULT } from "@/features/transactions/messages";
 import { primeServerClock } from "@/test/clock-prime";
@@ -52,7 +53,7 @@ let storage: FakeStorage;
 function mountClient(): Client {
   const store = createStore();
   store.set(sessionAtom, { inviteCode: INVITE_CODE, roomId: fixtures.room.id, me: fixtures.hostMember });
-  const view = renderApp(<InviteScreen inviteCode={INVITE_CODE} />, store);
+  const view = renderApp(<InviteScreen inviteCode={INVITE_CODE}><AllPages /></InviteScreen>, store);
   return { store, root: view.container, ui: within(view.container), unmount: view.unmount };
 }
 

@@ -1,6 +1,6 @@
 // 백엔드 미리 깨우기(배포 연동). 시간 제한·재시도 계약(S5)을 바꾸지 않는 부가 동작이다. AC 태그는 없다.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { WAKE_TIMEOUT_MS, wakeApi } from "./wake-api";
+import { resetWakeApiOnceForTests, WAKE_TIMEOUT_MS, wakeApi, wakeApiOnce } from "./wake-api";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
@@ -50,4 +50,40 @@ describe("wakeApi", () => {
       vi.unstubAllEnvs();
     }
   });
+
+  it("AbortController가 없는 브라우저에서는 예외 없이 생략한다(필수 기능 안내를 방해하지 않는다)", () => {
+    vi.stubGlobal("AbortController", undefined);
+    try {
+      const fetchImpl = vi.fn();
+      expect(() => wakeApi({ baseUrl: "https://api.example.test", fetchImpl })).not.toThrow();
+      expect(fetchImpl).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("fetch가 동기적으로 예외를 던져도 밖으로 나오지 않는다", () => {
+    const fetchImpl = vi.fn(() => {
+      throw new Error("sync failure");
+    });
+    expect(() => wakeApi({ baseUrl: "https://api.example.test", fetchImpl: fetchImpl as unknown as typeof fetch })).not.toThrow();
+  });
 });
+
+describe("wakeApiOnce와 ApiWakeUp (문서당 1회)", () => {
+  beforeEach(() => resetWakeApiOnceForTests());
+
+  it("여러 번 불러도 문서당 한 번만 보낸다", () => {
+    const fetchSpy = vi.fn().mockResolvedValue(new Response("{}"));
+    vi.stubGlobal("fetch", fetchSpy);
+    try {
+      wakeApiOnce();
+      wakeApiOnce();
+      wakeApiOnce();
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+

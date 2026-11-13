@@ -517,7 +517,7 @@ G4 판정(프론트엔드 구현 완료 인정)과 이 증거 묶음의 `main` �
 ### 13.2 프론트엔드 쪽 변경
 
 - **코드 변경 없이 연결된다**: `parseApiBaseUrl`이 `https` 주소를 받는다(FD-1). 값은 빌드 때 번들에 고정된다. 문서(`.env.example`, README)에 배포 주소와 CORS·재빌드 주의를 적었다.
-- **미리 깨우기(FD-19, 새 동작)**: 무료 호스팅의 첫 요청은 50초 넘게 걸리는데 읽기 요청 시간 제한은 Spec의 10초라 처음 연 사용자가 시간 초과를 본다. 백엔드 인계 문서도 깨워 두기를 권한다. Spec 계약(시간 제한·재시도)은 바꾸지 않고 문서가 열릴 때 `GET /health`를 한 번 보낸다(`src/lib/wake-api.ts`, `src/providers/api-wake-up.tsx`, 시험 4개).
+- **미리 깨우기(FD-19, 새 동작)**: 무료 호스팅의 첫 요청은 50초 넘게 걸리는데 읽기 요청 시간 제한은 Spec의 10초라 처음 연 사용자가 시간 초과를 본다. 백엔드 인계 문서도 깨워 두기를 권한다. Spec 계약(시간 제한·재시도)은 바꾸지 않고 문서가 열릴 때 `GET /health`를 한 번 보낸다(`src/lib/wake-api.ts`, `src/providers/api-wake-up.tsx`, 시험 4개 + 검수 반영 후 §13.5).
 - 확인: 배포 주소로 빌드한 앱을 실제 Chrome(headless)으로 열어 **네트워크 요청을 기록**했다. 배포 API로 나간 요청은 인증 없는 `GET /health` 1건뿐이고 그 밖의 외부 요청은 없었다.
 - 게이트(변경 후): 아래 §13.4.
 
@@ -531,3 +531,15 @@ G4 판정(프론트엔드 구현 완료 인정)과 이 증거 묶음의 `main` �
 ### 13.4 게이트 (`apps/web`, 이 변경 후)
 
 `pnpm typecheck`·`lint`·`build`·`check:ac`(AC 79개)·`smoke` exit 0, `pnpm test` 52파일 648개 통과(직전 644 + 미리 깨우기 시험 4개). 구현 중 시험 1개가 실패했다: 내 시험이 "주소 설정 없음" 상황을 만들지 못했다(시험 환경에 주소 환경 변수가 이미 있어서). 환경 변수를 비우도록 시험을 고쳤고 코드는 바뀌지 않았다. 점검용 Chrome·앱은 기록한 프로세스 ID로만 종료했고 포트(3055·9223)가 비었음을 확인했다.
+
+### 13.5 검수 이력 (Codex 읽기 전용·추론 강도 medium)
+
+| 회차 | 판정 | 지적과 처리 |
+| --- | --- | --- |
+| 1/3 | REVISE | **W1-01(MEDIUM)** 개발 모드(React StrictMode)에서 효과가 두 번 실행되어 문서당 `/health` 요청이 2회(FD-19의 1회 계약 위반, 검수자가 재현) → 컴포넌트가 아니라 **모듈 상태**로 문서당 1회를 보장(`wakeApiOnce`), StrictMode 시험 추가. **W1-02(MEDIUM)** `FeatureGate` 바깥에서 실행되는데 `AbortController`가 없으면 `TypeError`(S5 §3.1·§9 안내 방해, 검수자가 재현) → `AbortController`·`fetch` 부재와 동기 예외를 모두 삼키고 생략하도록 수정, 시험 추가 |
+
+- 검수자 확인: 인증 없는 GET·실패 무시·설정 누락·90초 중단 검증, 신원 키 전송이나 10초·재시도 계약 변경 없음, Spec 우선 적용 타당, 새 제품 결정 없음, 환경변수·CORS 설명과 FD-19 승인 대기 표시 적절. 검수자는 전체 시험·빌드·배포 CORS·콜드 스타트·SSE·실사용은 재현하지 못했다.
+
+### 13.6 검수 반영 뒤 게이트 (`apps/web`)
+
+`pnpm typecheck`·`lint`·`build`·`check:ac`(AC 79개)·`smoke` exit 0, `pnpm test` 53파일 654개 통과(§13.4의 648 + 6: `wake-api.test.ts` 3개 추가, `api-wake-up.test.tsx` 3개 신규). 개발 모드에서만 일어나는 StrictMode 중복은 시험(`<StrictMode><ApiWakeUp/></StrictMode>`)으로 확인했고 실제 `next dev` 화면에서는 확인하지 못했다.

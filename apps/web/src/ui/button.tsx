@@ -34,7 +34,7 @@ const button = cva({
   },
   variants: {
     variant: {
-      primary: { bg: "primary", color: "primaryText", _active: { bg: "primaryPressed" } },
+      primary: { bg: "primary", color: "primaryText", "&:active:not(:disabled)": { bg: "primaryPressed" } },
       secondary: { ...pill, bg: "paperSubtle", color: "ink" },
       secondaryBlock: { bg: "paperSubtle", color: "ink", w: "full", fontWeight: "semibold" },
       dangerText: { ...pill, bg: "paperSubtle", color: "danger" },

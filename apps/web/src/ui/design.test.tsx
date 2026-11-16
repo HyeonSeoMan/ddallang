@@ -25,17 +25,19 @@ import { TextField } from "./text-field";
 import { colors, FONT_STACK, radii, shadows } from "./tokens";
 
 const SRC = join(__dirname, "..");
+const WEB = join(SRC, "..");
 
 /**
  * jsdom은 Panda CSS를 적용하지 않는다. 원자 클래스를 `cx`로 이어 붙이면 같은 속성끼리는 생성 CSS의 순서가 이기므로,
  * 한 요소에 같은 속성(또는 줄임 속성과 그 개별 속성)을 정하는 클래스가 둘 이상 붙었는지 이름으로 찾는다.
- * 조건부 클래스(`disabled:` 등)는 조건별로 따로 본다.
+ * 조건부 클래스(`disabled:` 등)는 조건별로 따로 본다. 다루는 줄임 속성은 아래 표에 있는 것뿐이고, 선택자에 공백이 든
+ * 조건부 클래스(`[&_>_button]:…`)는 이름을 정확히 나누지 못하므로 이 도우미를 적용하는 요소에 쓰지 않는다.
  */
 function conflictingClasses(className: string): string[] {
   const props = className
     .split(" ")
     .filter(Boolean)
-    .map((name) => name.slice(0, name.indexOf("_")));
+    .map((name) => (name.includes("_") ? name.slice(0, name.indexOf("_")) : name));
   const shorthands: Record<string, string[]> = { bg: ["bg-c", "bg-i", "bg-r", "bg-p", "bg-s"], bd: ["bd-w", "bd-c", "bd-s"], p: ["px", "py", "pl", "pr", "pt", "pb"], px: ["pl", "pr"], py: ["pt", "pb"] };
   const found: string[] = [];
   props.forEach((prop, index) => {
@@ -49,7 +51,6 @@ function conflictingClasses(className: string): string[] {
   });
   return found;
 }
-const WEB = join(SRC, "..");
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {

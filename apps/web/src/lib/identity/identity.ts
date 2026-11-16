@@ -112,6 +112,26 @@ export async function acquireIdentityKey(inviteCode: string): Promise<KeyResult>
   }
 }
 
+/**
+ * 접근을 잃은 키를 지운다(S1 §3.1, FD-20). 입장과 같은 잠금 안에서 저장소를 다시 읽고 **저장 키가 `usedKey`와
+ * 같을 때만** 지운다. 다른 탭이 이미 지우고 새 키를 만들었다면 늦게 도착한 이전 키의 응답이 새 키를 지우지 않는다.
+ * 지웠으면 `true`. 잠금·저장소를 쓸 수 없으면 아무것도 지우지 않고 `false`다(다음 요청이 다시 거부되어 재시도된다).
+ */
+export async function discardIdentityKey(inviteCode: string, usedKey: string): Promise<boolean> {
+  const locks = getLocks();
+  const storage = getStorage();
+  if (!locks || !storage) return false;
+  try {
+    return await locks.request(LOCK_PREFIX + inviteCode, { mode: "exclusive" }, async () => {
+      if (storage.getItem(IDENTITY_PREFIX + inviteCode) !== usedKey) return false;
+      storage.removeItem(IDENTITY_PREFIX + inviteCode);
+      return true;
+    });
+  } catch {
+    return false;
+  }
+}
+
 export interface CreateAttempt {
   attemptId: string;
   key: string;

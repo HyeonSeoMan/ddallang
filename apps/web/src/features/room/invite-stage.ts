@@ -18,7 +18,9 @@ export type InviteEvent =
   /** 복원 입장이 실패하면 닉네임 단계가 아니라 오류다(키는 있는데 방이 없는 경우 등). */
   | { type: "RESTORE_FAILED"; code: string }
   /** 오류 단계에서 사용자가 다시 시도한다(네트워크 오류 등). */
-  | { type: "RETRY" };
+  | { type: "RETRY" }
+  /** 접근 상실(FD-21): 어느 단계에서든 방 화면을 닫고 초대 조회부터 다시 한다(키는 이미 지웠다). */
+  | { type: "ACCESS_REVOKED" };
 
 export const initialInviteStage: InviteStage = { stage: "checking" };
 
@@ -40,5 +42,7 @@ export function inviteReducer(state: InviteStage, event: InviteEvent): InviteSta
       return state.stage === "joining" ? { stage: "error", code: event.code } : state;
     case "RETRY":
       return state.stage === "error" ? { stage: "checking" } : state;
+    case "ACCESS_REVOKED":
+      return { stage: "checking" };
   }
 }

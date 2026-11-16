@@ -22,3 +22,9 @@ export const IDENTITY_KEY_NOTICE =
 /** 방 생성 결과 불명(S1 §6.5, plan §7). */
 export const CREATE_UNKNOWN_NOTICE =
   "응답을 받지 못했습니다. 다시 시도하면 같은 이름의 방이 하나 더 만들어질 수 있습니다.";
+
+/** 접근 상실 배너(S1 §3.1, §9, plan §7 2.0.0). 뒤 문장은 방이 진행 중인지 종료됐는지로 나뉜다. */
+export const ACCESS_LOST_NOTICE =
+  "이 브라우저는 이 방에 더 이상 접근할 수 없습니다. 방장이 다른 브라우저의 이어받기를 승인했습니다.";
+export const ACCESS_LOST_NEXT_IN_PROGRESS = "다시 들어오려면 새로 입장하거나 이어받기를 요청하세요.";
+export const ACCESS_LOST_NEXT_ENDED = "다시 들어오려면 이어받기를 요청하세요.";

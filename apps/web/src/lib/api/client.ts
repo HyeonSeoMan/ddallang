@@ -59,6 +59,11 @@ export function apiErrorFromResponse(response: Response, payload: unknown): ApiE
 
 export interface ApiClient {
   request<T>(options: RequestOptions): Promise<ApiResponse<T>>;
+  /**
+   * `401 IDENTITY_REVOKED`를 받으면 그 요청에 쓴 신원 키로 알린다(FD-21의 REST 입구). 해제 함수를 돌려준다.
+   * 알린 뒤에도 요청은 그 `ApiError`로 실패한다.
+   */
+  onIdentityRevoked(listener: (usedKey: string) => void): () => void;
   /** 가장 최근 응답의 `Date`로 추정한 `서버 시각 − 기기 시각`(ms). 응답을 받은 적이 없으면 `null`. */
   getClockOffsetMs(): number | null;
   /** 보정한 현재 시각(ms). 차이를 모르면 기기 시각을 그대로 쓴다. */
@@ -75,6 +80,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
   // 호출 시점에 `Date.now`를 읽는다(함수 참조를 붙잡아 두면 시계를 바꿔도 반영되지 않는다).
   const now = options.now ?? (() => Date.now());
   let clockOffsetMs: number | null = null;
+  const revokedListeners = new Set<(usedKey: string) => void>();
 
   function recordServerDate(response: Response) {
     const header = response.headers.get("Date");
@@ -144,7 +150,14 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       req.signal?.removeEventListener("abort", onCallerAbort);
     }
 
-    if (!response.ok) throw apiErrorFromResponse(response, payload);
+    if (!response.ok) {
+      const error = apiErrorFromResponse(response, payload);
+      const usedKey = /^Bearer (.+)$/.exec(headers.Authorization ?? "")?.[1];
+      if (error.code === "IDENTITY_REVOKED" && usedKey) {
+        for (const listener of [...revokedListeners]) listener(usedKey);
+      }
+      throw error;
+    }
 
     return {
       status: response.status,
@@ -155,6 +168,10 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
 
   return {
     request,
+    onIdentityRevoked(listener) {
+      revokedListeners.add(listener);
+      return () => revokedListeners.delete(listener);
+    },
     getClockOffsetMs: () => clockOffsetMs,
     serverNow: () => now() + (clockOffsetMs ?? 0),
   };

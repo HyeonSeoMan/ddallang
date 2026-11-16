@@ -1,7 +1,7 @@
 "use client";
 
 import { useStore } from "jotai";
-import { useEffect } from "react";
+import { type RefObject, useEffect, useRef } from "react";
 import { ApiError, getApiClient } from "@/lib/api";
 import { getApiBaseUrl } from "@/lib/env";
 import { getStoredKey } from "@/lib/identity";
@@ -10,7 +10,7 @@ import {
   setConnectionAtom,
   startEpochAtom,
 } from "@/features/room/state";
-import { type ConnectionEnv, createRoomConnection } from "./connection";
+import { type ConnectionEnv, createRoomConnection, type RoomConnection } from "./connection";
 import { createCoordinator } from "./coordinator";
 import { runEventStream } from "./event-stream";
 import { fetchRoomSnapshot } from "./snapshot";
@@ -37,20 +37,37 @@ const noKey = () =>
 
 /**
  * 방 화면에 들어온 뒤 스트림을 연결하고 갱신·재연결을 맡는다(S5 §6.5의 적용 범위). 언마운트하면 중단한다.
- * 신원 키는 요청 때마다 신원 키 모듈에서 읽으며 이 훅이 들고 있지 않는다.
+ * 신원 키는 요청 때마다 신원 키 모듈에서 읽으며 이 훅이 들고 있지 않는다. 접근 상실(`access.revoked`, 스트림·갱신의
+ * `401 IDENTITY_REVOKED`)이면 재연결하지 않고 `onAccessRevoked`에 그 스트림을 연 키를 넘긴다(FD-21).
  */
-export function useRoomConnection(inviteCode: string, roomId: string): void {
+export function useRoomConnection(
+  inviteCode: string,
+  roomId: string,
+  onAccessRevoked?: (usedKey: string) => void,
+  /** 접근 상실 처리기가 세션을 비우기 전에 스트림·갱신을 직접 멈출 수 있게 현재 연결을 담는다(FD-21). */
+  connectionRef?: RefObject<RoomConnection | null>,
+): void {
   const store = useStore();
+  const revokedRef = useRef(onAccessRevoked);
+  useEffect(() => {
+    revokedRef.current = onAccessRevoked;
+  });
 
   useEffect(() => {
     const api = getApiClient();
     const eventsUrl = `${getApiBaseUrl()}/rooms/${encodeURIComponent(roomId)}/events`;
+    /** 현재 스트림을 연 키. 접근 상실 처리의 조건부 삭제에 쓴다(S1 §3.1). */
+    let streamKey: string | null = null;
 
     const connection = createRoomConnection({
       async openStream(handlers) {
         const identityKey = getStoredKey(inviteCode);
         if (!identityKey) return { kind: "rejected", error: noKey() };
+        streamKey = identityKey;
         return runEventStream({ url: eventsUrl, identityKey, ...handlers });
+      },
+      onAccessRevoked() {
+        if (streamKey) revokedRef.current?.(streamKey);
       },
       createCoordinator: (epoch, hooks) =>
         createCoordinator({
@@ -76,10 +93,12 @@ export function useRoomConnection(inviteCode: string, roomId: string): void {
     });
 
     connection.start();
+    if (connectionRef) connectionRef.current = connection;
     const unsubscribe = store.sub(refreshRequestAtom, () => connection.requestRefresh());
     return () => {
       unsubscribe();
       connection.stop();
+      if (connectionRef?.current === connection) connectionRef.current = null;
     };
-  }, [inviteCode, roomId, store]);
+  }, [inviteCode, roomId, store, connectionRef]);
 }

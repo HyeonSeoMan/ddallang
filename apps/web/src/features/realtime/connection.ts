@@ -1,6 +1,6 @@
 // 연결 제어·재연결(FE-S5-3, S5 §6.5·§6.6): 스트림 하나를 열고 끊김을 판정하며 다시 연결한다.
 // 시간·네트워크·브라우저 이벤트는 모두 주입받아 가짜 시계와 가짜 스트림으로 시험한다(FD-8).
-import { isInaccessibleError } from "./access";
+import { isIdentityRevokedError, isInaccessibleError } from "./access";
 import type { Coordinator } from "./coordinator";
 import type { EventStreamEnd } from "./event-stream";
 import type { SseItem } from "./sse-parser";
@@ -30,7 +30,9 @@ export type ConnectionPhase =
   /** 연결 수 한도(429). 다른 탭을 닫아야 한다. */
   | "limit"
   /** 401·404: 이 방에 접근할 수 없다. 재시도하지 않는다. */
-  | "inaccessible";
+  | "inaccessible"
+  /** 이어받기 승인으로 이 신원이 접근을 잃었다(`access.revoked`·`IDENTITY_REVOKED`). 재연결하지 않는다(S5 §6.3 5). */
+  | "revoked";
 
 export interface ConnectionEnv {
   /** `online`·`offline`·`visibilitychange`를 구독하고 해제 함수를 돌려준다. */
@@ -59,6 +61,8 @@ export interface ConnectionDeps {
   /** 새 연결 세대를 시작하고(스냅샷도 비운다) 세대 번호를 돌려준다. */
   startEpoch(): number;
   setPhase(phase: ConnectionPhase): void;
+  /** 접근 상실을 알린다(FD-21). 스트림·갱신은 이미 버렸고 다시 연결하지 않는다. 한 연결에서 한 번만 부른다. */
+  onAccessRevoked?(): void;
   now(): number;
   /** 0 이상 1 미만(재연결 간격의 ±20% 무작위). */
   random(): number;
@@ -149,11 +153,18 @@ export function createRoomConnection(deps: ConnectionDeps): RoomConnection {
     retryTimer = setTimeout(() => void connect(), delay);
   }
 
-  function goFatal() {
+  function goFatal(phase: "inaccessible" | "revoked" = "inaccessible") {
     fatal = true;
     dropConnection();
     clearTimer(retryTimer);
-    deps.setPhase("inaccessible");
+    deps.setPhase(phase);
+  }
+
+  /** 접근 상실: 스트림·갱신 주기를 버리고 재연결하지 않는다(S5 §6.3 5, FD-21). */
+  function goRevoked() {
+    if (fatal) return;
+    goFatal("revoked");
+    deps.onAccessRevoked?.();
   }
 
   function onCycleSucceeded(connId: number) {
@@ -174,6 +185,10 @@ export function createRoomConnection(deps: ConnectionDeps): RoomConnection {
 
   function onRefreshFailed(connId: number, error: unknown) {
     if (connId !== connSeq) return;
+    if (isIdentityRevokedError(error)) {
+      goRevoked();
+      return;
+    }
     if (isInaccessibleError(error)) {
       goFatal(); // 재시도 없이 오류를 안내한다
       return;
@@ -188,6 +203,10 @@ export function createRoomConnection(deps: ConnectionDeps): RoomConnection {
         return;
       case "rejected": {
         const { status, retryAfterSeconds } = end.error;
+        if (isIdentityRevokedError(end.error)) {
+          goRevoked();
+          return;
+        }
         if (isInaccessibleError(end.error)) {
           goFatal();
           return;
@@ -246,6 +265,11 @@ export function createRoomConnection(deps: ConnectionDeps): RoomConnection {
       },
       onItem(item) {
         if (connId !== connSeq) return;
+        if (item.kind === "event" && item.event === "access.revoked") {
+          // 변경 이벤트가 아니다: `seen`·`dirty`를 바꾸지 않고 갱신 조회도 하지 않는다(S5 §4.2, §6.3 5).
+          goRevoked();
+          return;
+        }
         if (item.kind === "event" && item.event === "ready") {
           // 새 `ready`마다 연결 세대를 올리고(스냅샷을 비운다) `seen`을 재설정해 전체 재동기화한다.
           clearTimer(readyTimer);

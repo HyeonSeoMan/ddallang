@@ -54,6 +54,8 @@ export interface FakeBackend {
   streams: FakeSse[];
   /** 각 연결을 연 신원 키(`access.revoked` 대상 판정용). */
   streamKeys: Map<FakeSse, string | null>;
+  /** `/events` 요청 수(거부된 것 포함). 재연결 여부 검증용. */
+  eventRequests: number;
   /** true이면 `/events`가 503으로 실패한다(특정 접속자를 끊어 둘 때). */
   blockEvents: boolean;
   /** 변경(쓰기) 요청을 처리한 뒤·이벤트를 보내기 전에 호출된다. 시험이 순손익·정산 같은 파생 값을 정한다. */
@@ -88,6 +90,7 @@ export function createFakeBackend(): FakeBackend {
     stream: null,
     streams: [],
     streamKeys: new Map(),
+    eventRequests: 0,
     blockEvents: false,
     afterChange: null,
     dropResponseOnce: new Set(),
@@ -119,6 +122,7 @@ export function createFakeBackend(): FakeBackend {
     request: Request,
     apply: () => { event: string; extra?: Record<string, unknown>; response: () => Response },
   ): Response => {
+    if (backend.revokedKeys.has(keyOf(request) ?? "")) return errorResponse("IDENTITY_REVOKED");
     backend.writes.push({ operation, key: request.headers.get("Idempotency-Key") });
     const { event, extra, response } = apply();
     backend.afterChange?.();
@@ -203,6 +207,7 @@ export function createFakeBackend(): FakeBackend {
     }),
     read("settlement", "/settlement", () => ({ settlement: backend.settlement })),
     http.get(apiUrl(`/rooms/${fixtures.room.id}/events`), ({ request }) => {
+      backend.eventRequests += 1;
       if (revoked(request)) return errorResponse("IDENTITY_REVOKED");
       if (backend.blockEvents) return new HttpResponse(null, { status: 503 });
       const sse = createFakeSse();

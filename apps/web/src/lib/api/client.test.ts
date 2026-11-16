@@ -97,6 +97,30 @@ describe("API 클라이언트", () => {
     expect(new Set(ERROR_CODES).size).toBe(ERROR_CODES.length);
   });
 
+  it("401 IDENTITY_REVOKED면 그 요청에 쓴 키로 알리고 같은 오류로 실패한다(FD-21 REST 입구)", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (_url, init) => {
+      const auth = new Headers(init?.headers).get("Authorization");
+      return json(
+        { error: { code: auth === "Bearer old" ? "IDENTITY_REVOKED" : "UNAUTHENTICATED", message: "m" } },
+        { status: 401 },
+      );
+    });
+    const api = setup(fetchMock);
+    const seen: string[] = [];
+    const unsubscribe = api.onIdentityRevoked((key) => seen.push(key));
+    await expect(api.request({ method: "GET", path: "/x", headers: bearerHeader("old") })).rejects.toMatchObject({
+      code: "IDENTITY_REVOKED",
+    });
+    // 다른 401은 알리지 않는다.
+    await expect(api.request({ method: "GET", path: "/x", headers: bearerHeader("other") })).rejects.toMatchObject({
+      code: "UNAUTHENTICATED",
+    });
+    expect(seen).toEqual(["old"]);
+    unsubscribe();
+    await api.request({ method: "GET", path: "/x", headers: bearerHeader("old") }).catch(() => undefined);
+    expect(seen).toEqual(["old"]);
+  });
+
   it("검증 사유 코드 목록이 Spec의 11개와 같다", () => {
     expect(VALIDATION_REASON_CODES).toHaveLength(11);
   });

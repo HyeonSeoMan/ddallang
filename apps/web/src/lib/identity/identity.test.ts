@@ -9,6 +9,7 @@ import {
   checkStorage,
   completeCreateAttempt,
   discardCreateAttempt,
+  discardIdentityKey,
   getCreateAttempt,
   getStoredKey,
 } from "./identity";
@@ -146,6 +147,61 @@ describe("acquireIdentityKey", () => {
     const attempt = beginCreateAttempt();
     if (attempt.ok) completeCreateAttempt(attempt.attempt.attemptId, "c2");
     for (const spy of spies) expect(spy).not.toHaveBeenCalled();
+  });
+});
+
+describe("discardIdentityKey (FD-20, S1 §3.1 조건부 삭제)", () => {
+  it("[AC-ROOM-005-8] 저장 키가 IDENTITY_REVOKED를 받은 요청의 키와 같으면 지운다", async () => {
+    const storage = installFakeStorage();
+    const manager = new FakeLockManager();
+    installFakeLocks(manager);
+    const used = await acquireIdentityKey(CODE);
+    if (!used.ok) throw new Error("키 없음");
+    await expect(discardIdentityKey(CODE, used.key)).resolves.toBe(true);
+    expect(storage.getItem(`ddallang:identity:${CODE}`)).toBeNull();
+    expect(getStoredKey(CODE)).toBeNull();
+    // 같은 잠금 이름을 쓴다(입장과 같은 배타 구간).
+    expect(manager.maxConcurrent.get(`ddallang-identity:${CODE}`)).toBe(1);
+  });
+
+  it("[AC-ROOM-005-8] 다른 탭이 이미 지우고 새 키를 만들었으면 늦게 온 이전 키의 응답이 새 키를 지우지 않는다", async () => {
+    const storage = installFakeStorage();
+    installFakeLocks();
+    const old = await acquireIdentityKey(CODE);
+    if (!old.ok) throw new Error("키 없음");
+    // 탭 B: 이전 키를 지우고 새 키로 다시 입장한다.
+    await discardIdentityKey(CODE, old.key);
+    const fresh = await acquireIdentityKey(CODE);
+    if (!fresh.ok) throw new Error("키 없음");
+    expect(fresh.key).not.toBe(old.key);
+    // 탭 A: 이전 키로 보낸 요청의 401이 늦게 도착한다.
+    await expect(discardIdentityKey(CODE, old.key)).resolves.toBe(false);
+    expect(storage.getItem(`ddallang:identity:${CODE}`)).toBe(fresh.key);
+  });
+
+  it("삭제와 키 생성이 겹쳐도 잠금 안에서 차례로 처리된다", async () => {
+    const storage = installFakeStorage();
+    const manager = new FakeLockManager();
+    installFakeLocks(manager);
+    const old = await acquireIdentityKey(CODE);
+    if (!old.ok) throw new Error("키 없음");
+    const [discarded, next] = await Promise.all([discardIdentityKey(CODE, old.key), acquireIdentityKey(CODE)]);
+    expect(discarded).toBe(true);
+    expect(next.ok && next.key).not.toBe(old.key);
+    expect(storage.getItem(`ddallang:identity:${CODE}`)).toBe(next.ok ? next.key : null);
+    expect(manager.maxConcurrent.get(`ddallang-identity:${CODE}`)).toBe(1);
+  });
+
+  it("다른 초대 코드의 키는 건드리지 않고, 잠금·저장소를 쓸 수 없으면 지우지 않는다", async () => {
+    const storage = installFakeStorage();
+    installFakeLocks();
+    const other = await acquireIdentityKey("other");
+    if (!other.ok) throw new Error("키 없음");
+    await expect(discardIdentityKey(CODE, other.key)).resolves.toBe(false);
+    expect(storage.getItem("ddallang:identity:other")).toBe(other.key);
+    installFakeLocks(null);
+    await expect(discardIdentityKey("other", other.key)).resolves.toBe(false);
+    expect(storage.getItem("ddallang:identity:other")).toBe(other.key);
   });
 });
 

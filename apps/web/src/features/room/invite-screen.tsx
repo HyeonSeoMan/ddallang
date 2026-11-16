@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue, useStore } from "jotai";
-import { type FormEvent, type ReactNode, useEffect, useReducer, useRef, useState } from "react";
+import { type FormEvent, type ReactNode, type RefObject, useEffect, useReducer, useRef, useState } from "react";
 import { css } from "styled-system/css";
 import {
   ApiError,
@@ -13,18 +13,25 @@ import {
   type Participant,
   type RoomSummary,
 } from "@/lib/api";
-import { acquireIdentityKey, getStoredKey } from "@/lib/identity";
+import { acquireIdentityKey, discardIdentityKey, getStoredKey } from "@/lib/identity";
 import { validateRoomText } from "@/lib/validation/room-text";
 import { Badge } from "@/ui/badge";
 import { Banner } from "@/ui/banner";
 import { BrandHeader, cardClass } from "@/ui/brand-header";
 import { Button } from "@/ui/button";
 import { TextField } from "@/ui/text-field";
+import type { RoomConnection as RoomConnectionHandle } from "@/features/realtime/connection";
 import { useRoomConnection } from "@/features/realtime/use-room-connection";
 import { initialInviteStage, type InviteStage, inviteReducer } from "./invite-stage";
-import { IDENTITY_KEY_NOTICE, reasonMessage } from "./messages";
+import {
+  ACCESS_LOST_NEXT_ENDED,
+  ACCESS_LOST_NEXT_IN_PROGRESS,
+  ACCESS_LOST_NOTICE,
+  IDENTITY_KEY_NOTICE,
+  reasonMessage,
+} from "./messages";
 import { RoomShell } from "./room-shell";
-import { sessionAtom } from "./state";
+import { sessionAtom, setConnectionAtom } from "./state";
 
 const NETWORK_MESSAGE = "응답을 받지 못했습니다. 네트워크를 확인하고 다시 시도해 주세요.";
 
@@ -64,6 +71,11 @@ export function InviteScreen({ inviteCode, children }: { inviteCode: string; chi
   const [attempt, setAttempt] = useState(0);
   /** 이미 멤버라 닉네임 없이 복원 입장 중인가. */
   const [restoring, setRestoring] = useState(false);
+  /** 접근 상실 배너(FD-21). 다음 입장 시도 전까지 한 번 보인다. */
+  const [accessLost, setAccessLost] = useState(false);
+  const revoking = useRef(false);
+  /** 방 화면의 실시간 연결. 접근 상실이면 세션을 비우기 전에 먼저 멈춘다(FD-21). */
+  const connection = useRef<RoomConnectionHandle | null>(null);
 
   const api = getApiClient();
   const mounted = useRef(true);
@@ -87,6 +99,32 @@ export function InviteScreen({ inviteCode, children }: { inviteCode: string; chi
     return data;
   }
 
+  /**
+   * 접근 상실의 단일 처리기(FD-21): 세션·스냅샷을 비워 방 화면을 닫고(스트림·갱신은 언마운트로 끝나며 다시 연결하지
+   * 않는다) 그 요청에 쓴 키를 조건부로 지운 뒤(FD-20) 초대 조회부터 다시 한다. 여러 입구가 겹쳐도 한 번만 처리한다.
+   */
+  async function onIdentityRevoked(usedKey: string) {
+    if (revoking.current) return;
+    revoking.current = true;
+    connection.current?.stop(); // 스트림·갱신 주기를 버린다. 다시 연결하지 않는다(S5 §6.3 5)
+    store.set(sessionAtom, null);
+    store.set(setConnectionAtom, "disconnected");
+    setAccessLost(true);
+    setNotice(null);
+    setRestoring(false);
+    await discardIdentityKey(inviteCode, usedKey);
+    revoking.current = false;
+    if (!mounted.current) return;
+    dispatch({ type: "ACCESS_REVOKED" });
+    setAttempt((n) => n + 1);
+  }
+  const revokedHandler = useRef(onIdentityRevoked);
+  useEffect(() => {
+    revokedHandler.current = onIdentityRevoked;
+  });
+  // REST 입구: 어떤 요청이든 `401 IDENTITY_REVOKED`를 받으면 같은 처리기로 간다.
+  useEffect(() => api.onIdentityRevoked((usedKey) => void revokedHandler.current(usedKey)), [api]);
+
   function enterRoom(result: JoinResult) {
     store.set(sessionAtom, { inviteCode, roomId: result.room.id, me: result.me });
     dispatch({ type: "JOINED" });
@@ -106,7 +144,13 @@ export function InviteScreen({ inviteCode, children }: { inviteCode: string; chi
         });
         if (cancelled) return;
         setPreview(data.room);
-        // FE-M1 최소 대응: 연결됨(`PARTICIPANT`)만 복원한다. 나머지 신원 상태의 분기는 FE-M3(FD-22).
+        if (data.identity === "REVOKED" && stored) {
+          // 초대 조회 입구(S1 §4.2): 키를 지우고 신원 없음으로 간다. 후보 목록은 이 응답에 이미 있다.
+          setAccessLost(true);
+          await discardIdentityKey(inviteCode, stored);
+          if (cancelled) return;
+        }
+        // 연결됨(`PARTICIPANT`)만 복원한다. 대기·이어받기 분기는 FE-M3(FD-22).
         const isParticipant = data.identity === "PARTICIPANT";
         setRestoring(isParticipant);
         dispatch({ type: "CHECKED", isMember: isParticipant });
@@ -133,7 +177,7 @@ export function InviteScreen({ inviteCode, children }: { inviteCode: string; chi
         setRestoring(false);
         enterRoom(joined);
       } catch (error) {
-        if (cancelled) return;
+        if (cancelled || isRevoked(error)) return; // 접근 상실 처리기가 맡는다
         setRestoring(false);
         dispatch({ type: "RESTORE_FAILED", code: errorCode(error) });
         setNotice(errorMessage(error));
@@ -154,18 +198,19 @@ export function InviteScreen({ inviteCode, children }: { inviteCode: string; chi
     if (check.reasons.length > 0) return;
 
     dispatch({ type: "SUBMIT_NICKNAME" });
+    setAccessLost(false);
     try {
       const joined = await join(check.value);
       if (mounted.current) enterRoom(joined);
     } catch (error) {
-      if (!mounted.current) return;
+      if (!mounted.current || isRevoked(error)) return; // 접근 상실 처리기가 맡는다
       dispatch({ type: "JOIN_REJECTED" }); // 닉네임을 유지한 채 입력 단계로 돌아간다
       if (error instanceof ApiError && error.code === "VALIDATION_FAILED") {
         setNicknameErrors(
           error.details.filter((d) => d.field === "nickname").map((d) => reasonMessage(d.code)),
         );
       } else {
-        // NICKNAME_TAKEN·MEMBER_LIMIT_EXCEEDED 등: 서버 message를 그대로 보인다. 목록은 조회하지 않는다.
+        // NICKNAME_TAKEN·PARTICIPANT_LIMIT_EXCEEDED 등: 서버 message를 그대로 보인다. 목록은 조회하지 않는다.
         setNotice(errorMessage(error));
       }
     }
@@ -195,6 +240,15 @@ export function InviteScreen({ inviteCode, children }: { inviteCode: string; chi
               </p>
             ) : null}
           </section>
+        ) : null}
+
+        {accessLost ? (
+          <div className={css({ mb: "4" })}>
+            <Banner tone="warning">
+              {ACCESS_LOST_NOTICE}{" "}
+              {preview ? (ended ? ACCESS_LOST_NEXT_ENDED : ACCESS_LOST_NEXT_IN_PROGRESS) : null}
+            </Banner>
+          </div>
         ) : null}
 
         {state.stage === "checking" ? <p>확인 중…</p> : null}
@@ -238,25 +292,62 @@ export function InviteScreen({ inviteCode, children }: { inviteCode: string; chi
       </div>
       ) : null}
 
-      {state.stage === "room" ? <RoomScreen inviteCode={inviteCode}>{children}</RoomScreen> : null}
+      {state.stage === "room" ? (
+        <RoomScreen
+          inviteCode={inviteCode}
+          connectionRef={connection}
+          onAccessRevoked={(usedKey) => void onIdentityRevoked(usedKey)}
+        >
+          {children}
+        </RoomScreen>
+      ) : null}
     </main>
   );
 }
 
 /** 입장(복원)에 성공한 뒤의 방 화면. 스트림을 연결하고 서버 유래 영역은 연결 게이트 뒤에 둔다. */
-function RoomScreen({ inviteCode, children }: { inviteCode: string; children?: ReactNode }) {
+function RoomScreen({
+  inviteCode,
+  connectionRef,
+  onAccessRevoked,
+  children,
+}: {
+  inviteCode: string;
+  connectionRef: RefObject<RoomConnectionHandle | null>;
+  onAccessRevoked: (usedKey: string) => void;
+  children?: ReactNode;
+}) {
   const session = useAtomValue(sessionAtom);
   return session?.inviteCode === inviteCode ? (
     <>
-      <RoomConnection inviteCode={inviteCode} roomId={session.roomId} />
+      <RoomConnection
+        inviteCode={inviteCode}
+        roomId={session.roomId}
+        connectionRef={connectionRef}
+        onAccessRevoked={onAccessRevoked}
+      />
       <RoomShell inviteCode={inviteCode}>{children}</RoomShell>
     </>
   ) : null;
 }
 
-function RoomConnection({ inviteCode, roomId }: { inviteCode: string; roomId: string }) {
-  useRoomConnection(inviteCode, roomId);
+function RoomConnection({
+  inviteCode,
+  roomId,
+  connectionRef,
+  onAccessRevoked,
+}: {
+  inviteCode: string;
+  roomId: string;
+  connectionRef: RefObject<RoomConnectionHandle | null>;
+  onAccessRevoked: (usedKey: string) => void;
+}) {
+  useRoomConnection(inviteCode, roomId, onAccessRevoked, connectionRef);
   return null;
+}
+
+function isRevoked(error: unknown): boolean {
+  return error instanceof ApiError && error.code === "IDENTITY_REVOKED";
 }
 
 class KeyFailure extends Error {

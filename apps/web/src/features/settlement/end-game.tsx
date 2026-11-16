@@ -45,7 +45,10 @@ export function EndGame() {
   // 다른 탭이 먼저 종료해 재동기화로 방이 `ENDED`가 되어도, 거부 사유(서버 message)는 컨트롤이 사라진 뒤에도 보인다.
   if (!canMutate) {
     return snapshot.room.status === "ENDED" && mutation.state?.kind === "rejected" ? (
-      <MutationNotice state={mutation.state} onRetry={() => undefined} onConfirmNew={() => undefined} messages={END_MESSAGES} />
+      // 정산 카드 아래 바탕 위에 놓이므로 카드와 떨어뜨린다.
+      <div className={css({ mt: "3" })}>
+        <MutationNotice state={mutation.state} onRetry={() => undefined} onConfirmNew={() => undefined} messages={END_MESSAGES} />
+      </div>
     ) : null;
   }
   const pending = mutation.state?.kind === "pending";

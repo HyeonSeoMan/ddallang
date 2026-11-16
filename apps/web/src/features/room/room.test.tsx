@@ -125,6 +125,21 @@ describe("ServerDataGate", () => {
 });
 
 describe("방 화면 구역", () => {
+  it("카드 아래 요소(after)도 끊김 중에는 그리지 않는다(게이트 아래)", () => {
+    const { store, wrapper } = withStore();
+    store.set(setConnectionAtom, "connected");
+    store.set(applySnapshotAtom, makeSnapshot(store.set(startEpochAtom)));
+    render(
+      <main>
+        <RoomLayout only={["settlement"]} after={{ settlement: <p>카드 아래</p> }} />
+      </main>,
+      { wrapper },
+    );
+    expect(screen.getByText("카드 아래")).toBeInTheDocument();
+    act(() => store.set(setConnectionAtom, "disconnected"));
+    expect(screen.queryByText("카드 아래")).not.toBeInTheDocument();
+  });
+
   it("[AC-VIEW-001-1] 누적 손익과 거래 내역이 서로 다른 제목의 구역이다", async () => {
     const { wrapper } = withStore();
     const { container } = render(

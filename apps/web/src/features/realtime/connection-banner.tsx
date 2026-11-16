@@ -65,7 +65,7 @@ export function ConnectionBanner() {
 
   if (!content) return null;
   return (
-    <div data-connection-phase={phase} className={css({ mt: "3" })}>
+    <div data-connection-phase={phase}>
       <Banner tone={content.tone} icon={<BannerIcon tone={content.tone} />}>
         {/* 리셋의 `strong { font-weight: bolder }`가 600을 900으로 만들지 않게 굵기를 정한다(띠 제목 14/600). */}
         <strong className={css({ fontWeight: "semibold" })}>{content.title}</strong>

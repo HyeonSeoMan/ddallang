@@ -190,6 +190,7 @@ BE-F1 → BE-F2 → BE-F8 → BE-F3 → BE-F5 → BE-S1-1 → BE-F4 → BE-F7
 | RK-17 | (v2.0.0) 승인과 이전 키의 요청이 경쟁할 때 잠금 밖 1차 판정이 늦은 결과를 낼 수 있다 | S2-C3, S1 §7 9 | 잠금 안 재확인(PD-24), 다중 프로세스 경합 시험(BE-M7) |
 | RK-18 | (v2.0.0) `access.revoked` 통지가 유실되거나 다른 인스턴스에 늦게 도착한다 | S5 §6.2 | 하트비트 신원 재확인(PD-27), 유실 수렴 측정(BE-M8) |
 | RK-19 | (v2.0.0) 하트비트마다 신원 재확인 질의가 늘어난다 | PD-27 | 방당 한 질의(스트림 최대 50)로 묶는다. BE-M8에서 지연과 함께 보고 |
+| RK-20 | (v2.0.0) 응답 형태가 호환되지 않게 바뀐다(`isMember` → `identity`, `me: Participant`, `MEMBER_LIMIT_EXCEEDED` 삭제, 이어받기 경로). 배포된 v1 프론트엔드와 v2 서버가 섞이면 화면이 깨진다 | S1 §4.1~§4.3 | 서버 마이그레이션(데이터 삭제, RK-16)과 프론트엔드 2.0.0 배포를 같은 시점에 하는 순서를 BE-Z2 배포 절차에 적고 사용자 승인 때 함께 확인한다 |
 
 ## 7. 저장 모델 의존성 이행표
 
@@ -264,7 +265,7 @@ Spec이 "필수 저장 모델 의존성"으로 걸어 둔 항목을 이 Plan이 
 | --- | --- | --- | --- |
 | PD-21 | **스키마**: `RoomMember` 테이블을 없앤다. `Participant`에 `isHost`(BOOLEAN, 기본 false)와 `identityKeyHash`(NULL 허용)를 더하고 부분 유일 인덱스 `(roomId, identityKeyHash) WHERE identityKeyHash IS NOT NULL`, 방장 유일 부분 인덱스 `(roomId) WHERE isHost`를 둔다. `ClaimRequest`(`id`·`roomId`·`participantId`·`requesterKeyHash`·`status` CHECK 4값·`rejectReason` CHECK 3값·`createdAt`·`resolvedAt`·`resolvedById`→`Participant`)와 부분 유일 인덱스 `(roomId, requesterKeyHash) WHERE status = 'PENDING'`, `RevokedIdentity`(`roomId`·`keyHash`·`participantId`·`revokedAt`, `(roomId, keyHash)` 유일)를 만든다. `Transaction.authorId`·`deletedById`, `IdempotencyRecord.memberId`, `StreamLease.memberId`는 `Participant`를 가리키는 `participantId`로 바꾼다(`IdempotencyRecord`는 `(roomId, participantId, key)` 유일). `nickname`은 `ClaimRequest`에 복제하지 않고 대상 참여자에서 읽는다(닉네임 불변, S1 I8) | S1 §2.1, §2.3 I1·I3·I4, S2 §2.1, §5.1 | 대안: `RoomMember`를 남기고 1:1 연결(Spec이 개체 자체를 없앴으므로 채택하지 않음) |
 | PD-22 | **기존 데이터는 옮기지 않는다**: 마이그레이션은 v1.x 테이블의 행을 새 모델로 변환하지 않는다. v1.x의 `RoomMember`와 `Participant`는 서로 연결이 없어(S1 v0.2.3 I2) 기계적으로 대응시킬 수 없기 때문이다. 마이그레이션은 시작할 때 `Room` 행이 있으면 **실패**하도록 만들고, 데이터를 지우는 별도 SQL(`prisma/reset-v1-data.sql`)을 둔다. 로컬·시험 DB는 그 SQL을 실행한 뒤 마이그레이션한다. **배포 DB(Supabase)에 적용하는 것은 데이터 삭제이므로 그 시점에 사용자 승인을 따로 받는다**(배포 DB에는 점검용 시험 방이 남아 있다, `docs/g4-evidence.md` §3) | CLAUDE.md §6, governance §7 | 대안: 각 `RoomMember`를 참여자로 만들기(닉네임 충돌·한도 초과 가능, 거래 작성자 의미가 바뀜) |
-| PD-23 | **신원 상태 해석**: `resolveIdentity(roomId, keyHash)`가 한 질의로 `LINKED(participant)`·`REVOKED`·`PENDING(claim)`·`NONE`을 돌려준다. 판정 순서는 LINKED → REVOKED → PENDING → NONE이며 정상 상태에서는 하나만 해당한다(S1 I4). 둘 이상 해당하면(불변식 위반) `500`으로 실패시키고 로그에 남긴다(조용히 하나를 고르지 않는다). BE-F4의 인증 가드는 이 함수를 쓰고, `/rooms/{roomId}/…`에서 LINKED가 아니면 `REVOKED`는 `401 IDENTITY_REVOKED`, 나머지는 `404 ROOM_NOT_FOUND`로 응답한다. `/invites/{inviteCode}/…`는 엔드포인트가 상태로 분기한다 | S1 §2.2, §3.3 3 | |
+| PD-23 | **신원 상태 해석**: `resolveIdentity(roomId, keyHash)`가 한 질의로 `LINKED(participant)`·`REVOKED`·`PENDING(claim)`·`NONE`을 돌려준다. 판정 순서는 LINKED → REVOKED → PENDING → NONE이며 정상 상태에서는 하나만 해당한다(S1 I4). **예외 하나**: LINKED와 PENDING이 함께 해당하는 상태는 Spec이 정의한 경합·우회 결과다(S1 §4.13 3, AC-ROOM-009-14). 이때는 LINKED로 판정하고 남은 `PENDING` 요청은 승인 3단계가 처리한다(승인 3단계는 `resolveIdentity`가 아니라 `Participant.identityKeyHash` 연결을 직접 확인해 `409 CLAIM_REQUESTER_LINKED`를 낸다). 그 밖의 조합(REVOKED와 LINKED, REVOKED와 PENDING)은 불변식 위반이므로 `500`으로 실패시키고 로그에 남긴다(조용히 하나를 고르지 않는다). BE-F4의 인증 가드는 이 함수를 쓰고, `/rooms/{roomId}/…`에서 LINKED가 아니면 `REVOKED`는 `401 IDENTITY_REVOKED`, 나머지는 `404 ROOM_NOT_FOUND`로 응답한다. `/invites/{inviteCode}/…`는 엔드포인트가 상태로 분기한다 | S1 §2.2, §3.3 3 | |
 | PD-24 | **방 잠금의 범위 확장**: 이어받기 요청 생성·취소·승인·거절과 입장(새 참여자·복원 모두)을 `withRoomLock` 안에서 처리하고, 잠금을 얻은 뒤 `resolveIdentity`를 **다시** 한다(S2-C3, S1 §7 4~6·9). 잠금 밖의 1차 판정은 빠른 거부용이며 결과를 확정하지 않는다. 거래·종료·참여자 변경도 잠금 안에서 요청자를 다시 확인한다. 부분 유일 인덱스(PD-21)는 잠금이 빠진 경로가 생겨도 DB가 마지막으로 막는 장치다 | S1 §7, S2 §7 1 | 대안: 키 해시 단위 advisory lock(잠금 순서가 둘이 되어 데드락 분석이 필요해짐) |
 | PD-25 | **거부하면서 저장하는 응답**: `CLAIM_REQUESTER_LINKED`는 요청을 `REJECTED`로 바꾸고 `revision`+1·`claim.resolved`를 커밋한 뒤 `409`를 돌려준다(S1 I9, S5-C5). `withRoomMutation`에 "커밋 후 오류 응답" 결과 형식을 더해 이 한 경우만 쓴다. 그 밖의 모든 거부는 지금처럼 롤백한다 | S1 §2.3 I9, §4.13 3, S5 §6.1 | 예외를 던지는 방식은 롤백되므로 쓰지 않는다 |
 | PD-26 | **이어받기 이벤트**: `claim.created`·`claim.canceled`·`claim.resolved`는 BE-F7 파이프라인으로 `revision`을 소비하고 방의 모든 스트림에 보낸다(S5-C1). 승인 트랜잭션의 `pg_notify` 페이로드에는 클라이언트에 보내지 않는 내부 필드 `revokedParticipantId`(이전 키가 있었을 때만)를 싣는다. 키 해시는 통지에 싣지 않는다 | S5 §4.2, §6.1, S5-C1 | |
@@ -297,7 +298,7 @@ BE-M1 → BE-M2 → BE-M3 → BE-M4 → BE-M5 → BE-M6 → BE-M7 → BE-M8 → 
 
 ### 11.5 검증 (v2.0.0)
 
-- `ac-matrix.md`는 v0.3.0의 AC 249개로 다시 만들었다(BE 158, BE+FE 57, FE 34). 바뀐 AC 62개와 새 AC 24개는 `**개정**`·`**신규**`로 표시하고 `BE-M*`에 배정했다. BE-F8의 `ac:check`가 이 표를 기준으로 실패 조건을 검사한다.
+- `ac-matrix.md`는 v0.3.0의 AC 249개로 다시 만들었다(BE 158, BE+FE 57, FE 34). Spec §11의 검증 문구나 담당 열이 바뀐 AC 62개(문구 변경 55, 담당 열만 변경 7)는 `**개정**`, 새 AC 24개는 `**신규**`로 표시했다. 서버 쪽 계약이 바뀐 행은 `BE-M*`에 배정했고, 계약이 그대로인 행(AC-PART-002-6)은 기존 Task를 유지하며 FE 전용 행(AC-PART-004-3)은 프론트엔드 Plan이 맡는다. BE-F8의 `ac:check`가 이 표를 기준으로 실패 조건을 검사한다.
 - 다중 프로세스 시험(BE-F8 하네스)으로 S1 §7 4~9의 경합을 시험한다(BE-M7). 특히 승인 대 입장, 승인 대 이전 키의 거래 재전송, 같은 요청의 승인·거절·취소, 같은 대상의 두 승인, 종료 대 입장.
 - 지연(BE-M8): 화면 반영은 S5 §6.4의 갱신 대상 전체(방장 6개, 그 밖 5개)가 성공한 시각으로 잰다.
 - 접근 상실: 승인 직후 `access.revoked`(같은 인스턴스·다른 인스턴스), 통지를 버린 경우 하트비트 재확인으로 20초 이내 수렴(BE-M6, BE-M8).
@@ -313,7 +314,7 @@ BE-M1 → BE-M2 → BE-M3 → BE-M4 → BE-M5 → BE-M6 → BE-M7 → BE-M8 → 
 | BE-C1 | v1.x 데이터를 새 모델로 옮기지 않고, 데이터가 있으면 마이그레이션이 실패하게 한다. 배포 DB 적용(데이터 삭제)은 그때 따로 승인받는다 | 기계적 변환 | PD-22 |
 | BE-C2 | `RoomMember`를 없애고 `Participant`에 신원 해시를 둔다. 요청·접근 상실 키는 별도 테이블 | `RoomMember` 유지 + 1:1 연결 | PD-21 |
 | BE-C3 | 이어받기·입장을 기존 방 행 잠금 하나로 직렬화하고 잠금 안에서 신원을 다시 확인한다 | 키 해시 advisory lock 추가 | PD-24 |
-| BE-C4 | 신원 상태가 둘 이상 해당하면 500으로 실패시킨다 | 우선순위로 하나 고르기 | PD-23 |
+| BE-C4 | 신원 상태가 둘 이상 해당하면 500으로 실패시킨다. 단 Spec이 정의한 LINKED+PENDING(AC-ROOM-009-14)은 LINKED로 판정하고 승인 3단계가 처리한다 | 모든 조합을 우선순위로 하나 고르기 | PD-23 |
 | BE-C5 | 승인 통지에 내부 필드 `revokedParticipantId`를 싣고, 승인 직후 전달과 하트비트 재확인을 모두 한다 | 하트비트 재확인만 | PD-26, PD-27 |
 | BE-C6 | `CLAIM_REQUESTER_LINKED` 한 경우만 "커밋 후 오류 응답"을 쓴다 | 예외 + 별도 트랜잭션(원자성 깨짐) | PD-25 |
 | BE-C7 | 개정 G4 검수를 5개 묶음으로 센다. Codex 한도 소진 시 Claude 독립 검수로 이어 간다(사용자 지시) | 저장소 전체를 한 묶음 | §11.4 |

@@ -95,6 +95,35 @@ describe("구역 모양 (FD-12·FD-18)", () => {
     expect(titles).toEqual(Object.values(ROOM_SECTION_TITLES));
   });
 
+  it("구역 제목은 카드 밖에 있고 본문만 흰 카드에 든다(DV-13)", () => {
+    mount();
+    const balances = document.querySelector<HTMLElement>('[data-section="balances"]')!;
+    const [heading, card] = Array.from(balances.children);
+    expect(heading!.tagName).toBe("H2");
+    expect(card!.className).toMatch(/bg-c_paper/);
+    expect(heading!.className).not.toMatch(/bg-c_paper/);
+    expect(balances.className).not.toMatch(/bg-c_paper/);
+  });
+
+  it("끊김 중에는 모든 구역이 바탕 위 제목만 남고 카드가 없다(방향 문서 §5.1, S5 §6.5)", () => {
+    mount();
+    act(() => store.set(setConnectionAtom, "disconnected"));
+    const sections = Array.from(document.querySelectorAll<HTMLElement>("section[data-section]"));
+    expect(sections).toHaveLength(Object.keys(ROOM_SECTION_TITLES).length);
+    for (const section of sections) {
+      expect(Array.from(section.children).map((el) => el.tagName)).toEqual(["H2"]);
+    }
+  });
+
+  it("구역 제목 아이콘은 집·코인·주머니·연필·장부·얼굴 둘이다(FD-18 (3))", () => {
+    mount();
+    const shapes = Array.from(document.querySelectorAll("section[data-section] h2 svg")).map(
+      (svg) => svg.querySelector("[fill]")?.getAttribute("fill") ?? "",
+    );
+    // 각 아이콘의 첫 면 색: 집 #FBAFC1, 코인 #FDB927, 주머니 #FDB927, 연필 #FFC93C, 장부 #00C176, 얼굴 둘(마스크 뒤 첫 면) #fff
+    expect(shapes).toEqual(["#FBAFC1", "#FDB927", "#FDB927", "#FFC93C", "#00C176", "#fff"]);
+  });
+
   it("구역 제목의 접근 가능한 이름에 장식 아이콘이 섞이지 않는다", () => {
     mount();
     for (const title of Object.values(ROOM_SECTION_TITLES)) {

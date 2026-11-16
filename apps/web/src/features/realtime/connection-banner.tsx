@@ -2,8 +2,10 @@
 
 import { useAtomValue } from "jotai";
 import { useEffect } from "react";
+import { css } from "styled-system/css";
 import { useAnnounce } from "@/ui/announcer";
 import { Banner } from "@/ui/banner";
+import { CheckIcon, InfoIcon, OfflineIcon } from "@/ui/icons";
 import type { ConnectionPhase } from "./connection";
 import { connectionPhaseAtom } from "./state";
 
@@ -39,6 +41,13 @@ export function bannerFor(phase: ConnectionPhase): BannerContent | null {
   }
 }
 
+/** 띠 왼쪽 장식 아이콘(방향 문서 §4 띠): info = 안내, warning·error = 끊김, success = 완료. */
+function BannerIcon({ tone }: { tone: BannerContent["tone"] }) {
+  if (tone === "success") return <CheckIcon size={20} />;
+  if (tone === "info") return <InfoIcon size={20} />;
+  return <OfflineIcon size={20} />;
+}
+
 /**
  * 연결 배너(FE-S5-4, S5 §6.5): 상시 영역이다. 끊김·재연결·복구·한도·접근 불가를 알리고, 이전 값이나
  * "최신 아님" 표시는 보이지 않는다(서버 유래 영역은 `ServerDataGate`가 가린다). 이 배너는 서버 유래 값을 담지 않는다.
@@ -56,10 +65,11 @@ export function ConnectionBanner() {
 
   if (!content) return null;
   return (
-    <div data-connection-phase={phase}>
-      <Banner tone={content.tone}>
+    <div data-connection-phase={phase} className={css({ mt: "3" })}>
+      <Banner tone={content.tone} icon={<BannerIcon tone={content.tone} />}>
         <strong>{content.title}</strong>
-        {content.detail ? <span> {content.detail}</span> : null}
+        {/* 상세는 다음 줄 14/400. 앞 공백은 이어 읽을 때 제목과 붙지 않게 둔다. */}
+        {content.detail ? <span className={css({ display: "block", fontWeight: "normal" })}> {content.detail}</span> : null}
       </Banner>
     </div>
   );

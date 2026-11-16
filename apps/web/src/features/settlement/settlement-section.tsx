@@ -7,6 +7,7 @@ import { useCopyFeedback } from "@/lib/use-copy-feedback";
 import { buildSettlementText } from "@/lib/settlement-text";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
+import { InfoIcon } from "@/ui/icons";
 import { Money } from "@/ui/money";
 
 export const EMPTY_SETTLEMENT = "정산할 내역이 없습니다.";
@@ -35,25 +36,58 @@ export function SettlementSection() {
   }
 
   return (
-    <div className={css({ display: "flex", flexDirection: "column", gap: "2" })}>
+    <div className={css({ display: "flex", flexDirection: "column", gap: "3" })}>
       <div>
         <Badge tone={final ? "neutral" : "info"}>{final ? "게임 종료" : "진행 중"}</Badge>
       </div>
-      {!final ? <p className={css({ color: "inkMuted", fontSize: "sm" })}>{EXPECTED_NOTE}</p> : null}
+      {/* 예상 정산 안내는 일반 문단이다(역할 없음). 모양만 info 띠(방향 문서 §4 띠). */}
+      {!final ? (
+        <p
+          className={css({
+            display: "flex",
+            alignItems: "center",
+            gap: "2.5",
+            px: "4",
+            py: "3",
+            borderRadius: "tile",
+            bgColor: "infoBg",
+            color: "infoText",
+            fontSize: "sm",
+            fontWeight: "semibold",
+          })}
+        >
+          <InfoIcon size={20} />
+          {EXPECTED_NOTE}
+        </p>
+      ) : null}
 
       {items.length === 0 ? (
         <p>{EMPTY_SETTLEMENT}</p>
       ) : (
-        <ol className={css({ display: "flex", flexDirection: "column", gap: "2" })}>
+        // 정산 행(방향 문서 §4): 아바타 없음, "가온 → 나래" 왼쪽(최소 160px)·금액 오른쪽, 행 사이 구분선.
+        <ol className={css({ display: "flex", flexDirection: "column" })}>
           {items.map((item, index) => (
             <li
               key={`${item.payerId}-${item.payeeId}-${index}`}
-              className={css({ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: "2" })}
+              className={css({
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "center",
+                justifyContent: "space-between",
+                columnGap: "3",
+                rowGap: "1",
+                minH: "56px",
+                borderBottomWidth: "1px",
+                borderBottomColor: "divider",
+                _last: { borderBottomWidth: "0" },
+              })}
             >
-              <span>
+              <span className={css({ flex: "1 1 160px", minW: "160px", overflowWrap: "anywhere" })}>
                 {item.payerNickname} → {item.payeeNickname}
               </span>
-              <Money value={item.amount} unit={room.unit} />
+              <span className={css({ ml: "auto" })}>
+                <Money value={item.amount} unit={room.unit} />
+              </span>
             </li>
           ))}
         </ol>
@@ -64,7 +98,7 @@ export function SettlementSection() {
           <Button variant="secondaryBlock" onClick={() => void onCopy()} disabled={items.length === 0}>
             정산 복사
           </Button>
-          <p aria-live="polite" className={css({ color: "inkMuted", fontSize: "sm" })}>
+          <p aria-live="polite" className={css({ color: "inkMuted", fontSize: "sm", fontWeight: "medium" })}>
             {status}
           </p>
         </>

@@ -3,7 +3,7 @@
 import { useAtom, useAtomValue } from "jotai";
 import { useRef } from "react";
 import { useState } from "react";
-import { css } from "styled-system/css";
+import { css, cx } from "styled-system/css";
 import {
   ApiError,
   bearerHeader,
@@ -18,9 +18,11 @@ import { reasonMessage } from "@/features/room/messages";
 import { useCanMutate } from "@/features/room/server-data-gate";
 import { sessionAtom, snapshotAtom } from "@/features/room/state";
 import { useAnnounce } from "@/ui/announcer";
+import { Avatar } from "@/ui/avatar";
 import { Badge } from "@/ui/badge";
 import { Banner } from "@/ui/banner";
 import { Button } from "@/ui/button";
+import { listClass, rowAmountClass, rowBodyClass, rowClass, rowFullClass, rowTitleClass } from "@/ui/list-row";
 import { TextField } from "@/ui/text-field";
 import { participantDraftsAtom } from "./state";
 
@@ -207,44 +209,51 @@ export function ParticipantsSection() {
   return (
     <div className={css({ display: "flex", flexDirection: "column", gap: "3" })}>
       {participants.length === 0 ? <p>등록된 참여자가 없습니다.</p> : null}
-      <ul className={css({ display: "flex", flexDirection: "column", gap: "2" })}>
-        {participants.map((p) => {
+      <ul className={listClass}>
+        {participants.map((p, index) => {
           const next: ParticipantStatus = p.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
           // 다른 접속자의 변경·재조회로 이미 목표 상태가 되었다면 결과 불명 안내와 재시도를 걷는다.
           const unknownTarget = unknownToggles[p.id];
           const isUnknown = unknownTarget !== undefined && p.status !== unknownTarget;
           return (
-            <li key={p.id} className={css({ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "2" })}>
-              <span>{p.nickname}</span>
-              {p.status === "INACTIVE" ? <Badge tone="neutral">비활성</Badge> : null}
+            <li key={p.id} className={rowClass}>
+              <Avatar name={p.nickname} index={index} inactive={p.status === "INACTIVE"} />
+              <div className={rowBodyClass}>
+                <div className={cx(rowTitleClass, p.status === "INACTIVE" ? css({ color: "inkMuted" }) : undefined)}>
+                  <span>{p.nickname}</span>
+                  {p.status === "INACTIVE" ? <Badge tone="neutral">비활성</Badge> : null}
+                </div>
+              </div>
               {canControl ? (
-                isUnknown ? (
-                  <Button
-                    variant="secondary"
-                    disabled={togglingId !== null}
-                    onClick={() => void retryStatus(p, unknownTarget)}
-                    aria-label={`${p.nickname} 상태 변경 다시 시도`}
-                  >
-                    다시 시도
-                  </Button>
-                ) : (
-                  <Button
-                    variant="secondary"
-                    disabled={togglingId !== null}
-                    onClick={() => void changeStatus(p, next)}
-                    aria-label={`${p.nickname} ${next === "INACTIVE" ? "비활성화" : "재활성화"}`}
-                  >
-                    {next === "INACTIVE" ? "비활성화" : "재활성화"}
-                  </Button>
-                )
+                <span className={rowAmountClass}>
+                  {isUnknown ? (
+                    <Button
+                      variant="secondary"
+                      disabled={togglingId !== null}
+                      onClick={() => void retryStatus(p, unknownTarget)}
+                      aria-label={`${p.nickname} 상태 변경 다시 시도`}
+                    >
+                      다시 시도
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="secondary"
+                      disabled={togglingId !== null}
+                      onClick={() => void changeStatus(p, next)}
+                      aria-label={`${p.nickname} ${next === "INACTIVE" ? "비활성화" : "재활성화"}`}
+                    >
+                      {next === "INACTIVE" ? "비활성화" : "재활성화"}
+                    </Button>
+                  )}
+                </span>
               ) : null}
               {isUnknown && rowNotice?.id !== p.id ? (
-                <span role="alert" className={css({ color: "errorText" })}>
+                <span role="alert" className={cx(rowFullClass, css({ color: "danger", fontSize: "sm", fontWeight: "medium", pb: "2" }))}>
                   결과를 확인하지 못했습니다.
                 </span>
               ) : null}
               {rowNotice?.id === p.id && !(unknownTarget !== undefined && p.status === unknownTarget) ? (
-                <span role="alert" className={css({ color: "errorText" })}>
+                <span role="alert" className={cx(rowFullClass, css({ color: "danger", fontSize: "sm", fontWeight: "medium", pb: "2" }))}>
                   {rowNotice.message}
                 </span>
               ) : null}
@@ -254,7 +263,11 @@ export function ParticipantsSection() {
       </ul>
 
       {canControl ? (
-        <form onSubmit={(e) => void onRegister(e)} noValidate className={css({ display: "flex", flexDirection: "column", gap: "2" })}>
+        <form
+          onSubmit={(e) => void onRegister(e)}
+          noValidate
+          className={css({ display: "flex", flexDirection: "column", gap: "3", pt: "4", borderTopWidth: "1px", borderTopColor: "divider" })}
+        >
           <TextField
             label="참여자 닉네임"
             value={draft}

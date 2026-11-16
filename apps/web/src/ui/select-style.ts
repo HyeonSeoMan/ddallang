@@ -10,6 +10,7 @@ import { fieldFrameClass } from "./text-field";
 export const selectClass = cx(
   fieldFrameClass,
   css({
+    w: "full",
     pl: "4",
     pr: "12",
     appearance: "none",

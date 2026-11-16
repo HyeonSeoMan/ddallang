@@ -39,11 +39,14 @@ function EndedRedirect({ inviteCode, pathname }: { inviteCode: string; pathname:
 export function RoomShell({ inviteCode, children }: { inviteCode: string; children: ReactNode }) {
   const pathname = usePathname();
   return (
-    <div className={css({ maxW: "md", mx: "auto", px: "4", pb: "4" })}>
+    <>
       {pathname ? <EndedRedirect inviteCode={inviteCode} pathname={pathname} /> : null}
+      {/* 헤더는 화면 폭 전체의 흰 막대이고, 본문은 모바일 우선 한 열이다(방향 문서 §5.1). */}
       <RoomHeader inviteCode={inviteCode} />
-      <ConnectionBanner />
-      {children}
-    </div>
+      <div className={css({ maxW: "md", mx: "auto", px: "4", pt: "3", pb: "4" })}>
+        <ConnectionBanner />
+        {children}
+      </div>
+    </>
   );
 }

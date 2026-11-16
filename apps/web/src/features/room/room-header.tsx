@@ -3,8 +3,8 @@
 import { useAtomValue } from "jotai";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { css, cx } from "styled-system/css";
-import { BagIcon, BellIcon, BookIcon, CoinIcon, PeopleIcon } from "@/ui/icons";
+import { css, cva } from "styled-system/css";
+import { Badge } from "@/ui/badge";
 import { dataVisibleAtom, snapshotAtom } from "./state";
 
 export type RoomPageKey = "status" | "record" | "settlement" | "room";
@@ -13,15 +13,14 @@ interface Tab {
   key: RoomPageKey;
   label: string;
   suffix: string;
-  Icon: (props: { size?: number }) => React.ReactNode;
 }
 
 /** 방 화면의 페이지(페이지 분리): 주소는 모두 초대 링크 아래다(U-3 유지). */
 const TABS: readonly Tab[] = [
-  { key: "status", label: "현황", suffix: "", Icon: CoinIcon },
-  { key: "record", label: "기록", suffix: "/record", Icon: BookIcon },
-  { key: "settlement", label: "정산", suffix: "/settlement", Icon: BagIcon },
-  { key: "room", label: "방", suffix: "/room", Icon: PeopleIcon },
+  { key: "status", label: "현황", suffix: "" },
+  { key: "record", label: "기록", suffix: "/record" },
+  { key: "settlement", label: "정산", suffix: "/settlement" },
+  { key: "room", label: "방", suffix: "/room" },
 ];
 
 export const roomBasePath = (inviteCode: string) => `/invite/${encodeURIComponent(inviteCode)}`;
@@ -36,9 +35,32 @@ export function pageOfPath(pathname: string | null, inviteCode: string): RoomPag
   return "status";
 }
 
+/** 탭(DV-9): 글자만. 선택 = `ink` 16/700 + 아래 2px `ink` 밑줄, 비선택 = `inkMuted` 16/500. 터치 영역 44px 이상. */
+const tab = cva({
+  base: {
+    flex: "1",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minH: "touch",
+    pt: "3",
+    pb: "2.5",
+    fontSize: "md",
+    textDecoration: "none",
+    borderBottomWidth: "2px",
+  },
+  variants: {
+    current: {
+      true: { color: "ink", fontWeight: "bold", borderBottomColor: "ink" },
+      false: { color: "inkMuted", fontWeight: "medium", borderBottomColor: "transparent" },
+    },
+  },
+});
+
 /**
- * 위에 떠 있는 방 헤더와 페이지 탭(FD-12 개정). 방 이름·진행 상태는 서버 유래 값이라 데이터가 가려진 동안(끊김)에는
- * 보이지 않고 `DDALLANG`만 남는다. 게임이 끝나면 거래를 입력할 수 없으므로 `기록` 탭이 사라진다(S2 §9).
+ * 위쪽에 붙는 방 헤더와 페이지 탭(FD-12 개정, 방향 문서 §5.1). 화면 폭 전체의 흰 막대이고(위쪽 안전 영역까지 흰색)
+ * 안의 방 이름·탭은 본문과 같은 열 폭에 맞춘다. 로고·그림자·흐림은 없다. 방 이름·진행 상태는 서버 유래 값이라
+ * 데이터가 가려진 동안(끊김)에는 보이지 않고 `DDALLANG`만 남는다. 게임이 끝나면 `기록` 탭이 사라진다(S2 §9).
  */
 export function RoomHeader({ inviteCode }: { inviteCode: string }) {
   const pathname = usePathname();
@@ -50,89 +72,49 @@ export function RoomHeader({ inviteCode }: { inviteCode: string }) {
   const tabs = TABS.filter((tab) => !(ended && tab.key === "record"));
 
   return (
-    // 위쪽 틈(안전 영역 포함)으로 스크롤되는 카드가 비치지 않도록 고정 래퍼가 캔버스 색으로 덮고, 헤더 아래는 부드럽게 사라진다.
+    // 고정 래퍼가 흰 바탕을 화면 폭 전체와 위쪽 안전 영역까지 칠한다. 아래 경계는 장식 구분선이다(RK-F20).
     <div
       data-testid="room-header-sticky"
       className={css({
         position: "sticky",
         top: "0",
         zIndex: 20,
-        pt: "calc(12px + env(safe-area-inset-top, 0px))",
-        pb: "4",
-        background: "linear-gradient(token(colors.canvas) calc(100% - 16px), transparent)",
+        bgColor: "paper",
+        pt: "env(safe-area-inset-top, 0px)",
+        borderBottomWidth: "1px",
+        borderBottomColor: "divider",
       })}
     >
-    <header
-      className={css({
-        p: "3",
-        borderRadius: "26px",
-        borderWidth: "1px",
-        borderColor: "rgba(0, 0, 0, 0.06)",
-        bg: "rgba(255, 255, 255, 0.86)",
-        backdropFilter: "blur(18px)",
-        boxShadow: "float",
-      })}
-    >
-      <div className={css({ display: "flex", alignItems: "center", gap: "2", px: "2", pb: "2" })}>
-        <BellIcon size={30} />
-        <h1
-          className={css({
-            flex: "1",
-            minW: "0",
-            fontSize: "lg",
-            fontWeight: "extrabold",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          })}
-        >
-          {visible && snapshot ? snapshot.room.name : "DDALLANG"}
-        </h1>
-        {visible && snapshot ? (
-          <span
-            className={cx(
-              css({ px: "3", py: "1", borderRadius: "full", fontSize: "sm", fontWeight: "bold" }),
-              css(ended ? { bg: "neutralBg", color: "neutralText" } : { bg: "successBg", color: "successText" }),
-            )}
+      <header className={css({ maxW: "md", mx: "auto", px: "4", pt: "2" })}>
+        <div className={css({ display: "flex", alignItems: "center", gap: "2", minH: "36px" })}>
+          <h1
+            className={css({
+              flex: "0 1 auto",
+              minW: "0",
+              fontSize: "xl",
+              fontWeight: "bold",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            })}
           >
-            {ended ? "게임 종료" : "진행 중"}
-          </span>
-        ) : null}
-      </div>
-      <nav
-        aria-label="방 페이지"
-        className={css({ display: "grid", gap: "1", p: "1", borderRadius: "18px", bg: "paperSubtle" })}
-        style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}
-      >
-        {tabs.map(({ key, label, suffix, Icon }) => (
-          <Link
-            key={key}
-            href={`${base}${suffix}`}
-            aria-current={current === key ? "page" : undefined}
-            className={cx(
-              css({
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "1",
-                minH: "touch",
-                borderRadius: "14px",
-                fontSize: "sm",
-                fontWeight: "semibold",
-                color: "ink",
-                textDecoration: "none",
-              }),
-              current === key
-                ? css({ bg: "primary", color: "primaryText", fontWeight: "extrabold" })
-                : undefined,
-            )}
-          >
-            <Icon size={22} />
-            {label}
-          </Link>
-        ))}
-      </nav>
-    </header>
+            {visible && snapshot ? snapshot.room.name : "DDALLANG"}
+          </h1>
+          {visible && snapshot ? <Badge tone={ended ? "neutral" : "info"}>{ended ? "게임 종료" : "진행 중"}</Badge> : null}
+        </div>
+        <nav aria-label="방 페이지" className={css({ display: "flex", gap: "1", mt: "1" })}>
+          {tabs.map(({ key, label, suffix }) => (
+            <Link
+              key={key}
+              href={`${base}${suffix}`}
+              aria-current={current === key ? "page" : undefined}
+              className={tab({ current: current === key })}
+            >
+              {label}
+            </Link>
+          ))}
+        </nav>
+      </header>
     </div>
   );
 }

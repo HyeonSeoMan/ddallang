@@ -28,6 +28,9 @@ export const fieldFrameClass = css({
   _disabled: { bgColor: "disabledBg", color: "disabledText", cursor: "not-allowed" },
 });
 
+/** 금액 입력(방향 문서 §4): 24/700 오른쪽 정렬, 숫자 폭 고정. 단위는 `suffix`로 입력란 바깥에 둔다. */
+export const amountInputClass = css({ fontSize: "amountInput", fontWeight: "bold", textAlign: "right", fontVariantNumeric: "tabular-nums" });
+
 /** `<label>`로 연결된 입력. 오류는 `aria-describedby`로 연결되고 `aria-live`로 안내한다(FD-11). */
 export function TextField({ label, hint, errors = [], suffix, className, ...inputProps }: TextFieldProps) {
   const id = useId();

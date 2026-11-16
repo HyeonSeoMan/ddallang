@@ -3,7 +3,7 @@
 import { type ReactNode, useId } from "react";
 import { css } from "styled-system/css";
 import { useAtomValue } from "jotai";
-import { BagIcon, BellIcon, BookIcon, CoinIcon, PeopleIcon } from "@/ui/icons";
+import { BagIcon, BookIcon, CoinIcon, HouseIcon, PencilIcon, PeopleIcon } from "@/ui/icons";
 import { canMutateAtom, dataVisibleAtom } from "./state";
 import { ServerDataGate } from "./server-data-gate";
 
@@ -20,17 +20,20 @@ export const ROOM_SECTION_TITLES = {
 
 export type RoomSectionId = keyof typeof ROOM_SECTION_TITLES;
 
-/** 구역 제목 곁의 장식 아이콘(FD-18). 아이콘은 `aria-hidden`이라 제목의 접근 가능한 이름은 그대로다. */
+/** 구역 제목 곁의 장식 아이콘(FD-18 (3)). 아이콘은 `aria-hidden`이라 제목의 접근 가능한 이름은 그대로다. */
 const SECTION_ICONS: Record<RoomSectionId, (props: { size?: number }) => ReactNode> = {
-  info: BellIcon,
+  info: HouseIcon,
   balances: CoinIcon,
   settlement: BagIcon,
-  entry: CoinIcon,
+  entry: PencilIcon,
   transactions: BookIcon,
   participants: PeopleIcon,
 };
 
-/** 구역 제목은 항상 보이고, 본문은 `ServerDataGate` 아래에만 그린다. 구역은 회색 바탕 위의 흰 카드다(FD-18). */
+/**
+ * 구역 제목은 항상 보이고, 본문은 `ServerDataGate` 아래에만 그린다. 제목은 카드 밖 회색 바탕 위에 있고(DV-13)
+ * 본문이 그 아래 흰 카드다(그림자 없음, FD-18).
+ */
 export function RoomSection({
   id,
   title = ROOM_SECTION_TITLES[id],
@@ -46,28 +49,27 @@ export function RoomSection({
   const canMutate = useAtomValue(canMutateAtom);
   const heading = visible ? title : ROOM_SECTION_TITLES[id];
   const SectionIcon = SECTION_ICONS[id];
-  // 구역 구조는 바꾸지 않는다(FD-12). 본문이 없는 구역은 제목만 있는 컴팩트한 카드로 보인다:
+  // 구역 구조는 바꾸지 않는다(FD-12). 본문이 없는 구역은 바탕 위 제목만 남고 카드가 없다(방향 문서 §5.1):
   // 끊김 중(가려진 이유는 연결 배너가 알린다), 그리고 게임이 끝나 거래 입력 폼이 없는 거래 입력 구역(S2 §9).
   const compact = !visible || (id === "entry" && !canMutate);
   return (
     <section
       aria-labelledby={headingId}
       data-section={id}
-      className={css({ mt: "4", p: "5", bg: "paper", borderRadius: "lg" })}
+      className={css({ mt: "6" })}
       data-compact={compact ? "true" : undefined}
     >
       <h2
         id={headingId}
-        className={css({ display: "flex", alignItems: "center", gap: "2", fontSize: "xl", fontWeight: "bold" })}
+        className={css({ display: "flex", alignItems: "center", gap: "2", px: "1", fontSize: "xl", fontWeight: "bold" })}
       >
         <SectionIcon size={28} />
         {heading}
       </h2>
-      {/* 제목만 남는 카드가 무겁지 않도록 컴팩트일 때는 제목 아래 여백을 두지 않는다. */}
       {compact ? (
         <ServerDataGate>{children}</ServerDataGate>
       ) : (
-        <div className={css({ mt: "3" })}>
+        <div className={css({ mt: "3", p: "5", bgColor: "paper", borderRadius: "lg" })}>
           <ServerDataGate>{children}</ServerDataGate>
         </div>
       )}

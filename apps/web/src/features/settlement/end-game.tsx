@@ -80,7 +80,7 @@ export function EndGame() {
         borderColor: "divider",
       })}
     >
-      <Button variant="danger" onClick={() => {
+      <Button variant="danger" className={css({ w: "full" })} onClick={() => {
           setNewAttempt(false);
           setConfirming(true);
         }}

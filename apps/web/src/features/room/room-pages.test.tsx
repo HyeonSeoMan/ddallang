@@ -78,10 +78,17 @@ describe("헤더 탭", () => {
     mount(<RoomHeader inviteCode={INVITE_CODE} />);
     const wrapper = screen.getByTestId("room-header-sticky");
     expect(wrapper).toContainElement(screen.getByRole("banner"));
-    // 헤더(banner) 자체가 아니라 래퍼가 고정과 배경을 맡는다.
+    // 헤더(banner) 자체가 아니라 래퍼가 고정과 배경을 맡는다. 디자인 v2: 래퍼가 화면 폭 전체를 흰 단색으로 칠하고
+    // (그라데이션 없음, 방향 문서 §5.1) 아래에 장식 구분선을 둔다(RK-F20).
     expect(wrapper.className).toMatch(/pos_sticky/);
     expect(wrapper.className).toMatch(/top_0/);
-    expect(wrapper.className).toMatch(/bg-g(radient)?_|linear-gradient/);
+    expect(wrapper.className).toMatch(/bg-c_paper/);
+    expect(wrapper.className).toMatch(/bd-b-c_divider/);
+  });
+
+  it("헤더 탭은 글자만 있고(아이콘 없음) 로고도 없다(DV-9·DV-16)", () => {
+    mount(<RoomHeader inviteCode={INVITE_CODE} />);
+    expect(screen.getByTestId("room-header-sticky").querySelector("svg")).toBeNull();
   });
 
   it("접근성 위반이 없다", async () => {

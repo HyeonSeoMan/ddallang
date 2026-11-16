@@ -10,7 +10,8 @@ import { validateAmount, validateReason, validateRound } from "@/lib/validation/
 import { useAnnounce } from "@/ui/announcer";
 import { Button } from "@/ui/button";
 import { selectClass } from "@/ui/select-style";
-import { TextField } from "@/ui/text-field";
+import { CheckIcon } from "@/ui/icons";
+import { amountInputClass, TextField } from "@/ui/text-field";
 import { useDismissedServerErrors } from "./dismissed-errors";
 import { type FieldErrors, fieldReasonMessage, type TxField } from "./messages";
 import { MutationNotice } from "./mutation-notice";
@@ -58,7 +59,7 @@ function ParticipantSelect({
   const errorId = `${id}-error`;
   return (
     <div className={css({ display: "flex", flexDirection: "column", gap: "1" })}>
-      <label htmlFor={`${id}-select`} className={css({ fontWeight: "semibold" })}>
+      <label htmlFor={`${id}-select`} className={css({ fontSize: "sm", fontWeight: "semibold", color: "inkMuted" })}>
         {label}
       </label>
       <select
@@ -77,7 +78,7 @@ function ParticipantSelect({
           </option>
         ))}
       </select>
-      <div id={errorId} aria-live="polite" className={css({ color: "errorText" })}>
+      <div id={errorId} aria-live="polite" className={css({ color: "danger", fontSize: "sm", fontWeight: "medium" })}>
         {errors?.map((message) => <p key={message}>{message}</p>)}
       </div>
     </div>
@@ -205,8 +206,20 @@ export function TransactionForm() {
         <p
           aria-hidden="true"
           data-testid="saved-notice"
-          className={css({ p: "4", borderRadius: "md", bg: "successBg", color: "successText", fontWeight: "semibold" })}
+          className={css({
+            display: "flex",
+            alignItems: "center",
+            gap: "2.5",
+            px: "4",
+            py: "3",
+            borderRadius: "tile",
+            bgColor: "successBg",
+            color: "successText",
+            fontSize: "sm",
+            fontWeight: "semibold",
+          })}
         >
+          <CheckIcon size={20} />
           거래를 저장했습니다.
         </p>
       ) : null}
@@ -218,6 +231,21 @@ export function TransactionForm() {
         errors={errors.payerId}
         disabled={false}
       />
+      {/* 지급자 → 수취자 방향을 보이는 장식 구분선. 방향은 두 라벨이 전한다. */}
+      <div
+        aria-hidden="true"
+        className={css({
+          display: "flex",
+          alignItems: "center",
+          gap: "2",
+          color: "inkMuted",
+          fontSize: "sm",
+          _before: { content: '""', flex: "1", h: "1px", bgColor: "divider" },
+          _after: { content: '""', flex: "1", h: "1px", bgColor: "divider" },
+        })}
+      >
+        →
+      </div>
       <ParticipantSelect
         label="수취자"
         value={payeeId}
@@ -228,6 +256,8 @@ export function TransactionForm() {
       />
       <TextField
         label="금액"
+        suffix={snapshot.room.unit}
+        className={amountInputClass}
         inputMode="numeric"
         autoComplete="off"
         value={draft.amount}
@@ -255,7 +285,7 @@ export function TransactionForm() {
         onConfirmNew={() => void submit({ confirmNewAttempt: true })}
         disabled={pending}
       />
-      <Button type="submit" variant="primary" disabled={pending}>
+      <Button type="submit" variant="primary" size="large" disabled={pending}>
         {pending ? "저장 중…" : "저장"}
       </Button>
     </form>

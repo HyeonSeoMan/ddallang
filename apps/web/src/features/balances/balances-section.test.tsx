@@ -21,6 +21,22 @@ describe("누적 손익 영역", () => {
     expect(screen.queryByText(/사유|라운드|→/)).not.toBeInTheDocument();
   });
 
+  it("행마다 장식 아바타가 있고 색은 스냅샷 참여자 목록에서의 위치로 고른다(DV-11)", () => {
+    const store = createStore();
+    render(store);
+    const { participants } = store.get(snapshotAtom)!;
+    for (const li of screen.getAllByRole("listitem")) {
+      const avatar = li.querySelector<HTMLElement>("[data-initial]")!;
+      expect(avatar).toHaveAttribute("aria-hidden", "true");
+      const name = avatar.getAttribute("data-initial")!;
+      const index = participants.findIndex((p) => p.nickname.startsWith(name));
+      const inactive = participants[index]!.status === "INACTIVE";
+      if (!inactive) expect(avatar.style.backgroundColor).not.toBe("");
+      // 아바타 글자는 행의 글자 내용에 섞이지 않는다(이름이 곁에 나온다).
+      expect(li.textContent?.startsWith(participants[index]!.nickname)).toBe(true);
+    }
+  });
+
   it("서버 순서를 그대로 쓴다(재정렬 없음): 손익 내림차순 +150, 0, −150", () => {
     render();
     const rows = screen.getAllByRole("listitem").map((li) => li.textContent);

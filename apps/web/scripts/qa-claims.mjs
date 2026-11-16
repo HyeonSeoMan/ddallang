@@ -42,8 +42,8 @@ async function attach(port, role) {
     }
     if (x.method === "Network.responseReceived") {
       const r = x.params.response;
-      // 앱 출처가 아닌 응답(= API)의 4xx/5xx. API 주소에 묶지 않는다(검수 F5).
-      if (new URL(r.url).origin !== new URL(WEB).origin && r.status >= 400) {
+      // 모든 출처(앱 정적 파일·라우트와 API)의 4xx/5xx. API 주소에 묶지 않는다(검수 F5·F13).
+      if (r.status >= 400) {
         bad.push({ at: Date.now(), status: r.status, path: new URL(r.url).pathname, text: `${r.status} ${new URL(r.url).pathname}` });
       }
     }

@@ -21,6 +21,7 @@ import { renderApp } from "@/test/render";
 import { INVITE_CODE, seedRoom } from "@/test/room-seed";
 import { createFakeBackend } from "@/test/stateful-server";
 import { READ_ONLY_SELF_NOTICE } from "./messages";
+import { readOnlySeenAtom } from "./mutation-state";
 
 const KEY = "s".repeat(43);
 const inactiveMe = { ...fixtures.guestParticipant, status: "INACTIVE" as const };
@@ -209,6 +210,65 @@ describe("조회 전용 본인 (FD-26, FE-C6)", () => {
     renderApp(<main><RecordPage /></main>, store); // 기록 페이지로 돌아온다
     await waitFor(() => expect(screen.queryByText("비활성 참여자는 거래를 기록할 수 없습니다")).not.toBeInTheDocument());
     expect(screen.getByLabelText("금액")).toHaveValue("500");
+  });
+
+  it("거부 응답이 왔을 때 이미 조회 전용이어도 재활성화 뒤 거부 안내를 지운다(검수 F11)", async () => {
+    await primeServerClock(KEY);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    server.use(
+      http.post(apiUrl(`/rooms/${fixtures.room.id}/transactions`), async () => {
+        await gate;
+        return errorResponse("REQUESTER_INACTIVE", { message: "비활성 참여자는 거래를 기록할 수 없습니다" });
+      }),
+    );
+    seedRoom(store, { me: fixtures.guestParticipant });
+    renderApp(<main><RecordPage /></main>, store);
+    const user = userEvent.setup();
+    await choose(user, screen, "지급자", "가온");
+    await choose(user, screen, "수취자", "나래");
+    await user.type(screen.getByLabelText("금액"), "500");
+    await user.click(screen.getByRole("button", { name: "저장" }));
+    // 저장 응답보다 비활성화 갱신이 먼저 왔다.
+    act(() => {
+      seedRoom(store, { me: inactiveMe, participants: withMeInactive });
+    });
+    release();
+    expect(await screen.findByText("비활성 참여자는 거래를 기록할 수 없습니다")).toBeInTheDocument();
+    expect(store.get(readOnlySeenAtom)).not.toEqual({}); // 이미 조회 전용이라 바로 기록됐다
+    act(() => {
+      seedRoom(store, { me: fixtures.guestParticipant }); // 재활성화
+    });
+    await waitFor(() => expect(screen.queryByText("비활성 참여자는 거래를 기록할 수 없습니다")).not.toBeInTheDocument());
+  });
+
+  it("거부 뒤 조회 전용이 오지 않고 다시 저장에 성공하면 감시를 끝내, 나중의 조회 전용이 기록되지 않는다(검수 F12)", async () => {
+    await primeServerClock(KEY);
+    let calls = 0;
+    server.use(
+      http.post(apiUrl(`/rooms/${fixtures.room.id}/transactions`), () =>
+        ++calls === 1
+          ? errorResponse("REQUESTER_INACTIVE", { message: "비활성 참여자는 거래를 기록할 수 없습니다" })
+          : HttpResponse.json({ transaction: { ...fixtures.transactions[1], id: "t-new" } }, { status: 201 }),
+      ),
+    );
+    seedRoom(store, { me: fixtures.guestParticipant });
+    renderApp(<main><RecordPage /></main>, store);
+    const user = userEvent.setup();
+    await choose(user, screen, "지급자", "가온");
+    await choose(user, screen, "수취자", "나래");
+    await user.type(screen.getByLabelText("금액"), "500");
+    await user.click(screen.getByRole("button", { name: "저장" }));
+    expect(await screen.findByText("비활성 참여자는 거래를 기록할 수 없습니다")).toBeInTheDocument();
+    // 갱신 결과 여전히 활성(그 사이 재활성화됨). 다시 저장해 성공한다.
+    await user.click(screen.getByRole("button", { name: "저장" }));
+    await waitFor(() => expect(calls).toBe(2));
+    await waitFor(() => expect(screen.queryByText("비활성 참여자는 거래를 기록할 수 없습니다")).not.toBeInTheDocument());
+    // 나중에 비활성이 되어도 이전 거부의 감시가 남아 기록하지 않는다.
+    act(() => {
+      seedRoom(store, { me: inactiveMe, participants: withMeInactive });
+    });
+    expect(store.get(readOnlySeenAtom)).toEqual({});
   });
 
   it("끊긴 사이 재활성화돼도 재연결 뒤 비활성 거부 안내를 지운다(검수 P1)", async () => {

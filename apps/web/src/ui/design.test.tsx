@@ -250,6 +250,39 @@ describe("버튼 변형과 토큰(FD-18)", () => {
   });
 });
 
+describe("파비콘(FD-18 (6))", () => {
+  // PNG 머리(IHDR): 너비·높이는 16·20바이트, 색 형식은 25바이트(2 = RGB 불투명, 6 = RGBA).
+  const png = (name: string) => {
+    const bytes = readFileSync(join(WEB, "public", name));
+    expect(bytes.subarray(1, 4).toString("ascii")).toBe("PNG");
+    return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20), colorType: bytes[25] };
+  };
+
+  it.each([
+    ["favicon-16.png", 16],
+    ["favicon-32.png", 32],
+    ["favicon-64.png", 64],
+  ] as const)("%s는 %ipx이고 둥근 사각 밖이 투명하도록 알파 채널이 있다", (name, size) => {
+    expect(png(name)).toEqual({ width: size, height: size, colorType: 6 });
+  });
+
+  it("apple-touch-icon.png는 180px 불투명(알파 채널 없음)이다: iOS가 투명 모서리를 검정으로 채우지 않게", () => {
+    expect(png("apple-touch-icon.png")).toEqual({ width: 180, height: 180, colorType: 2 });
+  });
+
+  it("루트 메타데이터가 PNG 아이콘을 크기와 형식과 함께 알리고 SVG 아이콘은 쓰지 않는다", () => {
+    // layout.tsx는 next/font를 불러 시험 환경에서 가져올 수 없으므로 소스를 읽는다. 빌드 HTML의 <link>는 FE-V3 증거에서 확인한다.
+    const layout = readFileSync(join(SRC, "app/layout.tsx"), "utf8");
+    for (const [url, size] of [["/favicon-16.png", "16x16"], ["/favicon-32.png", "32x32"], ["/favicon-64.png", "64x64"], ["/apple-touch-icon.png", "180x180"]]) {
+      expect(layout).toContain(`{ url: "${url}", sizes: "${size}", type: "image/png" }`);
+    }
+    expect(layout).toMatch(/apple: \[\{ url: "\/apple-touch-icon\.png"/);
+    expect(layout).not.toMatch(/\.svg/);
+    // 파일 규칙 아이콘(app/icon.*, favicon.ico)이 있으면 Next가 따로 링크를 더하므로 두지 않는다.
+    expect(readdirSync(join(SRC, "app")).filter((name) => /^(icon|apple-icon|favicon)\./.test(name))).toEqual([]);
+  });
+});
+
 describe("브라우저 QA 후속 수정(FD-18)", () => {
   it("모든 네이티브 select 요소가 하나도 빠짐없이 공통 모양(selectClass)을 쓴다: 기본 화살표가 쏠리지 않는다", () => {
     const offenders: string[] = [];
@@ -263,9 +296,9 @@ describe("브라우저 QA 후속 수정(FD-18)", () => {
         if (!/className=\{select(Compact)?Class\}/.test(match[0])) offenders.push(`${file}: ${match[0].slice(0, 60)}`);
       }
     }
-    // 요소 3개: 거래 입력의 ParticipantSelect(지급자·수취자가 공유하는 요소 1개), 거래 내역 필터, 방 만들기 단위.
-    // select가 새로 생기면 이 수를 맞추고 selectClass를 쓰게 한다.
-    expect(total).toBe(3);
+    // 요소 2개: 거래 입력의 ParticipantSelect(지급자·수취자가 공유하는 요소 1개), 거래 내역 필터.
+    // 방 만들기 정산 단위는 FE-V3에서 라디오 타일로 바뀌었다(DV-21). select가 새로 생기면 이 수를 맞추고 공통 모양을 쓰게 한다.
+    expect(total).toBe(2);
     expect(offenders).toEqual([]);
   });
 

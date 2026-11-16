@@ -132,3 +132,35 @@
 #### 확정본과 다른 점
 
 - 헤더 아래 `divider` 1px(RK-F20 대체안, 위 측정).
+
+### FE-V3 — 방 만들기·입장·파비콘
+
+구현 `96aab49`, 최종 `a0870be`. 실행(`a0870be`): `vitest` 53파일 717시험 통과, `typecheck`·`lint`(경고 0)·`build`·`smoke` 종료 코드 0, `check:ac` 79개. 증거: `docs/design/v2-evidence/fe-v3/`(래스터화 스크립트, PNG 크기·색 형식·모서리, 빌드 HTML `<link>` 4개, `next start` 200 `image/png`, 외부 요청 없음, Chrome 캡처 375px 4칸·300px 2×2).
+
+#### Claude 독립 검수
+
+| 회차 | 판정 | 지적 | 처리 |
+| --- | --- | --- | --- |
+| 1 | **PASS** | LOW만: 01 radio `aria-invalid`에 `jsx-a11y/role-supports-aria-props` 경고(ARIA 1.2는 radio에 없음, DV-21 결정의 결과, axe 위반 아님), 02 단위를 바꿔도 이전 `unit` 오류가 남음(선택 상자 시절과 같은 기존 동작), 03 오류 알림 영역이 조건부로 처음 그려짐, 04 고대비 모드에서 선택 타일 구분 약함(추측), 05 래스터화 스크립트 재현 조건 누락(재현하니 픽셀 동일), 06 바꾼 시험 기록 | 01 근거 주석과 해당 줄 예외(경고 0), 03 알림 영역 상시 유지, 04 `forced-colors`에서 선택 타일 바깥 선, 05 실행 조건·`public/` 복사 명시, 06 아래 표(`a0870be`). **02는 동작 변경이라 범위 밖으로 두고 기록만 한다**(아래 "남긴 것") |
+
+#### Codex 독립 검수
+
+| 회차 | 판정 | 지적 | 처리 |
+| --- | --- | --- | --- |
+| 1 | **PASS** | 지적 없음. 라디오 이름·설명·오류 연결, RK-F19 이전, `:has()` 특이도·컨테이너 쿼리, PNG 디코딩(크기·색 형식·모서리), 빌드 `<link>` 대조. 샌드박스라 build·smoke·Chrome 재실행은 못 함(증거 대조). HEAD `a0870be` | — |
+
+#### 바꾼 시험 단언(RK-F19·RK-F21)
+
+| 시험 | 전 | 후 | 이유 |
+| --- | --- | --- | --- |
+| `create-room-form.test.tsx` 단위 목록(AC-ROOM-001-12) | `getByLabelText("정산 단위")`의 옵션 4개·값 `원`, `selectOptions(…, "칩")` | `group` 안 `radio` 4개 이름·선택 `원`, `radio` `칩` 클릭. 요청 본문 `unit: "칩"` 단언 그대로 | 조회 방법만 이전(DV-21) |
+| 직접 입력(AC-ROOM-001-13) 2건 | `selectOptions(…, "직접 입력")` | `radio` `직접 입력` 클릭. 입력란·사유·본문 단언 그대로 | 같음 |
+| 목록 값 서버 거부 | 선택 상자의 계산된 설명 `/한글, 영문, 숫자/`, `toBeInvalid` | `group`의 계산된 설명 같은 정규식, 선택된 `radio` `toBeInvalid` + 네 라디오 `aria-invalid`, `aria-describedby` 문단 id·`aria-live` | 이전 + 보조 단언 |
+| 결과 불명 잠금 | 선택 상자 `toBeDisabled` | 네 라디오 모두 `toBeDisabled` | 이전 |
+| 추가 | — | 화살표 키로 선택 이동(`원`→`점수`→…→`직접 입력`) | FE-V3 완료 기준 |
+| `design.test.tsx` select 개수 | 3 | 2 | 방 만들기 select가 라디오로 바뀌어 없어짐 |
+| `design.test.tsx` 파비콘(추가) | — | PNG 크기·색 형식(16·32·64 RGBA, 180 RGB), layout의 `icons` 항목, 파일 규칙 아이콘 없음 | FD-18 (6) |
+
+#### 남긴 것
+
+- 정산 단위를 바꿔도 이전 `unit` 오류가 남는 기존 동작(V3C1-02). 고치면 동작 변경이라 이번 범위(모양) 밖이다. 필요하면 별도 Task로 다룬다.

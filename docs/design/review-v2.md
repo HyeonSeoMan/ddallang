@@ -22,3 +22,4 @@
 
 | 회차 | 판정 | 지적 | 처리 |
 | --- | --- | --- | --- |
+| 1 | REVISE | X1-01 MEDIUM: 큰 금액 + 12자 한글 단위(예 `999,999,999,000 가나다라마바사아자차카타`)는 18px에서 약 327.9px로, 다음 줄로 내려도 카드 안 폭 303px를 넘는다. RK-F14의 폭 맞춤 글자 크기 규칙이 없다. 그 밖에 대비·FD-18 제외 항목·승인 범위는 문제 없음. 실행: `codex exec --sandbox read-only -c model_reasoning_effort=medium`(gpt-6.1-sol, 헤더에서 `sandbox: read-only`·`reasoning effort: medium` 확인), HEAD `8d159ff` | 반영. §4 금액 표시에 글자 수 단계(N ≤ 18 → 18px, 19~24 → 15px, 25 이상 → 13px, 금액 입력은 네이티브 가로 스크롤) 규칙과 시험 방법, §3.3 표 보완. 시안 7번에 단계별 최악 견본을 넣고 Chrome에서 측정해 모두 303px 안(최대 253.7px)임을 기록 |

@@ -57,4 +57,46 @@
 
 - **확정**: 2026-11-16, 프론트엔드 Plan/Tasks 1.3.0. Claude 4회(4회 PASS), Codex 2회(2회 PASS).
 - 남은 지적: 없음.
-- 병합: PR 번호는 병합 뒤 3단계 기록에 적는다.
+- 병합: PR #53(머지 `4e3cd72`).
+
+## 3단계 — UI 적용 (G4, `FE-V1`~`FE-V4`)
+
+기준: Plan/Tasks 1.3.0(PR #53) FD-18, 방향 문서 1.0.0. 실행 방식은 1·2단계와 같다(Claude 검수는 새 서브에이전트, Codex는 `codex exec --sandbox read-only -c model_reasoning_effort=medium`, gpt-6.1-sol).
+
+### FE-V1 — 토큰·아이콘·기본 컴포넌트
+
+구현 `d3d78ba`, 최종 `a138429`. 실행(최종 리비전): `vitest` 53파일 701시험 통과, `typecheck`·`lint`·`build`(`NEXT_PUBLIC_API_BASE_URL=http://localhost:3001`)·`smoke` 종료 코드 0, `check:ac` 79개. 완료 기준 (b) `grep -E` 0건. 빌드본 홈 화면 375px 캡처 확인(헤드리스 Chrome 최소 창 폭이 500px이라 375px iframe으로 감쌌다).
+
+#### Claude 독립 검수
+
+| 회차 | 판정 | 지적 | 처리 |
+| --- | --- | --- | --- |
+| 1 | REVISE | V1C1-01 HIGH: `Button`이 원자 클래스를 `cx`로 이어 붙여 같은 속성은 생성 CSS 순서가 이김 → `danger`(게임 종료) 테두리가 투명. V1C1-02 MEDIUM: 같은 원인으로 `secondary`·`dangerText` 알약 모서리·여백이 빠짐. LOW: 03 `suffix`·`icon` 시험 없음, 04 아이콘 그림자 단언 실효 낮음, 05 대화상자 취소 `secondaryBlock`은 호출처 목록 밖 | 모두 반영(`df0417c`). `Button`을 `cva` 하나로 병합, 변형별 속성 중복 시험, `suffix`·`icon` 접근성·기본 마크업 시험, 그림자 단언 보강. 05는 아래 "목록 밖 호출처 변경"에 기록 |
+| 2 | REVISE | V1C2-01 MEDIUM: `fieldFrameClass`의 비활성 `bg`(줄임 속성 `background`)가 선택 상자 화살표 그림을 지움(회귀). LOW: 02 `room-header` 현재 탭 `extrabold`가 `semibold`에 짐(FE-V1 이전부터, 헤더는 FE-V2), 03 충돌 시험이 줄임/개별 속성을 못 잡음, 04 오류 칸 포커스 시 `primary` 표시 의도 기록 | 01·03·04 반영(`f18c33c`): 바탕을 `bgColor`로, 줄임/개별 속성까지 보는 `conflictingClasses` 도우미를 버튼 6변형×2크기·입력·선택 상자에 적용(원래 결함으로 되돌리면 실패함을 확인), 의도 주석. 02는 FE-V2에서 처리 |
+| 3 | **PASS** | LOW만: 01 도우미의 거짓 양성·음성 범위, 02 `_active`가 비활성 바탕을 이길 수 있음(추측), 03 도우미 위치 | 모두 반영(`31ce260`): 범위 주석·밑줄 없는 클래스 처리, 눌림 색을 `:active:not(:disabled)`로 제한 |
+
+#### Codex 독립 검수
+
+| 회차 | 판정 | 지적 | 처리 |
+| --- | --- | --- | --- |
+| 1 | REVISE | W1-01 MEDIUM: 기본 주 버튼·대화상자 버튼이 44px(확정 52px, 시안 `mockup-v2.html:100~108`). 그 밖에 토큰·대비(글자 28쌍·비텍스트 5쌍, 최솟값 4.5521·3.2160)·Money 경계·아이콘·`cva`·`grep` 0건 확인. 샌드박스라 `check-ac` CLI 시험 1개(임시 폴더)·smoke(포트) 실행 불가. HEAD `31ce260` | 반영(`a138429`): 높이를 변형이 정함(주·위험 52px, 회색 전폭 48px, 알약 44px), 대화상자 두 버튼 `size="large"`(52px) |
+| 2 | **PASS** | 지적 없음. HEAD `a138429` | — |
+
+#### 바꾼 시험 단언(RK-F21)
+
+| 시험 | 전 | 후 | 이유 |
+| --- | --- | --- | --- |
+| `design.test.tsx` 아이콘 | 5종 | 12종, 그림자 없음, 마스크 id 고유 | FD-18 (3) |
+| `design.test.tsx` 버튼 | `accent` 변형 `type`·비활성 | 6변형 각각 `type`·비활성, 속성 충돌 없음, 변형별 높이 52/48/44px, `large` 52px·전폭 | `accent` 제거(FD-18 (1)). "large가 기본보다 높다"는 주 버튼 기본이 52px가 되어 성립하지 않아 변형별 높이 단언으로 옮김 |
+| `design.test.tsx` 토큰 값 | 모서리 24/16, 그림자 6종 포함, `primary #12804f`·`accent #ffc93c` | 모서리 20/12/14/999, 그림자 `float`만, `primary #00875a`·`coin #ffc93c` | 방향 문서 §3 |
+| `tokens.ts` 대비 쌍 | 글자 26·비텍스트 4 | 글자 28·비텍스트 5 | FD-18 (1)의 옮김·지움·더함 목록 그대로. 지운 쌍은 지운 토큰과 함께(`ink/accentSoft`·`secondaryText/secondary`·`accentText/accent`), `line/canvas`는 `line`을 흰 바탕에서만 쓰므로 |
+| 추가 | — | 키 집합(지운·새 토큰), 톤 대응, 아바타 6색 대비, Money 단계 N = 18/19/24/25/29, `suffix`·`icon` 접근성 | FE-V1 완료 기준 |
+
+#### 목록 밖 호출처 변경
+
+- 확인 대화상자 취소 버튼: `secondary` → `secondaryBlock`(+ `size="large"`). 아래 시트에서 두 버튼 폭·높이(52px)를 맞추려는 것이다(시안 `.btn-cancel`). 동작·이름은 그대로다.
+
+#### FE-V2로 넘긴 것
+
+- `room-header`: `shadows.float`·반투명 카드·탭 아이콘, 현재 탭 `extrabold`가 공통 `semibold`에 지는 기존 결함(V1C2-02), 진행 중 배지 success 톤.
+- 구역 아이콘 대응, 폼 금액 입력(`suffix`), 띠 아이콘 연결.

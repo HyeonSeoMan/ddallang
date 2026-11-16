@@ -3,7 +3,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { useSetAtom } from "jotai";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useEffect, useId, useRef, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { css } from "styled-system/css";
 import {
   ApiError,
@@ -23,13 +23,57 @@ import {
 import { validateRoomText } from "@/lib/validation/room-text";
 import { Banner } from "@/ui/banner";
 import { Button } from "@/ui/button";
-import { selectClass } from "@/ui/select-style";
+import { ChipIcon, CoinIcon, PencilIcon, StarIcon } from "@/ui/icons";
 import { TextField } from "@/ui/text-field";
 import { CREATE_UNKNOWN_NOTICE, IDENTITY_KEY_NOTICE, reasonMessage } from "./messages";
 import { sessionAtom } from "./state";
 
 const UNIT_PRESETS = ["원", "점수", "칩"] as const;
 const CUSTOM_UNIT = "__custom__";
+
+/** 정산 단위 타일(DV-21): 보내는 값은 그대로이고 아이콘은 장식이다. */
+const UNIT_OPTIONS: ReadonlyArray<{ value: string; label: string; Icon: (props: { size?: number }) => ReactNode }> = [
+  { value: "원", label: "원", Icon: CoinIcon },
+  { value: "점수", label: "점수", Icon: StarIcon },
+  { value: "칩", label: "칩", Icon: ChipIcon },
+  { value: CUSTOM_UNIT, label: "직접 입력", Icon: PencilIcon },
+];
+
+/**
+ * 타일: 흰 바탕 + `line` 1px, 선택 = `primary` 2px + `primarySoft` + `brandText`, 포커스 = `primary` 2px 바깥 링,
+ * 오류 중 선택 타일 = `danger` 2px, 잠금 = 비활성 색 + 선택 타일 `inkMuted` 2px. 2px는 안쪽 그림자로 더해 글자가 움직이지 않는다.
+ */
+const unitTileClass = css({
+  position: "relative",
+  minH: "76px",
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "1.5",
+  px: "1",
+  py: "2",
+  borderWidth: "1px",
+  borderColor: "line",
+  borderRadius: "tile",
+  bgColor: "paper",
+  color: "ink",
+  fontSize: "sm",
+  fontWeight: "semibold",
+  textAlign: "center",
+  wordBreak: "keep-all",
+  cursor: "pointer",
+  "&:has(input:checked)": {
+    borderColor: "primary",
+    boxShadow: "inset 0 0 0 1px {colors.primary}",
+    bgColor: "primarySoft",
+    color: "brandText",
+  },
+  "&:has(input:checked[aria-invalid=true])": { borderColor: "danger", boxShadow: "inset 0 0 0 1px {colors.danger}" },
+  "&:has(input:focus-visible)": { outline: "2px solid", outlineColor: "primary", outlineOffset: "2px" },
+  "&:has(input:disabled)": { bgColor: "disabledBg", color: "disabledText", cursor: "not-allowed" },
+  "&:has(input:disabled:checked)": { borderColor: "inkMuted", boxShadow: "inset 0 0 0 1px {colors.inkMuted}" },
+});
 
 type Field = "name" | "unit" | "nickname";
 type FieldErrors = Partial<Record<Field, string[]>>;
@@ -65,7 +109,7 @@ const STORAGE_FAILURE_MESSAGES = {
 export function CreateRoomForm() {
   const router = useRouter();
   const setSession = useSetAtom(sessionAtom);
-  const unitSelectId = useId();
+  const unitGroupId = useId();
 
   const [name, setName] = useState("");
   const [unitChoice, setUnitChoice] = useState<string>(UNIT_PRESETS[0]);
@@ -204,6 +248,9 @@ export function CreateRoomForm() {
     setUnknown(false);
   }
 
+  // 목록 값을 고른 상태에서 서버가 `unit`을 거부했을 때만 타일 묶음에 오류를 건다(직접 입력의 오류는 입력란에 연결).
+  const unitError = unitChoice !== CUSTOM_UNIT && Boolean(errors.unit?.length);
+
   return (
     <form
       onSubmit={onSubmit}
@@ -219,35 +266,53 @@ export function CreateRoomForm() {
         autoComplete="off"
       />
 
-      <div className={css({ display: "flex", flexDirection: "column", gap: "1" })}>
-        <label htmlFor={unitSelectId} className={css({ fontWeight: "semibold" })}>
+      {/* 정산 단위: 아이콘 + 글자 타일(DV-21, U-18). 네이티브 라디오라 화살표 이동·라벨·비활성은 브라우저 기본 동작이다. */}
+      <fieldset
+        disabled={locked}
+        aria-describedby={unitError ? `${unitGroupId}-error` : undefined}
+        className={css({ border: "0", p: "0", m: "0", minW: "0", containerType: "inline-size" })}
+      >
+        <legend className={css({ p: "0", mb: "2", fontSize: "sm", fontWeight: "semibold", color: "inkMuted" })}>
           정산 단위
-        </label>
-        <select
-          id={unitSelectId}
-          value={unitChoice}
-          onChange={(e) => setUnitChoice(e.target.value)}
-          disabled={locked}
-          aria-invalid={unitChoice !== CUSTOM_UNIT && errors.unit ? true : undefined}
-          aria-describedby={unitChoice !== CUSTOM_UNIT && errors.unit ? `${unitSelectId}-error` : undefined}
-          className={selectClass}
+        </legend>
+        <div
+          className={css({
+            display: "grid",
+            gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+            gap: "2",
+            // 타일 묶음이 280px 미만이면(칸 폭 약 64px 미만) 2×2.
+            "@container (max-width: 279px)": { gridTemplateColumns: "repeat(2, minmax(0, 1fr))" },
+          })}
         >
-          {UNIT_PRESETS.map((unit) => (
-            <option key={unit} value={unit}>
-              {unit}
-            </option>
+          {UNIT_OPTIONS.map(({ value, label, Icon }) => (
+            <label key={value} className={unitTileClass}>
+              <input
+                type="radio"
+                name={`${unitGroupId}-unit`}
+                value={value}
+                checked={unitChoice === value}
+                onChange={() => setUnitChoice(value)}
+                aria-invalid={unitError ? true : undefined}
+                className={css({ position: "absolute", opacity: "0", w: "1px", h: "1px", m: "0" })}
+              />
+              <Icon size={28} />
+              <span>{label}</span>
+            </label>
           ))}
-          <option value={CUSTOM_UNIT}>직접 입력</option>
-        </select>
+        </div>
         {/* 목록에서 고른 단위를 서버가 거부하면(예: 허용 규칙 변경) 여기에 사유를 보인다. */}
-        {unitChoice !== CUSTOM_UNIT && errors.unit ? (
-          <div id={`${unitSelectId}-error`} aria-live="polite" className={css({ color: "errorText" })}>
-            {errors.unit.map((message) => (
+        {unitError ? (
+          <div
+            id={`${unitGroupId}-error`}
+            aria-live="polite"
+            className={css({ mt: "2", color: "danger", fontSize: "sm", fontWeight: "medium" })}
+          >
+            {errors.unit?.map((message) => (
               <p key={message}>{message}</p>
             ))}
           </div>
         ) : null}
-      </div>
+      </fieldset>
       {unitChoice === CUSTOM_UNIT ? (
         <TextField
           label="정산 단위 직접 입력"
@@ -268,7 +333,7 @@ export function CreateRoomForm() {
         autoComplete="off"
       />
 
-      <p className={css({ color: "inkMuted", fontSize: "sm" })}>{IDENTITY_KEY_NOTICE}</p>
+      <p className={css({ color: "inkMuted", fontSize: "sm", fontWeight: "medium" })}>{IDENTITY_KEY_NOTICE}</p>
 
       {notice ? <Banner tone="error">{notice}</Banner> : null}
 
@@ -287,7 +352,7 @@ export function CreateRoomForm() {
           </div>
         </>
       ) : (
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" size="large" disabled={pending}>
           {pending ? "만드는 중…" : "방 만들기"}
         </Button>
       )}

@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { delay, http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -59,15 +59,17 @@ beforeEach(() => {
 });
 
 describe("방 생성 화면", () => {
+  // RK-F19: 선택 상자 → 라디오 타일(DV-21). 조회 방법만 `combobox`/옵션에서 `group`/`radio`로 옮기고 단언은 유지한다.
   it("[AC-ROOM-001-12] 정산 단위 목록(원·점수·칩)에서 선택할 수 있다", async () => {
     renderApp(<CreateRoomForm />);
-    const select = screen.getByLabelText("정산 단위");
-    const options = Array.from((select as HTMLSelectElement).options).map((o) => o.text);
-    expect(options).toEqual(["원", "점수", "칩", "직접 입력"]);
-    expect(select).toHaveValue("원");
+    const group = screen.getByRole("group", { name: "정산 단위" });
+    const radios = within(group).getAllByRole("radio");
+    expect(radios).toHaveLength(4);
+    ["원", "점수", "칩", "직접 입력"].forEach((name, i) => expect(radios[i]).toHaveAccessibleName(name));
+    expect(within(group).getByRole("radio", { checked: true })).toHaveAccessibleName("원");
     useCreateHandler();
     const user = userEvent.setup();
-    await user.selectOptions(select, "칩");
+    await user.click(within(group).getByRole("radio", { name: "칩" }));
     await user.type(screen.getByLabelText("방 이름"), "방");
     await user.type(screen.getByLabelText("내 닉네임"), "나");
     await user.click(screen.getByRole("button", { name: "방 만들기" }));
@@ -75,11 +77,24 @@ describe("방 생성 화면", () => {
     expect(requests[0]!.body).toEqual({ name: "방", unit: "칩", nickname: "나" });
   });
 
+  it("화살표 키로 정산 단위 선택을 옮긴다(네이티브 라디오 묶음)", async () => {
+    renderApp(<CreateRoomForm />);
+    const user = userEvent.setup();
+    const group = screen.getByRole("group", { name: "정산 단위" });
+    within(group).getByRole("radio", { name: "원" }).focus();
+    await user.keyboard("{ArrowRight}");
+    expect(within(group).getByRole("radio", { checked: true })).toHaveAccessibleName("점수");
+    expect(within(group).getByRole("radio", { name: "점수" })).toHaveFocus();
+    await user.keyboard("{ArrowRight}{ArrowRight}");
+    expect(within(group).getByRole("radio", { checked: true })).toHaveAccessibleName("직접 입력");
+    expect(screen.getByLabelText("정산 단위 직접 입력")).toBeInTheDocument();
+  });
+
   it("[AC-ROOM-001-13] 직접 입력 필드를 제공하고 규칙 위반은 사유 전체를 한 번에 보여 준다", async () => {
     renderApp(<CreateRoomForm />);
     const user = userEvent.setup();
     expect(screen.queryByLabelText("정산 단위 직접 입력")).not.toBeInTheDocument();
-    await user.selectOptions(screen.getByLabelText("정산 단위"), "직접 입력");
+    await user.click(screen.getByRole("radio", { name: "직접 입력" }));
     const custom = screen.getByLabelText("정산 단위 직접 입력");
     await user.type(custom, "  포인트!!가나다라마바사아");
     await user.type(screen.getByLabelText("방 이름"), "방");
@@ -96,7 +111,7 @@ describe("방 생성 화면", () => {
     useCreateHandler();
     renderApp(<CreateRoomForm />);
     const user = userEvent.setup();
-    await user.selectOptions(screen.getByLabelText("정산 단위"), "직접 입력");
+    await user.click(screen.getByRole("radio", { name: "직접 입력" }));
     await user.type(screen.getByLabelText("정산 단위 직접 입력"), "Chip 10");
     await user.type(screen.getByLabelText("방 이름"), "방");
     await user.type(screen.getByLabelText("내 닉네임"), "나");
@@ -250,10 +265,15 @@ describe("방 생성 화면", () => {
     );
     renderApp(<CreateRoomForm />);
     await fillAndSubmit();
-    await waitFor(() =>
-      expect(screen.getByLabelText("정산 단위")).toHaveAccessibleDescription(/한글, 영문, 숫자/),
-    );
-    expect(screen.getByLabelText("정산 단위")).toBeInvalid();
+    const group = screen.getByRole("group", { name: "정산 단위" });
+    await waitFor(() => expect(group).toHaveAccessibleDescription(/한글, 영문, 숫자/));
+    // 잘못된 입력 표시는 선택된 라디오(기존 단언 이전)와 네 라디오 모두에 있다(`fieldset`은 aria-invalid를 지원하지 않는다).
+    expect(within(group).getByRole("radio", { checked: true })).toBeInvalid();
+    for (const radio of within(group).getAllByRole("radio")) expect(radio).toHaveAttribute("aria-invalid", "true");
+    // 보조: fieldset의 aria-describedby가 오류 문단 id다.
+    const describedBy = group.getAttribute("aria-describedby")!;
+    expect(document.getElementById(describedBy)).toHaveTextContent(/한글, 영문, 숫자/);
+    expect(document.getElementById(describedBy)).toHaveAttribute("aria-live", "polite");
   });
 
   it("결과 불명 중에는 입력을 잠가 재시도가 처음 보낸 내용과 어긋나지 않게 한다", async () => {
@@ -262,7 +282,9 @@ describe("방 생성 화면", () => {
     const user = await fillAndSubmit();
     await screen.findByText(CREATE_UNKNOWN_NOTICE);
     expect(screen.getByLabelText("방 이름")).toBeDisabled();
-    expect(screen.getByLabelText("정산 단위")).toBeDisabled();
+    for (const radio of within(screen.getByRole("group", { name: "정산 단위" })).getAllByRole("radio")) {
+      expect(radio).toBeDisabled();
+    }
     expect(screen.getByLabelText("내 닉네임")).toBeDisabled();
     await user.click(screen.getByRole("button", { name: "취소" }));
     expect(screen.getByLabelText("방 이름")).toBeEnabled();

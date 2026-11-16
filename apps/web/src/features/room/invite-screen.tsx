@@ -178,12 +178,16 @@ export function InviteScreen({ inviteCode, children }: { inviteCode: string; chi
 
         <div className={cardClass}>
         {preview ? (
-          <section aria-label="방 정보" className={css({ mb: "4" })}>
-            <p className={css({ fontSize: "lg", fontWeight: "bold" })}>{preview.name}</p>
+          // 방 미리보기(방향 문서 §5.6): 방 정보 규칙(§5.5)과 같은 순서·크기. 진행 중 배지는 info로 통일.
+          <section
+            aria-label="방 정보"
+            className={css({ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "2.5", mb: "5" })}
+          >
+            <p className={css({ fontSize: "xl", fontWeight: "bold", overflowWrap: "anywhere" })}>{preview.name}</p>
             <p>정산 단위: {preview.unit}</p>
-            <Badge tone={ended ? "neutral" : "success"}>{ended ? "게임 종료" : "진행 중"}</Badge>
+            <Badge tone={ended ? "neutral" : "info"}>{ended ? "게임 종료" : "진행 중"}</Badge>
             {ended ? (
-              <p className={css({ mt: "2" })}>
+              <p className={css({ color: "inkMuted", fontSize: "sm", fontWeight: "medium" })}>
                 종료된 방입니다. 입장하면 최종 정산을 볼 수 있습니다.
               </p>
             ) : null}
@@ -203,9 +207,11 @@ export function InviteScreen({ inviteCode, children }: { inviteCode: string; chi
               errors={nicknameErrors}
               autoComplete="off"
             />
-            <p className={css({ color: "inkMuted", fontSize: "sm" })}>{IDENTITY_KEY_NOTICE}</p>
+            <p className={css({ color: "inkMuted", fontSize: "sm", fontWeight: "medium" })}>{IDENTITY_KEY_NOTICE}</p>
             {notice ? <Banner tone="error">{notice}</Banner> : null}
-            <Button type="submit">입장</Button>
+            <Button type="submit" size="large">
+              입장
+            </Button>
           </form>
         ) : null}
 

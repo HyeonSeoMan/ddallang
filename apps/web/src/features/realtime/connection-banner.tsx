@@ -67,7 +67,8 @@ export function ConnectionBanner() {
   return (
     <div data-connection-phase={phase} className={css({ mt: "3" })}>
       <Banner tone={content.tone} icon={<BannerIcon tone={content.tone} />}>
-        <strong>{content.title}</strong>
+        {/* 리셋의 `strong { font-weight: bolder }`가 600을 900으로 만들지 않게 굵기를 정한다(띠 제목 14/600). */}
+        <strong className={css({ fontWeight: "semibold" })}>{content.title}</strong>
         {/* 상세는 다음 줄 14/400. 앞 공백은 이어 읽을 때 제목과 붙지 않게 둔다. */}
         {content.detail ? <span className={css({ display: "block", fontWeight: "normal" })}> {content.detail}</span> : null}
       </Banner>

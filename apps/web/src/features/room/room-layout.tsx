@@ -38,10 +38,13 @@ export function RoomSection({
   id,
   title = ROOM_SECTION_TITLES[id],
   children,
+  after,
 }: {
   id: RoomSectionId;
   title?: string;
   children?: ReactNode;
+  /** 카드 아래 바탕 위에 두는 요소(정산의 `게임 종료`, 시안). 본문과 같이 게이트 아래에서만 그린다. */
+  after?: ReactNode;
 }) {
   const headingId = useId();
   // 서버 유래 값에 따라 달라지는 제목(`titles`)은 게이트가 열렸을 때만 쓴다. 끊김 중에는 기본 제목이다.
@@ -56,7 +59,8 @@ export function RoomSection({
     <section
       aria-labelledby={headingId}
       data-section={id}
-      className={css({ mt: "6" })}
+      // 구역 사이 28px, 첫 구역(연결 배너 바로 뒤 포함)은 12px(DV-13, 시안 `.sec-head`).
+      className={css({ mt: "7", _firstOfType: { mt: "3" } })}
       data-compact={compact ? "true" : undefined}
     >
       <h2
@@ -73,6 +77,7 @@ export function RoomSection({
           <ServerDataGate>{children}</ServerDataGate>
         </div>
       )}
+      {after ? <ServerDataGate>{after}</ServerDataGate> : null}
     </section>
   );
 }
@@ -81,17 +86,19 @@ export interface RoomSectionsProps {
   /** 그릴 구역. 생략하면 전부이며 순서는 항상 `ROOM_SECTION_TITLES`의 순서(FD-12)다. */
   only?: readonly RoomSectionId[];
   slots?: Partial<Record<RoomSectionId, ReactNode>>;
+  /** 구역 카드 아래 바탕 위 요소. */
+  after?: Partial<Record<RoomSectionId, ReactNode>>;
   /** 구역 제목 바꾸기. 데이터 영역이 보일 때만 적용되고 끊김 중에는 기본 제목이다. */
   titles?: Partial<Record<RoomSectionId, string>>;
 }
 
 /** 컨테이너 없는 구역 묶음. 페이지(현황·기록·정산·방)는 자기 구역만 골라 쓴다(FD-12 개정, 페이지 분리). */
-export function RoomSections({ only, slots = {}, titles = {} }: RoomSectionsProps) {
+export function RoomSections({ only, slots = {}, titles = {}, after = {} }: RoomSectionsProps) {
   const ids = (Object.keys(ROOM_SECTION_TITLES) as RoomSectionId[]).filter((id) => !only || only.includes(id));
   return (
     <>
       {ids.map((id) => (
-        <RoomSection key={id} id={id} title={titles[id]}>
+        <RoomSection key={id} id={id} title={titles[id]} after={after[id]}>
           {slots[id]}
         </RoomSection>
       ))}

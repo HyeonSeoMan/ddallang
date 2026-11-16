@@ -16,6 +16,17 @@ export const rowClass = css({
   minH: "64px",
 });
 
+/** 위 정렬 목록 행(거래 행처럼 메타가 여러 줄이고 아래에 컨트롤이 붙는 행). `rowClass`와 같은 규칙에 정렬만 다르다. */
+export const rowTopClass = css({
+  display: "flex",
+  flexWrap: "wrap",
+  alignItems: "flex-start",
+  columnGap: "3",
+  rowGap: "1",
+  minH: "64px",
+  py: "2",
+});
+
 export const rowBodyClass = css({ flex: "1 1 120px", minW: "120px", display: "flex", flexDirection: "column", gap: "0.5" });
 
 export const rowTitleClass = css({

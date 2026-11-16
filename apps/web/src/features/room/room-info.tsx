@@ -54,7 +54,7 @@ export function RoomInfo() {
           readOnly
           value={link}
           onFocus={(event) => event.currentTarget.select()}
-          className={cx(fieldFrameClass, css({ px: "4", minW: "0", textOverflow: "ellipsis" }))}
+          className={cx(fieldFrameClass, css({ minH: "52px", px: "4", minW: "0", textOverflow: "ellipsis" }))}
         />
         <Button variant="secondary" className={css({ alignSelf: "flex-start" })} onClick={() => void onCopy()}>
           초대 링크 복사

@@ -10,9 +10,9 @@ import { participantFilterAtom, requestRefreshAtom } from "@/features/realtime/s
 import { type RoomSnapshot, sessionAtom, snapshotAtom } from "@/features/room/state";
 import { Banner } from "@/ui/banner";
 import { Button } from "@/ui/button";
-import { selectClass } from "@/ui/select-style";
+import { selectCompactClass } from "@/ui/select-style";
 import { CoinIcon } from "@/ui/icons";
-import { listClass, rowAmountClass, rowBodyClass, rowClass, rowFullClass, rowMetaClass, rowTitleClass } from "@/ui/list-row";
+import { listClass, rowAmountClass, rowBodyClass, rowFullClass, rowMetaClass, rowTitleClass, rowTopClass } from "@/ui/list-row";
 import { Money } from "@/ui/money";
 
 const ALL = "";
@@ -135,7 +135,7 @@ export function TransactionsSection({
             id={filterId}
             value={filter ?? ALL}
             onChange={(e) => onFilterChange(e.target.value)}
-            className={selectClass}
+            className={selectCompactClass}
           >
             <option value={ALL}>전체</option>
             {participants.map((p) => (
@@ -158,7 +158,7 @@ export function TransactionsSection({
       ) : (
         <ul className={listClass}>
           {items.map((t) => (
-            <li key={t.id} className={cx(rowClass, css({ alignItems: "flex-start", py: "2" }))}>
+            <li key={t.id} className={rowTopClass}>
               {/* 회색 원 안 코인(DV-14). 장식이다. */}
               <span aria-hidden="true" className={coinCircleClass}>
                 <CoinIcon size={24} />
@@ -180,7 +180,7 @@ export function TransactionsSection({
               </span>
               {renderActions ? (
                 // 수정·삭제 알약은 메타 아래(본문 열에 맞춰 들여 쓰고), 수정 폼이 열리면 카드 폭 전체로 펼친다.
-                <div className={cx(rowFullClass, css({ pl: "52px", "&:has(form)": { pl: "0" } }))}>
+                <div className={cx(rowFullClass, css({ pl: "52px", "&:has(form)": { pl: "0" }, _empty: { display: "none" } }))}>
                   {renderActions(t, { me, room, summary: `${nameOf(t.payerId)} → ${nameOf(t.payeeId)} ${formatMoney(t.amount, room.unit)}` })}
                 </div>
               ) : null}

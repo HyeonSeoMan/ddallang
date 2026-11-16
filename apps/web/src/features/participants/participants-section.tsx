@@ -26,6 +26,8 @@ import { listClass, rowAmountClass, rowBodyClass, rowClass, rowFullClass, rowTit
 import { TextField } from "@/ui/text-field";
 import { participantDraftsAtom } from "./state";
 
+const rowErrorClass = css({ color: "danger", fontSize: "sm", fontWeight: "medium" });
+
 /** 닉네임 비교 키: NFC로 정규화하고 `A-Z`만 소문자로 바꾼다(S1 §3.2). */
 export function nicknameKey(nickname: string): string {
   return nickname.normalize("NFC").replace(/[A-Z]/g, (c) => c.toLowerCase());
@@ -215,6 +217,8 @@ export function ParticipantsSection() {
           // 다른 접속자의 변경·재조회로 이미 목표 상태가 되었다면 결과 불명 안내와 재시도를 걷는다.
           const unknownTarget = unknownToggles[p.id];
           const isUnknown = unknownTarget !== undefined && p.status !== unknownTarget;
+          const showUnknown = isUnknown && rowNotice?.id !== p.id;
+          const showNotice = rowNotice?.id === p.id && !(unknownTarget !== undefined && p.status === unknownTarget);
           return (
             <li key={p.id} className={rowClass}>
               <Avatar name={p.nickname} index={index} inactive={p.status === "INACTIVE"} />
@@ -224,9 +228,32 @@ export function ParticipantsSection() {
                   {p.status === "INACTIVE" ? <Badge tone="neutral">비활성</Badge> : null}
                 </div>
               </div>
-              {canControl ? (
+              {canControl && !isUnknown ? (
                 <span className={rowAmountClass}>
-                  {isUnknown ? (
+                  <Button
+                    variant="secondary"
+                    disabled={togglingId !== null}
+                    onClick={() => void changeStatus(p, next)}
+                    aria-label={`${p.nickname} ${next === "INACTIVE" ? "비활성화" : "재활성화"}`}
+                  >
+                    {next === "INACTIVE" ? "비활성화" : "재활성화"}
+                  </Button>
+                </span>
+              ) : null}
+              {/* 행의 오류 문구와 `다시 시도`는 행 내용 아래 카드 폭으로 펼친다(방향 문서 §5.5). */}
+              {showUnknown || showNotice || (canControl && isUnknown) ? (
+                <div className={cx(rowFullClass, css({ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "2", pb: "2" }))}>
+                  {showUnknown ? (
+                    <span role="alert" className={rowErrorClass}>
+                      결과를 확인하지 못했습니다.
+                    </span>
+                  ) : null}
+                  {showNotice ? (
+                    <span role="alert" className={rowErrorClass}>
+                      {rowNotice?.message}
+                    </span>
+                  ) : null}
+                  {canControl && isUnknown ? (
                     <Button
                       variant="secondary"
                       disabled={togglingId !== null}
@@ -235,27 +262,8 @@ export function ParticipantsSection() {
                     >
                       다시 시도
                     </Button>
-                  ) : (
-                    <Button
-                      variant="secondary"
-                      disabled={togglingId !== null}
-                      onClick={() => void changeStatus(p, next)}
-                      aria-label={`${p.nickname} ${next === "INACTIVE" ? "비활성화" : "재활성화"}`}
-                    >
-                      {next === "INACTIVE" ? "비활성화" : "재활성화"}
-                    </Button>
-                  )}
-                </span>
-              ) : null}
-              {isUnknown && rowNotice?.id !== p.id ? (
-                <span role="alert" className={cx(rowFullClass, css({ color: "danger", fontSize: "sm", fontWeight: "medium", pb: "2" }))}>
-                  결과를 확인하지 못했습니다.
-                </span>
-              ) : null}
-              {rowNotice?.id === p.id && !(unknownTarget !== undefined && p.status === unknownTarget) ? (
-                <span role="alert" className={cx(rowFullClass, css({ color: "danger", fontSize: "sm", fontWeight: "medium", pb: "2" }))}>
-                  {rowNotice.message}
-                </span>
+                  ) : null}
+                </div>
               ) : null}
             </li>
           );

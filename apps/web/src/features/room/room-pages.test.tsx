@@ -114,6 +114,11 @@ describe("페이지별 구성(손익과 거래 내역은 한 화면, AC-VIEW-001
     mount(<SettlementPage />);
     expect(headings()).toEqual(["예상 정산"]);
     expect(screen.getByRole("button", { name: "게임 종료" })).toBeInTheDocument();
+    // 게임 종료는 정산 카드 밖(구역 안, 카드 아래)에 있다(방향 문서 §5.4).
+    const section = document.querySelector<HTMLElement>('[data-section="settlement"]')!;
+    const button = screen.getByRole("button", { name: "게임 종료" });
+    expect(section).toContainElement(button);
+    expect(button.closest("[class*='bg-c_paper']")).toBeNull();
   });
 
   it("정산: 종료된 방은 최종 정산이고 종료 컨트롤이 없다", () => {

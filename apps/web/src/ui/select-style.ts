@@ -7,18 +7,21 @@ import { fieldFrameClass } from "./text-field";
  * 안쪽 여백(16px)에 맞춘 단색 화살표를 배경으로 그린다.
  * 화살표는 코드 안의 SVG 데이터 주소라 외부 요청이 없고(FD-13), 장식이므로 접근성 트리에 나타나지 않는다.
  */
-export const selectClass = cx(
-  fieldFrameClass,
-  css({
-    w: "full",
-    pl: "4",
-    pr: "12",
-    appearance: "none",
-    cursor: "pointer",
-    backgroundImage:
-      "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 9l6 6 6-6' fill='none' stroke='%235f6670' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\")",
-    backgroundRepeat: "no-repeat",
-    backgroundPosition: "right 16px center",
-    backgroundSize: "16px 16px",
-  }),
-);
+const selectParts = {
+  w: "full",
+  pl: "4",
+  pr: "12",
+  appearance: "none",
+  cursor: "pointer",
+  backgroundImage:
+    "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 9l6 6 6-6' fill='none' stroke='%235f6670' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\")",
+  backgroundRepeat: "no-repeat",
+  backgroundPosition: "right 16px center",
+  backgroundSize: "16px 16px",
+} as const;
+
+/** 폼의 선택 상자(지급자·수취자 등): 높이 52px. */
+export const selectClass = cx(fieldFrameClass, css({ ...selectParts, minH: "52px" }));
+
+/** 거래 내역 참여자 필터(DV-17): 같은 모양에 높이 44px(터치 목표). */
+export const selectCompactClass = cx(fieldFrameClass, css({ ...selectParts, minH: "touch" }));

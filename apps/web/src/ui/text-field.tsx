@@ -15,9 +15,9 @@ export interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElemen
  * 두께 차이는 안쪽 그림자로 더해 테두리가 굵어져도 글자가 움직이지 않는다. 오류 칸에 포커스가 가면 포커스 표시(`primary`)가
  * 보인다: 오류 테두리를 유지하면 포커스 전후 모양이 같아 포커스 위치를 알 수 없다(오류 문구와 연결은 그대로 남는다).
  * 바탕은 `bgColor`로만 정한다. 줄임 속성 `background`를 쓰면 선택 상자의 화살표 그림(`background-image`)을 지운다.
+ * 높이는 쓰는 쪽이 정한다(입력·선택 상자 52px, 거래 내역 필터 44px). 같은 속성을 `cx`로 겹치지 않기 위해서다.
  */
 export const fieldFrameClass = css({
-  minH: "52px",
   borderWidth: "1px",
   borderColor: "line",
   borderRadius: "md",
@@ -46,7 +46,7 @@ export function TextField({ label, hint, errors = [], suffix, className, ...inpu
       id={id}
       aria-invalid={errors.length > 0 ? true : undefined}
       aria-describedby={describedBy || undefined}
-      className={cx(fieldFrameClass, css({ px: "4" }), suffix ? css({ flex: "1 1 160px", minW: "160px" }) : undefined, className)}
+      className={cx(fieldFrameClass, css({ minH: "52px", px: "4" }), suffix ? css({ flex: "1 1 160px", minW: "160px" }) : undefined, className)}
     />
   );
 

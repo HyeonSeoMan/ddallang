@@ -6,7 +6,13 @@ import * as fixtures from "@/test/fixtures";
 import { renderApp } from "@/test/render";
 import { seedRoom } from "@/test/room-seed";
 import { applySnapshotAtom, snapshotAtom } from "@/features/room/state";
+import { avatarColors } from "@/ui/tokens";
 import { BalancesSection } from "./balances-section";
+
+const hexToRgb = (hex: string) => {
+  const n = Number.parseInt(hex.slice(1), 16);
+  return `rgb(${n >> 16}, ${(n >> 8) & 255}, ${n & 255})`;
+};
 
 function render(store = createStore()) {
   seedRoom(store);
@@ -25,16 +31,20 @@ describe("누적 손익 영역", () => {
     const store = createStore();
     render(store);
     const { participants } = store.get(snapshotAtom)!;
-    for (const li of screen.getAllByRole("listitem")) {
+    const { balances } = store.get(snapshotAtom)!;
+    const rows = screen.getAllByRole("listitem");
+    rows.forEach((li, row) => {
       const avatar = li.querySelector<HTMLElement>("[data-initial]")!;
       expect(avatar).toHaveAttribute("aria-hidden", "true");
-      const name = avatar.getAttribute("data-initial")!;
-      const index = participants.findIndex((p) => p.nickname.startsWith(name));
-      const inactive = participants[index]!.status === "INACTIVE";
-      if (!inactive) expect(avatar.style.backgroundColor).not.toBe("");
+      // 손익 순서(행)가 아니라 참여자 목록에서의 위치로 색을 고른다.
+      const index = participants.findIndex((p) => p.id === balances[row]!.participantId);
+      const participant = participants[index]!;
+      expect(avatar).toHaveAttribute("data-initial", [...participant.nickname][0]);
+      if (participant.status === "INACTIVE") expect(avatar.style.backgroundColor).toBe("");
+      else expect(avatar.style.backgroundColor).toBe(hexToRgb(avatarColors[index % 6]!));
       // 아바타 글자는 행의 글자 내용에 섞이지 않는다(이름이 곁에 나온다).
-      expect(li.textContent?.startsWith(participants[index]!.nickname)).toBe(true);
-    }
+      expect(li.textContent?.startsWith(participant.nickname)).toBe(true);
+    });
   });
 
   it("서버 순서를 그대로 쓴다(재정렬 없음): 손익 내림차순 +150, 0, −150", () => {

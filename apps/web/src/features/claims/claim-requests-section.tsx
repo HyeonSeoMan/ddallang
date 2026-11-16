@@ -62,6 +62,22 @@ export function ClaimRequestsSection() {
   const countByTarget = new Map<string, number>();
   for (const claim of claims) countByTarget.set(claim.participantId, (countByTarget.get(claim.participantId) ?? 0) + 1);
 
+  /**
+   * 안내를 닫는다. 대기 요청이 남아 있으면 구역 제목으로, 구역이 사라지면 다음 구역(참여자) 제목으로 포커스를 옮겨
+   * 키보드·스크린리더 사용자가 위치를 잃지 않게 한다(검수 N3).
+   */
+  function dismissNotice() {
+    setNotice(null);
+    const next =
+      claims.length > 0
+        ? document.getElementById(headingId)
+        : document.querySelector<HTMLElement>('section[data-section="participants"] h2');
+    if (next) {
+      next.tabIndex = -1;
+      requestAnimationFrame(() => next.focus());
+    }
+  }
+
   async function send(claim: Claim, action: Action) {
     if (!session || pendingId) return;
     setPendingId(claim.id);
@@ -108,7 +124,7 @@ export function ClaimRequestsSection() {
           <div className={css({ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "2" })}>
             <Banner tone={notice.tone}>{notice.text}</Banner>
             {/* 처리 결과 안내는 사용자가 닫는다. 대기 요청이 없으면 닫은 뒤 구역이 사라진다(검수 R5). */}
-            <Button variant="secondary" onClick={() => setNotice(null)}>
+            <Button variant="secondary" onClick={dismissNotice}>
               안내 닫기
             </Button>
           </div>

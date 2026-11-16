@@ -150,7 +150,7 @@ function afterLookup(state: InviteState, check: Extract<InviteStage, { stage: "c
       if (check.returnTo === "candidates") {
         if (lookup.claimableNicknames.length > 0) return { ...base, notice, shownClaimId, view: { stage: "candidates" } };
         // 이번 조회에서 새로 안내할 요청 결과가 있으면 그 안내를 우선한다(한 번 안내를 잃지 않게, 검수 R3).
-        const fresh = shownClaimId !== state.shownClaimId || notice?.kind === "claim-unconfirmed";
+        const fresh = shownClaimId !== state.shownClaimId;
         return { ...base, notice: fresh ? notice : { kind: "no-candidates" }, shownClaimId, view: { stage: "choose" } };
       }
       return { ...base, notice, shownClaimId, view: { stage: "choose" } };

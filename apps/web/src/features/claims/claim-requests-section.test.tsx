@@ -129,6 +129,8 @@ describe("방장의 이어받기 요청 구역 (FE-M5)", () => {
     await waitFor(() => expect(within(region).queryAllByRole("listitem")).toHaveLength(0));
     await userEvent.click(screen.getByRole("button", { name: "안내 닫기" }));
     expect(section()).not.toBeInTheDocument();
+    // 포커스는 다음 구역(참여자) 제목으로 옮긴다(검수 N3).
+    await waitFor(() => expect(screen.getByRole("heading", { name: "참여자" })).toHaveFocus());
   });
 
   it("승인 응답을 받지 못하면(결과 불명) 단건 조회로 현재 상태를 안내하고 승인됐다고 단정하지 않는다", async () => {

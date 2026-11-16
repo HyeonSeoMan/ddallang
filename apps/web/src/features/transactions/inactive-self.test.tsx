@@ -149,11 +149,26 @@ describe("조회 전용 본인 (FD-26, FE-C6)", () => {
     await choose(user, screen, "지급자", "가온");
     await choose(user, screen, "수취자", "나래");
     await user.type(screen.getByLabelText("금액"), "500");
-    const roomReads = backend.requests.room;
+    // 거부 뒤의 갱신(방 조회)을 붙잡아 두어, 갱신이 오기 전에도 서버 message가 보이는지 확정적으로 본다(검수 N1·N2).
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let held = 0;
+    server.use(
+      http.get(apiUrl(`/rooms/${fixtures.room.id}`), async () => {
+        held += 1;
+        await gate;
+        return HttpResponse.json({ room: backend.room, me: inactiveMe });
+      }),
+    );
     await user.click(screen.getByRole("button", { name: "저장" }));
 
     expect(await screen.findByText("비활성 참여자는 거래를 기록할 수 없습니다")).toBeInTheDocument();
-    await waitFor(() => expect(backend.requests.room).toBeGreaterThan(roomReads)); // 갱신을 요청했다
+    await waitFor(() => expect(held).toBeGreaterThan(0)); // 갱신을 요청했다
+    await new Promise((resolve) => setTimeout(resolve, 100)); // 렌더·effect가 끝날 시간을 준다
+    expect(screen.getByText("비활성 참여자는 거래를 기록할 수 없습니다")).toBeInTheDocument();
+    expect(screen.getByLabelText("금액")).toBeEnabled(); // 아직 갱신 전
+    server.resetHandlers(...backend.handlers);
+    release();
     await waitFor(() => expect(screen.getByLabelText("금액")).toBeDisabled());
     expect(screen.getByLabelText("금액")).toHaveValue("500");
     expect(screen.getByText(READ_ONLY_SELF_NOTICE)).toBeInTheDocument();

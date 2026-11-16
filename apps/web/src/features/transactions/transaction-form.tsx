@@ -1,7 +1,7 @@
 "use client";
 
 import { atom, useAtom, useAtomValue } from "jotai";
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { css } from "styled-system/css";
 import { useCanMutate } from "@/features/room/server-data-gate";
 import { readOnlySelfAtom, snapshotAtom } from "@/features/room/state";
@@ -92,11 +92,15 @@ export function TransactionForm() {
   const mutation = useRoomMutation(scope);
   const serverErrors: FieldErrors = mutation.state?.kind === "rejected" ? mutation.state.fieldErrors : {};
   const dismissedServer = useDismissedServerErrors(scope, mutation.state, serverErrors);
-  // 재활성화되면(조회 전용이 풀리면) 비활성 거부 안내는 더 맞지 않으므로 지운다. 입력값은 그대로 둔다(검수 R4).
+  // 조회 전용이었다가 풀리는 순간(재활성화)에만 비활성 거부 안내를 지운다. 거부 직후 갱신이 오기 전에는 지우지
+  // 않는다(서버 message를 보여야 한다, S2 §9). 입력값은 그대로 둔다(검수 R4·N1).
+  const wasReadOnly = useRef(readOnly);
+  const { clear } = mutation;
   const inactiveRejected = mutation.state?.kind === "rejected" && mutation.state.code === "REQUESTER_INACTIVE";
   useEffect(() => {
-    if (canMutate && inactiveRejected) mutation.clear();
-  }, [canMutate, inactiveRejected, mutation]);
+    if (wasReadOnly.current && !readOnly && canMutate && inactiveRejected) clear();
+    wasReadOnly.current = readOnly;
+  }, [readOnly, canMutate, inactiveRejected, clear]);
 
   // 종료 후에는 폼을 숨긴다(초안은 메모리에 남는다). 조회 전용 본인은 폼을 남기되 비활성화한다(FD-26).
   if (!snapshot || (!canMutate && !readOnly)) return null;

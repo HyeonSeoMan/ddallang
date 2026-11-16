@@ -21,9 +21,34 @@ import {
   StarIcon,
 } from "./icons";
 import { selectClass } from "./select-style";
+import { TextField } from "./text-field";
 import { colors, FONT_STACK, radii, shadows } from "./tokens";
 
 const SRC = join(__dirname, "..");
+
+/**
+ * jsdom은 Panda CSS를 적용하지 않는다. 원자 클래스를 `cx`로 이어 붙이면 같은 속성끼리는 생성 CSS의 순서가 이기므로,
+ * 한 요소에 같은 속성(또는 줄임 속성과 그 개별 속성)을 정하는 클래스가 둘 이상 붙었는지 이름으로 찾는다.
+ * 조건부 클래스(`disabled:` 등)는 조건별로 따로 본다.
+ */
+function conflictingClasses(className: string): string[] {
+  const props = className
+    .split(" ")
+    .filter(Boolean)
+    .map((name) => name.slice(0, name.indexOf("_")));
+  const shorthands: Record<string, string[]> = { bg: ["bg-c", "bg-i", "bg-r", "bg-p", "bg-s"], bd: ["bd-w", "bd-c", "bd-s"], p: ["px", "py", "pl", "pr", "pt", "pb"], px: ["pl", "pr"], py: ["pt", "pb"] };
+  const found: string[] = [];
+  props.forEach((prop, index) => {
+    if (props.indexOf(prop) !== index) found.push(prop);
+    const [condition, base] = prop.includes(":") ? [prop.slice(0, prop.lastIndexOf(":") + 1), prop.slice(prop.lastIndexOf(":") + 1)] : ["", prop];
+    for (const longhand of shorthands[base] ?? []) {
+      if (props.includes(condition + longhand)) found.push(`${prop}+${condition}${longhand}`);
+    }
+    // 조건부 줄임 속성은 조건 없는 개별 속성도 덮는다.
+    if (condition) for (const longhand of shorthands[base] ?? []) if (props.includes(longhand)) found.push(`${prop}+${longhand}`);
+  });
+  return found;
+}
 const WEB = join(SRC, "..");
 
 function sourceFiles(dir: string): string[] {
@@ -135,16 +160,33 @@ describe("버튼 변형과 토큰(FD-18)", () => {
     },
   );
 
-  // jsdom은 Panda CSS를 적용하지 않으므로, 한 속성에 원자 클래스가 둘 붙어 CSS 순서로 승부가 나는 일이 없는지 클래스 이름으로 확인한다.
-  it.each(["primary", "secondary", "secondaryBlock", "dangerText", "danger", "dangerSolid"] as const)(
-    "%s 변형은 같은 속성의 원자 클래스를 하나만 가진다(변형 값이 공통 모양에 지지 않는다)",
-    (variant) => {
-      render(<Button variant={variant}>버튼</Button>);
-      const classes = screen.getByRole("button", { name: "버튼" }).className.split(" ").filter(Boolean);
-      const properties = classes.map((name) => name.slice(0, name.indexOf("_")));
-      expect(properties).toEqual([...new Set(properties)]);
-    },
-  );
+  it.each(
+    (["primary", "secondary", "secondaryBlock", "dangerText", "danger", "dangerSolid"] as const).flatMap((variant) =>
+      (["default", "large"] as const).map((size) => [variant, size] as const),
+    ),
+  )("%s·%s 버튼은 같은 속성을 두 원자 클래스로 정하지 않는다(변형 값이 공통 모양에 지지 않는다)", (variant, size) => {
+    render(
+      <Button variant={variant} size={size}>
+        버튼
+      </Button>,
+    );
+    expect(conflictingClasses(screen.getByRole("button", { name: "버튼" }).className)).toEqual([]);
+  });
+
+  it("입력·선택 상자의 결합 클래스도 속성이 겹치지 않는다(비활성 바탕이 선택 상자 화살표를 지우지 않는다)", () => {
+    render(
+      <>
+        <TextField label="금액" suffix="원" />
+        <select aria-label="지급자" className={selectClass} disabled>
+          <option>가</option>
+        </select>
+      </>,
+    );
+    expect(conflictingClasses(screen.getByLabelText("금액").className)).toEqual([]);
+    const select = screen.getByRole("combobox", { name: "지급자" }).className;
+    expect(conflictingClasses(select)).toEqual([]);
+    expect(select).toMatch(/bg-i_/);
+  });
 
   it("위험 테두리·알약 모양은 변형 값으로 나온다", () => {
     render(

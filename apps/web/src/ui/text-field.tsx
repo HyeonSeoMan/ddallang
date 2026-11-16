@@ -12,18 +12,20 @@ export interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElemen
 
 /**
  * 입력·선택 상자의 공통 테두리(FD-18): 흰 바탕 + `line` 1px, 포커스 때 `primary` 2px, 오류 때 `danger` 2px.
- * 두께 차이는 안쪽 그림자로 더해 테두리가 굵어져도 글자가 움직이지 않는다.
+ * 두께 차이는 안쪽 그림자로 더해 테두리가 굵어져도 글자가 움직이지 않는다. 오류 칸에 포커스가 가면 포커스 표시(`primary`)가
+ * 보인다: 오류 테두리를 유지하면 포커스 전후 모양이 같아 포커스 위치를 알 수 없다(오류 문구와 연결은 그대로 남는다).
+ * 바탕은 `bgColor`로만 정한다. 줄임 속성 `background`를 쓰면 선택 상자의 화살표 그림(`background-image`)을 지운다.
  */
 export const fieldFrameClass = css({
   minH: "52px",
   borderWidth: "1px",
   borderColor: "line",
   borderRadius: "md",
-  bg: "paper",
+  bgColor: "paper",
   color: "ink",
   "&[aria-invalid=true]": { borderColor: "danger", boxShadow: "inset 0 0 0 1px {colors.danger}" },
   _focusVisible: { outline: "none", borderColor: "primary", boxShadow: "inset 0 0 0 1px {colors.primary}" },
-  _disabled: { bg: "disabledBg", color: "disabledText", cursor: "not-allowed" },
+  _disabled: { bgColor: "disabledBg", color: "disabledText", cursor: "not-allowed" },
 });
 
 /** `<label>`로 연결된 입력. 오류는 `aria-describedby`로 연결되고 `aria-live`로 안내한다(FD-11). */

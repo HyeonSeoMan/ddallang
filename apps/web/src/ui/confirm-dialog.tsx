@@ -22,6 +22,7 @@ const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select
 /**
  * 접근성 확인 대화상자(FD-11). `role="dialog"`, `aria-modal`, 포커스 가둠, 닫을 때 포커스 복귀,
  * `Esc`는 취소, 기본 포커스는 `취소`다. 파괴적 동작이므로 바깥 클릭으로는 닫히지도 확정되지도 않는다.
+ * 모양은 화면 아래쪽에 붙는 시트다(FD-18 1.3.0). 동작은 그대로다.
  */
 export function ConfirmDialog({
   open,
@@ -105,9 +106,10 @@ export function ConfirmDialog({
         inset: "0",
         bg: "rgba(0, 0, 0, 0.5)",
         display: "flex",
-        alignItems: "center",
+        alignItems: "flex-end",
         justifyContent: "center",
         p: "4",
+        pb: "max(16px, env(safe-area-inset-bottom))",
       })}
     >
       <div
@@ -123,14 +125,14 @@ export function ConfirmDialog({
         <h2 id={titleId} className={css({ fontSize: "xl", fontWeight: "bold", mb: "2" })}>
           {title}
         </h2>
-        <p id={descriptionId} className={css({ mb: "4" })}>
+        <p id={descriptionId} className={css({ mb: "5", color: "inkMuted" })}>
           {description}
         </p>
-        <div className={css({ display: "flex", gap: "2", justifyContent: "flex-end" })}>
-          <Button ref={cancelRef} variant="secondary" disabled={busy} onClick={onCancel}>
+        <div className={css({ display: "flex", gap: "2", "& > button": { flex: "1" } })}>
+          <Button ref={cancelRef} variant="secondaryBlock" size="large" disabled={busy} onClick={onCancel}>
             {cancelLabel}
           </Button>
-          <Button variant="danger" disabled={busy} onClick={onConfirm}>
+          <Button variant="dangerSolid" size="large" disabled={busy} onClick={onConfirm}>
             {confirmLabel}
           </Button>
         </div>

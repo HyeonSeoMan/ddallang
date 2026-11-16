@@ -91,7 +91,7 @@ export function RoomHeader({ inviteCode }: { inviteCode: string }) {
         {visible && snapshot ? (
           <span
             className={cx(
-              css({ px: "3", py: "1", borderRadius: "full", fontSize: "sm", fontWeight: "bold", boxShadow: "chip" }),
+              css({ px: "3", py: "1", borderRadius: "full", fontSize: "sm", fontWeight: "bold" }),
               css(ended ? { bg: "neutralBg", color: "neutralText" } : { bg: "successBg", color: "successText" }),
             )}
           >
@@ -123,7 +123,7 @@ export function RoomHeader({ inviteCode }: { inviteCode: string }) {
                 textDecoration: "none",
               }),
               current === key
-                ? css({ bg: "primary", color: "primaryText", fontWeight: "extrabold", boxShadow: "button" })
+                ? css({ bg: "primary", color: "primaryText", fontWeight: "extrabold" })
                 : undefined,
             )}
           >

@@ -1,4 +1,4 @@
-// FE-D1 완료 기준(FD-18): 글꼴 자체 호스팅·외부 요청 없음, 아이콘 접근성, 새 버튼 변형, 토큰 값.
+// FE-D1·FE-V1 완료 기준(FD-18): 글꼴 자체 호스팅·외부 요청 없음, 아이콘 접근성, 버튼 변형, 토큰 값.
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { render, screen } from "@testing-library/react";
@@ -6,12 +6,51 @@ import { describe, expect, it } from "vitest";
 import { expectNoA11yViolations } from "@/test/a11y";
 import { BrandHeader } from "./brand-header";
 import { Button } from "./button";
-import { BagIcon, BellIcon, BookIcon, CoinIcon, PeopleIcon } from "./icons";
+import {
+  BagIcon,
+  BellIcon,
+  BookIcon,
+  CheckIcon,
+  ChipIcon,
+  CoinIcon,
+  HouseIcon,
+  InfoIcon,
+  OfflineIcon,
+  PencilIcon,
+  PeopleIcon,
+  StarIcon,
+} from "./icons";
 import { selectClass } from "./select-style";
+import { TextField } from "./text-field";
 import { colors, FONT_STACK, radii, shadows } from "./tokens";
 
 const SRC = join(__dirname, "..");
 const WEB = join(SRC, "..");
+
+/**
+ * jsdom은 Panda CSS를 적용하지 않는다. 원자 클래스를 `cx`로 이어 붙이면 같은 속성끼리는 생성 CSS의 순서가 이기므로,
+ * 한 요소에 같은 속성(또는 줄임 속성과 그 개별 속성)을 정하는 클래스가 둘 이상 붙었는지 이름으로 찾는다.
+ * 조건부 클래스(`disabled:` 등)는 조건별로 따로 본다. 다루는 줄임 속성은 아래 표에 있는 것뿐이고, 선택자에 공백이 든
+ * 조건부 클래스(`[&_>_button]:…`)는 이름을 정확히 나누지 못하므로 이 도우미를 적용하는 요소에 쓰지 않는다.
+ */
+function conflictingClasses(className: string): string[] {
+  const props = className
+    .split(" ")
+    .filter(Boolean)
+    .map((name) => (name.includes("_") ? name.slice(0, name.indexOf("_")) : name));
+  const shorthands: Record<string, string[]> = { bg: ["bg-c", "bg-i", "bg-r", "bg-p", "bg-s"], bd: ["bd-w", "bd-c", "bd-s"], p: ["px", "py", "pl", "pr", "pt", "pb"], px: ["pl", "pr"], py: ["pt", "pb"] };
+  const found: string[] = [];
+  props.forEach((prop, index) => {
+    if (props.indexOf(prop) !== index) found.push(prop);
+    const [condition, base] = prop.includes(":") ? [prop.slice(0, prop.lastIndexOf(":") + 1), prop.slice(prop.lastIndexOf(":") + 1)] : ["", prop];
+    for (const longhand of shorthands[base] ?? []) {
+      if (props.includes(condition + longhand)) found.push(`${prop}+${condition}${longhand}`);
+    }
+    // 조건부 줄임 속성은 조건 없는 개별 속성도 덮는다.
+    if (condition) for (const longhand of shorthands[base] ?? []) if (props.includes(longhand)) found.push(`${prop}+${longhand}`);
+  });
+  return found;
+}
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -52,12 +91,20 @@ describe("글꼴 자체 호스팅(FD-18, RK-F16)", () => {
 });
 
 describe("아이콘(FD-18)", () => {
+  // 면 아이콘 12종(FD-18 1.3.0 (3)).
   const icons = [
+    ["동전 종", BellIcon],
     ["코인", CoinIcon],
-    ["방울", BellIcon],
+    ["장부", BookIcon],
+    ["연필", PencilIcon],
     ["주머니", BagIcon],
-    ["노트", BookIcon],
-    ["사람", PeopleIcon],
+    ["집", HouseIcon],
+    ["얼굴 둘", PeopleIcon],
+    ["완료", CheckIcon],
+    ["안내", InfoIcon],
+    ["끊김", OfflineIcon],
+    ["별", StarIcon],
+    ["칩", ChipIcon],
   ] as const;
 
   it.each(icons)("%s 아이콘은 장식이라 보조기기에 숨겨지고 초점을 받지 않는다", (_name, Icon) => {
@@ -68,6 +115,22 @@ describe("아이콘(FD-18)", () => {
     expect(svg).toHaveAttribute("focusable", "false");
     expect(svg).toHaveAttribute("width", "40");
     expect(container.querySelector("title, text, image, use")).toBeNull();
+    // 그림자 없음(FD-18 1.3.0): 필터 요소·속성, 그림자 스타일이 없다.
+    expect(container.querySelector("filter, [filter], [style*='shadow'], [class*='shadow']")).toBeNull();
+  });
+
+  it("마스크를 쓰는 아이콘을 한 화면에 여러 번 그려도 마스크 id가 겹치지 않는다", () => {
+    const { container } = render(
+      <>
+        <PeopleIcon />
+        <PeopleIcon />
+        <OfflineIcon />
+      </>,
+    );
+    const ids = Array.from(container.querySelectorAll("mask")).map((mask) => mask.id);
+    expect(ids).toHaveLength(3);
+    expect(new Set(ids).size).toBe(3);
+    for (const id of ids) expect(container.querySelector(`[mask="url(#${id})"]`)).not.toBeNull();
   });
 
   it("크기를 바꿀 수 있고 아이콘 곁의 텍스트가 접근 가능한 이름이 된다", async () => {
@@ -84,43 +147,106 @@ describe("아이콘(FD-18)", () => {
 });
 
 describe("버튼 변형과 토큰(FD-18)", () => {
-  it("accent 변형도 type=button이고 비활성이면 클릭되지 않는다", () => {
+  it.each(["primary", "secondary", "secondaryBlock", "dangerText", "danger", "dangerSolid"] as const)(
+    "%s 변형도 type=button이고 비활성이면 클릭되지 않는다",
+    (variant) => {
+      render(
+        <Button variant={variant} disabled>
+          기록하기
+        </Button>,
+      );
+      const button = screen.getByRole("button", { name: "기록하기" });
+      expect(button).toHaveAttribute("type", "button");
+      expect(button).toBeDisabled();
+    },
+  );
+
+  it.each(
+    (["primary", "secondary", "secondaryBlock", "dangerText", "danger", "dangerSolid"] as const).flatMap((variant) =>
+      (["default", "large"] as const).map((size) => [variant, size] as const),
+    ),
+  )("%s·%s 버튼은 같은 속성을 두 원자 클래스로 정하지 않는다(변형 값이 공통 모양에 지지 않는다)", (variant, size) => {
     render(
-      <Button variant="accent" disabled>
-        기록하기
+      <Button variant={variant} size={size}>
+        버튼
       </Button>,
     );
-    const button = screen.getByRole("button", { name: "기록하기" });
-    expect(button).toHaveAttribute("type", "button");
-    expect(button).toBeDisabled();
+    expect(conflictingClasses(screen.getByRole("button", { name: "버튼" }).className)).toEqual([]);
   });
 
-  it("large 크기는 기본 터치 목표보다 큰 높이 클래스를 쓰고 기본 높이 클래스와 겹치지 않는다", () => {
+  it("입력·선택 상자의 결합 클래스도 속성이 겹치지 않는다(비활성 바탕이 선택 상자 화살표를 지우지 않는다)", () => {
     render(
       <>
-        <Button>기본</Button>
-        <Button size="large">크게</Button>
+        <TextField label="금액" suffix="원" />
+        <select aria-label="지급자" className={selectClass} disabled>
+          <option>가</option>
+        </select>
       </>,
     );
-    const small = screen.getByRole("button", { name: "기본" }).className.split(" ");
-    const large = screen.getByRole("button", { name: "크게" }).className.split(" ");
-    const minH = (classes: string[]) => classes.filter((c) => c.startsWith("min-h_"));
-    expect(minH(small)).toHaveLength(1);
-    expect(minH(large)).toHaveLength(1);
-    expect(minH(large)[0]).not.toBe(minH(small)[0]);
+    expect(conflictingClasses(screen.getByLabelText("금액").className)).toEqual([]);
+    const select = screen.getByRole("combobox", { name: "지급자" }).className;
+    expect(conflictingClasses(select)).toEqual([]);
+    expect(select).toMatch(/bg-i_/);
   });
 
-  it("모서리와 그림자 토큰은 시안의 단계를 따른다", () => {
-    expect(radii.card).toBe("24px");
-    expect(radii.control).toBe("16px");
-    expect(Object.keys(shadows)).toEqual(
-      expect.arrayContaining(["card", "float", "button", "buttonAccent", "buttonPressed", "chip"]),
+  it("위험 테두리·알약 모양은 변형 값으로 나온다", () => {
+    render(
+      <>
+        <Button variant="danger">게임 종료</Button>
+        <Button variant="secondary">수정</Button>
+        <Button variant="dangerText">삭제</Button>
+      </>,
     );
+    const danger = screen.getByRole("button", { name: "게임 종료" }).className.split(" ");
+    expect(danger).toContain("bd-c_danger");
+    expect(danger).not.toContain("bd-c_transparent");
+    for (const name of ["수정", "삭제"]) {
+      const classes = screen.getByRole("button", { name }).className.split(" ");
+      expect(classes).toContain("bdr_full");
+      expect(classes).toContain("px_4");
+      expect(classes).not.toContain("bdr_md");
+    }
   });
 
-  it("포인트색은 초록(주요 행동)과 노랑(보조 강조)이다", () => {
-    expect(colors.primary).toBe("#12804f");
-    expect(colors.accent).toBe("#ffc93c");
+  // 높이(방향 문서 §4, 시안): 주·위험 52px, 회색 전폭 48px, 알약은 터치 목표 44px. `large`는 52px·전폭.
+  // FE-D1의 "large가 기본보다 높다" 단언은 주 버튼 기본 높이가 52px가 되면서 이 단언으로 옮겼다(RK-F21).
+  it.each([
+    ["primary", "min-h_52px"],
+    ["danger", "min-h_52px"],
+    ["dangerSolid", "min-h_52px"],
+    ["secondaryBlock", "min-h_48px"],
+    ["secondary", "min-h_touch"],
+    ["dangerText", "min-h_touch"],
+  ] as const)("%s 변형의 최소 높이는 %s이고 터치 목표 44px 이상이다", (variant, expected) => {
+    render(<Button variant={variant}>기본</Button>);
+    const minH = screen.getByRole("button", { name: "기본" }).className.split(" ").filter((c) => c.startsWith("min-h_"));
+    expect(minH).toEqual([expected]);
+  });
+
+  it("large 크기는 어느 변형이든 52px·전폭이다(대화상자의 두 버튼, 페이지 아래 행동)", () => {
+    render(
+      <>
+        <Button size="large">저장</Button>
+        <Button variant="secondaryBlock" size="large">
+          취소
+        </Button>
+      </>,
+    );
+    for (const name of ["저장", "취소"]) {
+      const classes = screen.getByRole("button", { name }).className.split(" ");
+      expect(classes.filter((c) => c.startsWith("min-h_"))).toEqual(["min-h_52px"]);
+      expect(classes).toContain("w_full");
+    }
+  });
+
+  it("모서리와 그림자 토큰은 확정본의 단계를 따른다(카드 20·컨트롤 12·타일 14, 그림자는 대화상자만)", () => {
+    expect(radii).toEqual({ card: "20px", control: "12px", tile: "14px", chip: "999px" });
+    expect(Object.keys(shadows)).toEqual(["float"]);
+  });
+
+  it("주 색은 초록이고 노랑은 아이콘 전용 `coin`으로만 남는다", () => {
+    expect(colors.primary).toBe("#00875a");
+    expect(colors.coin).toBe("#ffc93c");
   });
 });
 

@@ -228,7 +228,7 @@ export function TransactionActions({
           <Button variant="secondary" onClick={startEdit} disabled={updating} aria-label={`${label} 수정`}>
             수정
           </Button>
-          <Button variant="secondary" onClick={() => setConfirming(true)} disabled={deleting} aria-label={`${label} 삭제`}>
+          <Button variant="dangerText" onClick={() => setConfirming(true)} disabled={deleting} aria-label={`${label} 삭제`}>
             삭제
           </Button>
         </div>

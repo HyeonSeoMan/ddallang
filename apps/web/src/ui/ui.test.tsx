@@ -8,7 +8,7 @@ import { Badge } from "./badge";
 import { Banner } from "./banner";
 import { Button } from "./button";
 import { ConfirmDialog } from "./confirm-dialog";
-import { Money } from "./money";
+import { amountFontSize, Money } from "./money";
 import { TextField } from "./text-field";
 
 describe("기본 컴포넌트", () => {
@@ -31,6 +31,43 @@ describe("기본 컴포넌트", () => {
     expect(input).toHaveAttribute("aria-invalid", "true");
     expect(input).toHaveAccessibleDescription(/필수 항목입니다 연속 공백은 쓸 수 없습니다/);
     expect(screen.getByText("필수 항목입니다").parentElement).toHaveAttribute("aria-live", "polite");
+    await expectNoA11yViolations(container);
+  });
+
+  // FD-18 (1) 시각 API: suffix는 장식이라 이름·설명을 바꾸지 않고, 없으면 입력이 감싸개 없이 그대로 나온다.
+  it("금액 단위 suffix는 보조기기에 숨겨지고 입력의 이름·설명·오류 연결은 그대로다", async () => {
+    const { container, rerender } = render(<TextField label="금액" suffix="원" errors={["1 이상 입력하세요"]} />);
+    const input = screen.getByLabelText("금액");
+    expect(input).toHaveAccessibleName("금액");
+    expect(input).toHaveAccessibleDescription("1 이상 입력하세요");
+    expect(screen.getByText("원")).toHaveAttribute("aria-hidden", "true");
+    expect(input.nextElementSibling).toBe(screen.getByText("원"));
+    await expectNoA11yViolations(container);
+
+    rerender(<TextField label="금액" />);
+    expect(screen.queryByText("원")).toBeNull();
+    // suffix가 없으면 라벨 바로 다음이 입력이다(이전 마크업과 같다).
+    expect(screen.getByText("금액").nextElementSibling).toBe(screen.getByLabelText("금액"));
+  });
+
+  it("배너의 icon은 장식이고 역할·이름은 아이콘 없는 배너와 같다", async () => {
+    const { container } = render(
+      <main>
+        <Banner tone="warning" icon={<svg data-testid="icon" />}>
+          연결 끊김
+        </Banner>
+        <Banner tone="success" icon={<svg />}>
+          최신 상태로 갱신됨
+        </Banner>
+        <Banner tone="info">연결 중</Banner>
+      </main>,
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent("연결 끊김");
+    expect(screen.getByTestId("icon").parentElement).toHaveAttribute("aria-hidden", "true");
+    const statuses = screen.getAllByRole("status");
+    expect(statuses.map((el) => el.textContent)).toEqual(["최신 상태로 갱신됨", "연결 중"]);
+    // 아이콘이 없으면 역할 요소 안에 글자만 있다(이전 마크업과 같다).
+    expect(statuses[1]!.childElementCount).toBe(0);
     await expectNoA11yViolations(container);
   });
 
@@ -57,6 +94,31 @@ describe("기본 컴포넌트", () => {
     );
     expect(screen.getByText("1,250,000 원")).toBeInTheDocument();
     expect(screen.getByText("−300 칩")).toBeInTheDocument();
+  });
+
+  // FD-18 (2) 금액 폭 맞춤: N(부호·공백·단위 포함 코드 포인트)이 18 이하 18px, 19~24 15px, 25 이상 13px.
+  it.each([
+    ["+999,999,999,999 원", 18, "18px"],
+    ["+999,999,999,999 점수", 19, "15px"],
+    ["−999,999,999,999 가나다라마바사", 24, "15px"],
+    ["−999,999,999,999 가나다라마바사아", 25, "13px"],
+    ["+999,999,999,999 가나다라마바사아자차카타", 29, "13px"],
+  ] as const)("금액 %s(N = %i)은 %s로 보인다", (text, length, size) => {
+    expect([...text].length).toBe(length);
+    expect(amountFontSize(text)).toBe(size);
+  });
+
+  it("Money는 부호·단위를 포함한 글자 수로 크기를 고르고 손실은 검정 글자다", () => {
+    render(
+      <>
+        <Money value={-999_999_999_999} unit="가나다라마바사아자차카타" signed />
+        <Money value={4000} unit="원" signed />
+      </>,
+    );
+    const long = screen.getByText("−999,999,999,999 가나다라마바사아자차카타");
+    expect(long.className).toMatch(/fs_13px/);
+    expect(long.className).toMatch(/c_loss/);
+    expect(screen.getByText("+4,000 원").className).toMatch(/fs_amountList/);
   });
 
   it("안전 정수가 아닌 금액은 렌더링하지 않고 예외를 낸다", () => {

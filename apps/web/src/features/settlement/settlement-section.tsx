@@ -61,7 +61,7 @@ export function SettlementSection() {
 
       {final ? (
         <>
-          <Button variant="secondary" onClick={() => void onCopy()} disabled={items.length === 0}>
+          <Button variant="secondaryBlock" onClick={() => void onCopy()} disabled={items.length === 0}>
             정산 복사
           </Button>
           <p aria-live="polite" className={css({ color: "inkMuted", fontSize: "sm" })}>

@@ -5,7 +5,7 @@ Scope: MVP PRD → Spec → Plan → Tasks → Implementation → PR
 
 ## 1. Authoritative sources
 
-- Product policy, priority 1: `docs/policies/ddallang-mvp-policy-consolidated.md` (treated as v1.0.0 by user decision 2026-11-07). Policy decisions made after it are recorded in `docs/prd/mvp/open-questions.md` sections 2.1 (user decisions) and 2.2 (user-delegated Claude decisions); these are authoritative where the policy file is silent.
+- Product policy, priority 1: `docs/policies/ddallang-mvp-policy-consolidated.md` (treated as v1.0.0 by user decision 2026-11-07). Policy decisions made after it are recorded in `docs/prd/mvp/open-questions.md` sections 2.1 (user decisions) and 2.2 (user-delegated Claude decisions); these are authoritative where the policy file is silent. Section 2.16 (user decisions OQ-041~045, P-1~P-10, 2026-11-16) intentionally supersedes parts of the policy file (OQ-001, parts of OQ-005/OQ-023, POL-ROOM-003) and governs over it for those parts.
 - Product policy, supplementary: `docs/policies/ddallang-mvp-policy.md` (source version 1.0.0, dated 2026-11-06; original Notion URL recorded in that file). It applies only where the consolidated policy is silent and does not conflict (see `docs/prd/mvp/policy-verification.md`).
 - Product policy is the authority for MVP scope; deferred features remain deferred.
 - PRD must map each applicable `POL-*` to one or more `FR-*` and acceptance criteria. Unresolved `OQ-*` items must remain visible.
@@ -53,8 +53,8 @@ A PASS does not assert absolute correctness. Record tests actually run, limitati
 
 ## 6. MVP-specific review invariants
 
-- RoomMember (connected identity) and Participant (game participant) are distinct.
-- Identity recovery is browser-bound; no implied recovery of lost host permissions.
+- Participant is the single person unit of a room (user decision OQ-041, 2026-11-16, `docs/prd/mvp/open-questions.md` 2.16; supersedes the earlier "RoomMember and Participant are distinct"). Creating a room or joining by invite link creates a Participant; a browser identity is attached to at most one Participant, and host-added Participants have none until claimed.
+- Identity recovery is browser-bound. A lost identity can be reclaimed only through a host-approved claim (OQ-045); the host Participant cannot be claimed, so lost host permissions are never recovered.
 - Server enforces transaction authorship/host permissions and room/participant states.
 - Amounts are positive integers; self-transfers are prohibited.
 - Duplicate request IDs cannot create duplicate transactions; distinct identical-content transactions remain allowed.

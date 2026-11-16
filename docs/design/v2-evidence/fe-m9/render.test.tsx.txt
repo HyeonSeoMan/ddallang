@@ -1,0 +1,111 @@
+// FE-M9 측정용 정적 렌더링(저장소 밖). 2.0.0 새 상태를 모의 서버·시드로 그려 HTML로 저장한다.
+import { act, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { writeFileSync } from "node:fs";
+import { createStore } from "jotai";
+import { http, HttpResponse } from "msw";
+import type { ReactNode } from "react";
+import { expect, it, vi } from "vitest";
+import { connectionPhaseAtom } from "@/features/realtime/state";
+import { InviteScreen } from "@/features/room/invite-screen";
+import { roomBasePath } from "@/features/room/room-header";
+import { RecordPage, RoomPage, StatusPage } from "@/features/room/room-pages";
+import { RoomShell } from "@/features/room/room-shell";
+import { installFakeLocks } from "@/test/fake-locks";
+import { installFakeStorage } from "@/test/fake-storage";
+import * as fixtures from "@/test/fixtures";
+import { apiUrl, errorResponse } from "@/test/handlers";
+import { server } from "@/test/msw-server";
+import { renderApp } from "@/test/render";
+import { INVITE_CODE, seedRoom } from "@/test/room-seed";
+
+const OUT = process.env.M9_OUT!;
+const nav = vi.hoisted(() => ({ pathname: null as string | null }));
+vi.mock("next/navigation", () => ({ usePathname: () => nav.pathname, useRouter: () => ({ replace: () => {}, push: () => {} }) }));
+const BASE = roomBasePath(INVITE_CODE);
+const CODE = fixtures.INVITE_CODE;
+
+/** 대화상자는 포털이라 body 전체를 저장한다. 라디오 `checked`·`disabled` 상태는 속성으로 옮긴다. */
+function dump(name: string) {
+  for (const input of Array.from(document.querySelectorAll("input"))) {
+    if (input.checked) input.setAttribute("checked", ""); else input.removeAttribute("checked");
+  }
+  writeFileSync(`${OUT}/${name}.html`, document.body.innerHTML);
+}
+
+function saveRoom(name: string, path: string, page: ReactNode, setup: (store: ReturnType<typeof createStore>) => void) {
+  nav.pathname = BASE + path;
+  const store = createStore();
+  setup(store);
+  store.set(connectionPhaseAtom, "connected");
+  const { unmount } = renderApp(<RoomShell inviteCode={INVITE_CODE}>{page}</RoomShell>, store);
+  dump(name);
+  unmount();
+}
+
+const lookup = (o: Parameters<typeof fixtures.inviteLookup>[0] = {}) =>
+  http.get(apiUrl(`/invites/${CODE}`), () => HttpResponse.json(fixtures.inviteLookup(o)));
+
+async function invite(name: string, handlers: Parameters<typeof server.use>, drive: (user: ReturnType<typeof userEvent.setup>) => Promise<void>, storedKey?: string) {
+  installFakeStorage();
+  installFakeLocks();
+  if (storedKey) localStorage.setItem(`ddallang:identity:${CODE}`, storedKey);
+  server.resetHandlers();
+  server.use(...handlers);
+  const { unmount } = renderApp(<InviteScreen inviteCode={CODE}><div /></InviteScreen>);
+  await drive(userEvent.setup());
+  dump(name);
+  unmount();
+}
+
+it("render-invite", async () => {
+  await invite("choose", [lookup()], async () => void (await screen.findByRole("button", { name: "새로 입장하기" })));
+  await invite("choose-ended", [lookup({ room: { name: fixtures.room.name, unit: fixtures.room.unit, status: "ENDED" } })], async () =>
+    void (await screen.findByText("게임이 종료되어 새로 입장할 수 없습니다.")));
+  await invite("nickname-taken", [lookup(), http.post(apiUrl(`/invites/${CODE}/members`), () => errorResponse("NICKNAME_TAKEN", { message: "이미 사용 중인 닉네임입니다" }))], async (user) => {
+    await user.click(await screen.findByRole("button", { name: "새로 입장하기" }));
+    await user.type(screen.getByLabelText("닉네임"), "나래");
+    await user.click(screen.getByRole("button", { name: "입장" }));
+    await screen.findByRole("button", { name: "이어받기로 가기" });
+  });
+  await invite("candidates", [lookup()], async (user) => {
+    await user.click(await screen.findByRole("button", { name: "기존 참여자 이어받기" }));
+  });
+  await invite("claim-confirm", [lookup()], async (user) => {
+    await user.click(await screen.findByRole("button", { name: "기존 참여자 이어받기" }));
+    await user.click(screen.getByRole("button", { name: "다온" }));
+    await screen.findByRole("dialog");
+  });
+  await invite("waiting", [lookup({ identity: "PENDING", claim: fixtures.pendingMyClaim })], async () =>
+    void (await screen.findByRole("heading", { name: "방장의 승인을 기다리는 중" })), "p".repeat(43));
+  await invite("result-rejected", [lookup({ claim: { ...fixtures.pendingMyClaim, status: "REJECTED", rejectReason: "TARGET_CLAIMED" } })], async () =>
+    void (await screen.findByText("다른 요청이 승인되어 이 요청은 거절되었습니다.")));
+  await invite("access-lost", [lookup({ identity: "REVOKED" })], async () =>
+    void (await screen.findByText(/더 이상 접근할 수 없습니다/)), "r".repeat(43));
+  await invite("unconfirmed", [lookup(), http.post(apiUrl(`/invites/${CODE}/claims`), () => HttpResponse.error())], async (user) => {
+    let n = 0;
+    server.use(http.get(apiUrl(`/invites/${CODE}`), () => (++n === 1 ? HttpResponse.json(fixtures.inviteLookup()) : HttpResponse.error())));
+    await user.click(await screen.findByRole("button", { name: "기존 참여자 이어받기" }));
+    await user.click(screen.getByRole("button", { name: "나래" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "요청" }));
+    await screen.findByRole("button", { name: "다시 확인" });
+  });
+  expect(true).toBe(true);
+});
+
+it("render-room", () => {
+  const claims = [
+    fixtures.pendingClaim,
+    { ...fixtures.pendingClaim, id: "claim-2", participantId: "p-3", nickname: "다온" },
+    { ...fixtures.pendingClaim, id: "claim-3", participantId: "p-3", nickname: "다온", createdAt: "2026-11-08T04:05:00.000Z" },
+  ];
+  saveRoom("host-room-claims", "/room", <RoomPage />, (s) => seedRoom(s, { claims }));
+  saveRoom("host-room-claims-ended", "/room", <RoomPage />, (s) => seedRoom(s, { claims: [fixtures.pendingClaim], status: "ENDED" }));
+  const inactiveMe = { ...fixtures.guestParticipant, status: "INACTIVE" as const };
+  const participants = fixtures.participants.map((p) => (p.id === inactiveMe.id ? inactiveMe : p));
+  saveRoom("inactive-record", "/record", <RecordPage />, (s) => seedRoom(s, { me: inactiveMe, participants }));
+  saveRoom("inactive-status", "", <StatusPage />, (s) => seedRoom(s, { me: inactiveMe, participants }));
+  saveRoom("status-authors", "", <StatusPage />, (s) => seedRoom(s));
+  act(() => undefined);
+  void waitFor;
+});

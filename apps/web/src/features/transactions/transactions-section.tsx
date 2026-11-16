@@ -3,7 +3,7 @@
 import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import { type ReactNode, useState } from "react";
 import { css, cx } from "styled-system/css";
-import { ApiError, bearerHeader, getApiClient, type RoomMember, type Room, type Transaction } from "@/lib/api";
+import { ApiError, bearerHeader, getApiClient, type Participant, type Room, type Transaction } from "@/lib/api";
 import { formatDateTime, formatMoney } from "@/lib/format";
 import { getStoredKey } from "@/lib/identity";
 import { participantFilterAtom, requestRefreshAtom } from "@/features/realtime/state";
@@ -29,7 +29,7 @@ const coinCircleClass = css({
 const LOAD_MORE_ERROR = "더 불러오지 못했습니다. 잠시 뒤 다시 시도해 주세요.";
 
 export interface TransactionRowContext {
-  me: RoomMember;
+  me: Participant;
   room: Room;
   /** 거래 요약(예: `가온 → 나래 100 원`). 컨트롤의 접근 가능한 이름에 써서 같은 금액의 행을 구분한다. */
   summary: string;
@@ -78,6 +78,8 @@ export function TransactionsSection({
   // 필터를 바꾼 뒤 새 순회가 반영되기 전: 기존 목록을 유지하다가 한 번에 교체한다.
   const switching = filter !== snapshot.transactionFilter;
   const nameOf = (id: string) => participants.find((p) => p.id === id)?.nickname ?? "알 수 없음";
+  // 작성자는 같은 갱신 주기의 참여자 스냅샷에서 찾는다(FD-27). 목록에 없는 ID면 작성자 표시를 비운다(S3 §9).
+  const authorOf = (id: string) => participants.find((p) => p.id === id)?.nickname ?? null;
 
   async function loadMore() {
     const base = snapshot;
@@ -165,7 +167,10 @@ export function TransactionsSection({
                 {/* 메타는 한 줄에 하나씩. 사유·라운드는 항상 일반 텍스트로 이스케이프해 보인다(React 텍스트 노드). */}
                 {t.reason ? <span className={rowMetaClass}>사유: {t.reason}</span> : null}
                 {t.round ? <span className={rowMetaClass}>라운드: {t.round}</span> : null}
-                <span className={rowMetaClass}>{formatDateTime(t.createdAt)}</span>
+                <span className={rowMetaClass}>
+                  {formatDateTime(t.createdAt)}
+                  {authorOf(t.authorId) ? ` · 작성자 ${authorOf(t.authorId)}` : null}
+                </span>
               </span>
               {renderActions ? (
                 // 수정·삭제 알약은 메타 아래(본문 열에 맞춰 들여 쓰고), 수정 폼이 열리면 카드 폭 전체로 펼친다.

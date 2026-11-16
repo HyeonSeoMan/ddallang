@@ -83,12 +83,12 @@ describe("참여자 영역", () => {
   it("방장에게는 등록 폼과 상태 변경 버튼이 있고, 비방장에게는 없다", () => {
     const host = renderSection();
     expect(screen.getByLabelText("참여자 닉네임")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "가온 비활성화" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "나래 비활성화" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "다온 재활성화" })).toBeInTheDocument();
     host.unmount();
 
     store = createStore();
-    renderSection({ me: fixtures.guestMember });
+    renderSection({ me: fixtures.guestParticipant });
     expect(screen.queryByLabelText("참여자 닉네임")).not.toBeInTheDocument();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
     expect(screen.getAllByRole("listitem")).toHaveLength(3); // 목록은 보인다
@@ -178,11 +178,11 @@ describe("참여자 영역", () => {
   });
 
   it("상태 변경: 비활성화는 PATCH {status}를 보내고 서버 오류(GAME_ENDED)는 그 행에 안내한다", async () => {
-    server.use(handler("patch", `${base}/p-1`, () => errorResponse("GAME_ENDED", { message: "이미 종료된 게임입니다" })));
+    server.use(handler("patch", `${base}/p-2`, () => errorResponse("GAME_ENDED", { message: "이미 종료된 게임입니다" })));
     renderSection();
-    await userEvent.click(screen.getByRole("button", { name: "가온 비활성화" }));
+    await userEvent.click(screen.getByRole("button", { name: "나래 비활성화" }));
     expect(await screen.findByText("이미 종료된 게임입니다")).toBeInTheDocument();
-    expect(seen[0]).toMatchObject({ method: "PATCH", path: `${base}/p-1`, body: { status: "INACTIVE" } });
+    expect(seen[0]).toMatchObject({ method: "PATCH", path: `${base}/p-2`, body: { status: "INACTIVE" } });
     expect(seen[0]!.authorization).toBe(`Bearer ${KEY}`);
   });
 
@@ -196,16 +196,16 @@ describe("참여자 영역", () => {
 
   it("결과 불명 뒤 재시도는 먼저 목록을 다시 조회하고, 이미 목표 상태면 다시 보내지 않는다", async () => {
     server.use(
-      handler("patch", `${base}/p-1`, () => HttpResponse.error()),
+      handler("patch", `${base}/p-2`, () => HttpResponse.error()),
       handler("get", base, () =>
-        HttpResponse.json({ participants: [{ ...fixtures.participants[0], status: "INACTIVE" }] }),
+        HttpResponse.json({ participants: [{ ...fixtures.participants[1], status: "INACTIVE" }] }),
       ),
     );
     renderSection();
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "가온 비활성화" }));
+    await user.click(screen.getByRole("button", { name: "나래 비활성화" }));
     expect(await screen.findByText("결과를 확인하지 못했습니다.")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "가온 상태 변경 다시 시도" }));
+    await user.click(screen.getByRole("button", { name: "나래 상태 변경 다시 시도" }));
     expect(await screen.findByText("이미 해당 상태입니다.")).toBeInTheDocument();
     expect(seen.map((s) => s.method)).toEqual(["PATCH", "GET"]); // 두 번째 PATCH 없음
   });
@@ -213,42 +213,43 @@ describe("참여자 영역", () => {
   it("재조회 결과 아직 목표 상태가 아니면 다시 보낸다", async () => {
     let patches = 0;
     server.use(
-      handler("patch", `${base}/p-1`, () => (++patches === 1 ? HttpResponse.error() : HttpResponse.json({ participant: fixtures.participants[0] }))),
-      handler("get", base, () => HttpResponse.json({ participants: [fixtures.participants[0]] })),
+      handler("patch", `${base}/p-2`, () => (++patches === 1 ? HttpResponse.error() : HttpResponse.json({ participant: fixtures.participants[1] }))),
+      // 재조회 목록에 대상(나래)이 있고 아직 ACTIVE다(목표 INACTIVE가 아님, 검수 R2).
+      handler("get", base, () => HttpResponse.json({ participants: fixtures.participants })),
     );
     renderSection();
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "가온 비활성화" }));
+    await user.click(screen.getByRole("button", { name: "나래 비활성화" }));
     await screen.findByText("결과를 확인하지 못했습니다.");
-    await user.click(screen.getByRole("button", { name: "가온 상태 변경 다시 시도" }));
+    await user.click(screen.getByRole("button", { name: "나래 상태 변경 다시 시도" }));
     await waitFor(() => expect(seen.map((s) => s.method)).toEqual(["PATCH", "GET", "PATCH"]));
   });
 
   it("한 참여자의 결과 불명은 다른 참여자의 처리 결과(성공·API 오류)로 지워지지 않고, 재시도는 목록 재조회가 먼저다", async () => {
     let second = 0;
     server.use(
-      handler("patch", `${base}/p-1`, () => HttpResponse.error()), // 가온: 결과 불명
-      handler("patch", `${base}/p-2`, () => (++second === 1 ? HttpResponse.json({ participant: fixtures.participants[1] }) : errorResponse("PARTICIPANT_NOT_FOUND"))),
+      handler("patch", `${base}/p-2`, () => HttpResponse.error()), // 나래: 결과 불명
+      handler("patch", `${base}/p-3`, () => (++second === 1 ? HttpResponse.json({ participant: fixtures.participants[2] }) : errorResponse("PARTICIPANT_NOT_FOUND"))),
       handler("get", base, () => HttpResponse.json({ participants: fixtures.participants })),
     );
     renderSection();
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "가온 비활성화" }));
+    await user.click(screen.getByRole("button", { name: "나래 비활성화" }));
     await screen.findByText("결과를 확인하지 못했습니다.");
 
-    await user.click(screen.getByRole("button", { name: "나래 비활성화" })); // 다른 참여자: 성공
-    await waitFor(() => expect(seen.filter((s) => s.path.endsWith("/p-2"))).toHaveLength(1));
-    expect(screen.getByRole("button", { name: "가온 상태 변경 다시 시도" })).toBeInTheDocument();
-    expect(screen.getByText("결과를 확인하지 못했습니다.")).toBeInTheDocument(); // 다른 행의 알림이 가온의 안내를 덮어도 안내는 남는다
+    await user.click(screen.getByRole("button", { name: "다온 재활성화" })); // 다른 참여자: 성공
+    await waitFor(() => expect(seen.filter((s) => s.path.endsWith("/p-3"))).toHaveLength(1));
+    expect(screen.getByRole("button", { name: "나래 상태 변경 다시 시도" })).toBeInTheDocument();
+    expect(screen.getByText("결과를 확인하지 못했습니다.")).toBeInTheDocument(); // 다른 행의 알림이 나래의 안내를 덮어도 안내는 남는다
 
-    await user.click(screen.getByRole("button", { name: "나래 비활성화" })); // 다른 참여자: API 오류
-    await waitFor(() => expect(seen.filter((s) => s.path.endsWith("/p-2"))).toHaveLength(2));
-    expect(screen.getByRole("button", { name: "가온 상태 변경 다시 시도" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "다온 재활성화" })); // 다른 참여자: API 오류
+    await waitFor(() => expect(seen.filter((s) => s.path.endsWith("/p-3"))).toHaveLength(2));
+    expect(screen.getByRole("button", { name: "나래 상태 변경 다시 시도" })).toBeInTheDocument();
     expect(screen.getByText("결과를 확인하지 못했습니다.")).toBeInTheDocument();
 
     seen.length = 0;
-    await user.click(screen.getByRole("button", { name: "가온 상태 변경 다시 시도" }));
-    await waitFor(() => expect(seen.map((s) => `${s.method} ${s.path.split("/").pop()}`)).toEqual(["GET participants", "PATCH p-1"]));
+    await user.click(screen.getByRole("button", { name: "나래 상태 변경 다시 시도" }));
+    await waitFor(() => expect(seen.map((s) => `${s.method} ${s.path.split("/").pop()}`)).toEqual(["GET participants", "PATCH p-2"]));
   });
 
   it("VALIDATION_FAILED에 닉네임 항목이 없으면 서버 message를 보인다", async () => {
@@ -263,7 +264,7 @@ describe("참여자 영역", () => {
   it("재시도 버튼을 연달아 눌러도(목록 조회 구간 포함) 요청이 한 번만 나간다", async () => {
     let patches = 0;
     server.use(
-      handler("patch", `${base}/p-1`, () => (++patches === 1 ? HttpResponse.error() : HttpResponse.json({ participant: fixtures.participants[0] }))),
+      handler("patch", `${base}/p-2`, () => (++patches === 1 ? HttpResponse.error() : HttpResponse.json({ participant: fixtures.participants[1] }))),
       handler("get", base, async () => {
         await delay(80); // 두 번째 클릭이 목록 조회 구간 안에 들어오게 한다
         return HttpResponse.json({ participants: [fixtures.participants[0]] });
@@ -271,9 +272,9 @@ describe("참여자 영역", () => {
     );
     renderSection();
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "가온 비활성화" }));
+    await user.click(screen.getByRole("button", { name: "나래 비활성화" }));
     await screen.findByText("결과를 확인하지 못했습니다.");
-    const retry = screen.getByRole("button", { name: "가온 상태 변경 다시 시도" });
+    const retry = screen.getByRole("button", { name: "나래 상태 변경 다시 시도" });
     await Promise.all([user.click(retry), user.click(retry)]);
     await waitFor(() => expect(seen.filter((s) => s.method === "PATCH")).toHaveLength(2)); // 최초 + 재시도 1회
     expect(seen.filter((s) => s.method === "GET")).toHaveLength(1);
@@ -281,14 +282,14 @@ describe("참여자 영역", () => {
 
   it("상태 변경 버튼을 연달아 눌러도 요청이 한 번만 나간다", async () => {
     server.use(
-      handler("patch", `${base}/p-1`, async () => {
+      handler("patch", `${base}/p-2`, async () => {
         await delay(80); // 두 번째 클릭이 첫 요청이 진행 중일 때 들어오게 한다(응답이 즉시 오면 완료 뒤 클릭이 된다)
-        return HttpResponse.json({ participant: fixtures.participants[0] });
+        return HttpResponse.json({ participant: fixtures.participants[1] });
       }),
     );
     renderSection();
     const user = userEvent.setup();
-    const button = screen.getByRole("button", { name: "가온 비활성화" });
+    const button = screen.getByRole("button", { name: "나래 비활성화" });
     await Promise.all([user.click(button), user.click(button)]);
     await waitFor(() => expect(seen).toHaveLength(1));
     await delay(150);
@@ -296,19 +297,19 @@ describe("참여자 영역", () => {
   });
 
   it("결과 불명 안내는 알림(alert)이고, 갱신으로 이미 목표 상태가 되면 안내와 재시도가 사라진다", async () => {
-    server.use(handler("patch", `${base}/p-1`, () => HttpResponse.error()));
+    server.use(handler("patch", `${base}/p-2`, () => HttpResponse.error()));
     renderSection();
-    await userEvent.click(screen.getByRole("button", { name: "가온 비활성화" }));
+    await userEvent.click(screen.getByRole("button", { name: "나래 비활성화" }));
     const alert = await screen.findByText("결과를 확인하지 못했습니다.");
     expect(alert).toHaveAttribute("role", "alert");
     // 스트림 갱신으로 이 참여자가 INACTIVE가 되었다(다른 탭·재조회 등).
     act(() => {
       seedRoom(store, {
-        participants: fixtures.participants.map((p) => (p.id === "p-1" ? { ...p, status: "INACTIVE" as const } : p)),
+        participants: fixtures.participants.map((p) => (p.id === "p-2" ? { ...p, status: "INACTIVE" as const } : p)),
       });
     });
     await waitFor(() => expect(screen.queryByText("결과를 확인하지 못했습니다.")).not.toBeInTheDocument());
-    expect(screen.queryByRole("button", { name: "가온 상태 변경 다시 시도" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "나래 상태 변경 다시 시도" })).not.toBeInTheDocument();
   });
 
   it("등록 입력 초안은 방별로 분리되어 다른 방으로 이동해도 새지 않는다", async () => {
@@ -318,7 +319,7 @@ describe("참여자 영역", () => {
     view.unmount();
     // 같은 앱 상태에서 다른 방 화면으로 들어간다.
     seedRoom(store);
-    store.set(sessionAtom, { inviteCode: "other-code", roomId: "room-2", me: fixtures.hostMember });
+    store.set(sessionAtom, { inviteCode: "other-code", roomId: "room-2", me: fixtures.hostParticipant });
     const snapshot = store.get(snapshotAtom)!;
     store.set(applySnapshotAtom, { ...snapshot, room: { ...snapshot.room, id: "room-2" } });
     renderApp(<ParticipantsSection />, store);

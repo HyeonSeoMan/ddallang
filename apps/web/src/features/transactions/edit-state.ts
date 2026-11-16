@@ -11,7 +11,7 @@ export interface EditDraft {
   sent?: { amount: string; reason: string; round: string };
 }
 
-/** 수정 초안의 키: 요청자(RoomMember)와 거래별. 같은 방에서 신원이 바뀌어도 이전 신원의 초안이 보이지 않는다. */
+/** 수정 초안의 키: 요청자 참여자와 거래별. 같은 방에서 신원이 바뀌어도 이전 신원의 초안이 보이지 않는다. */
 export const editDraftKey = (memberId: string, transactionId: string) => `${memberId}:${transactionId}`;
 
 /**

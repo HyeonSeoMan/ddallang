@@ -64,7 +64,7 @@ beforeEach(() => {
 
 async function mountAndWait() {
   // 입장(복원)을 마친 뒤의 방 화면 상태: 세션이 있고 연결 훅이 스트림·갱신을 시작한다.
-  store.set(sessionAtom, { inviteCode: INVITE_CODE, roomId: fixtures.room.id, me: fixtures.hostMember });
+  store.set(sessionAtom, { inviteCode: INVITE_CODE, roomId: fixtures.room.id, me: fixtures.hostParticipant });
   renderApp(<Harness />, store);
   await waitFor(() => expect(visible()).toBe(true));
 }

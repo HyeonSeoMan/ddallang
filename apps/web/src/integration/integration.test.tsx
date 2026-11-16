@@ -16,15 +16,20 @@ import * as fixtures from "@/test/fixtures";
 import { restoreNavigatorStubs } from "@/test/navigator-stub";
 import { type LiveClient, mountClient, section } from "@/latency/client";
 import {
+  approveClaim,
   baseUrl,
   call,
+  cancelClaim,
   createLiveRoom,
   createTransaction,
   deleteTransaction,
   endGame,
+  joinRoom,
   type LiveRoom,
   newKey,
   registerParticipant,
+  rejectClaim,
+  requestClaim,
   setParticipantStatus,
   updateTransaction,
 } from "@/latency/server";
@@ -92,7 +97,7 @@ async function mustSee(c: LiveClient, what: string, condition: (el: HTMLElement)
 
 describe("실서버 연동 점검 (FE-I1)", () => {
   it("[AC-VIEW-005-1][AC-VIEW-005-2][AC-VIEW-005-3][AC-VIEW-005-5][AC-SET-008-2][AC-ROOM-003-3][AC-SET-007-1][AC-ROOM-001-14] 두 접속자: 방장의 참여자 등록·거래 저장·게임 종료가 다른 접속자 화면에 새로고침 없이 반영되고 방 단위·복사가 일치한다", async () => {
-    const live = await createLiveRoom(2, "달러");
+    const live = await createLiveRoom(2, { unit: "달러" });
     const [a, b] = await open(live, 0, 1);
     const user = userEvent.setup();
     const ui = within(a!.container);
@@ -210,7 +215,7 @@ describe("실서버 연동 점검 (FE-I1)", () => {
       const sent = control.log.filter((l) => l.method === "POST" && l.path.endsWith("/transactions"));
       expect(sent).toHaveLength(2);
       expect(sent[1]!.status).not.toBeNull();
-    });
+    }, { timeout: 15_000 }); // 배포본은 쓰기 한 번에 약 2초(서버 싱가포르 ↔ DB 시드니)
 
     const posts = control.log.filter((l) => l.method === "POST" && l.path.endsWith("/transactions"));
     expect(posts[1]!.idempotencyKey).toBe(posts[0]!.idempotencyKey); // 같은 키
@@ -333,7 +338,7 @@ describe("실서버 연동 점검 (FE-I1)", () => {
 
     await expectError("없는 초대 코드", call("GET", "/invites/none-none-none-none-none", newKey()), 404, "INVITE_NOT_FOUND");
     await expectError("신원 키 없음", fetch(`${baseUrl()}${rooms}`).then(async (r) => ({ status: r.status, body: await r.json() })), 401, "UNAUTHENTICATED");
-    await expectError("닉네임 중복", call("POST", `/invites/${live.room.inviteCode}/members`, newKey(), { nickname: "방장" }), 409, "NICKNAME_TAKEN");
+    await expectError("닉네임 중복", call("POST", `/invites/${live.room.inviteCode}/members`, newKey(), { nickname: "참0" }), 409, "NICKNAME_TAKEN");
     await expectError("방 생성 검증", call("POST", "/rooms", newKey(), { name: "", unit: "원", nickname: "x" }), 422, "VALIDATION_FAILED");
     await expectError("방장 전용", call("POST", `${rooms}/participants`, live.members[1]!.key, { nickname: "비방장등록" }), 403, "HOST_ONLY");
     const unknownRoute = await call("GET", "/no-such-route", live.host.key);
@@ -387,12 +392,22 @@ describe("실서버 연동 점검 (FE-I1)", () => {
     await createTransaction(live, "모양");
     const get = async (path: string, key = live.host.key) => (await call("GET", path, key)).body;
     const checks: Array<[string, unknown, unknown]> = [
-      ["GET /rooms/{id}", await get(`/rooms/${live.room.id}`), { room: fixtures.room, me: fixtures.hostMember }],
+      ["GET /rooms/{id}", await get(`/rooms/${live.room.id}`), { room: fixtures.room, me: fixtures.hostParticipant }],
       ["GET /rooms/{id}/participants", await get(`/rooms/${live.room.id}/participants`), { participants: fixtures.participants }],
       ["GET /rooms/{id}/balances", await get(`/rooms/${live.room.id}/balances`), { balances: fixtures.balances }],
       ["GET /rooms/{id}/transactions", await get(`/rooms/${live.room.id}/transactions`), { transactions: fixtures.transactions, nextCursor: null }],
       ["GET /rooms/{id}/settlement", await get(`/rooms/${live.room.id}/settlement`), { settlement: fixtures.expectedSettlement }],
+      ["GET /invites/{code}", await get(`/invites/${live.room.inviteCode}`, newKey()), fixtures.inviteLookup()],
     ];
+    // 이어받기 요청 응답(요청자용 MyClaim, 방장용 Claim). 직접 추가한 참여자를 대상으로 한다.
+    const target = await registerParticipant(live.host, live.room.id, "모양대상");
+    const requester = newKey();
+    const mine = (await call("POST", `/invites/${live.room.inviteCode}/claims`, requester, { nickname: target.participant.nickname })).body;
+    checks.push(["POST /invites/{code}/claims", mine, { claim: fixtures.pendingMyClaim }]);
+    checks.push(["GET /rooms/{id}/claims", await get(`/rooms/${live.room.id}/claims`), { claims: [fixtures.pendingClaim] }]);
+    // 요청자용 응답에는 참여자 ID·처리자 ID가 없어야 한다(S1-C13).
+    expect(Object.keys((mine as { claim: object }).claim)).not.toContain("participantId");
+    expect(Object.keys((mine as { claim: object }).claim)).not.toContain("resolvedById");
     const missing: string[] = [];
     for (const [label, real, fixture] of checks) {
       const realPaths = new Set(keyPaths(real));
@@ -403,5 +418,52 @@ describe("실서버 연동 점검 (FE-I1)", () => {
       report.push(`${label}: fixture에만 있음 [${absent.join(", ")}], 실서버에만 있음 [${extra.join(", ")}]`);
     }
     expect(missing).toEqual([]);
+  });
+
+  it("[AC-ROOM-009-5] [AC-VIEW-005-9] v0.3.0 흐름: 생성 → 입장 → 직접 추가 → 이어받기 요청 → 승인 → 이전 키 401 → 종료 → 종료 뒤 이어받기", async () => {
+    const live = await createLiveRoom(2);
+    const rooms = `/rooms/${live.room.id}`;
+    const expectError = async (label: string, pending: ReturnType<typeof call>, status: number, code: string) => {
+      const res = await pending;
+      expect({ label, status: res.status, code: (res.body as { error?: { code?: string } }).error?.code }).toEqual({ label, status, code });
+    };
+    // 입장으로 생긴 참여자와 직접 추가한 참여자가 같은 목록에 있다.
+    const joined = await joinRoom(live.room.inviteCode, "입장자");
+    const added = await registerParticipant(live.host, live.room.id, "추가자");
+    const listed = (await call<{ participants: Array<{ nickname: string; isHost: boolean }> }>("GET", `${rooms}/participants`, live.host.key)).body.participants;
+    expect(listed.map((p) => p.nickname)).toEqual(["참0", "참1", "입장자", "추가자"]);
+    expect(listed.filter((p) => p.isHost).map((p) => p.nickname)).toEqual(["참0"]);
+    // 초대 조회: 신원 없음이면 방장을 뺀 후보, 연결된 키면 PARTICIPANT.
+    const none = (await call("GET", `/invites/${live.room.inviteCode}`, newKey())).body as { identity: string; claimableNicknames: string[] };
+    expect(none).toMatchObject({ identity: "NONE", claimableNicknames: ["참1", "입장자", "추가자"] });
+    expect((await call("GET", `/invites/${live.room.inviteCode}`, joined.key)).body).toMatchObject({ identity: "PARTICIPANT" });
+
+    // 접속 중인 이전 브라우저(참1)의 화면을 연다.
+    const [old] = await open(live, 1);
+    // 방 밖 브라우저가 참1을 이어받기 요청 → 대기 → 방장 승인.
+    const requester = newKey();
+    const claim = (await requestClaim(live, requester, "참1")).claim;
+    expect((await call("GET", `/invites/${live.room.inviteCode}`, requester)).body).toMatchObject({ identity: "PENDING", claim: { id: claim.id } });
+    await expectError("대기 중 입장", call("POST", `/invites/${live.room.inviteCode}/members`, requester, { nickname: "새" }), 409, "CLAIM_PENDING");
+    await approveClaim(live, claim.id);
+    // 이전 브라우저: 접근 상실 안내와 데이터 영역 닫힘.
+    expect(await old!.observeRaw((el) => (el.textContent ?? "").includes("더 이상 접근할 수 없습니다"), SEEN)).not.toBeNull();
+    // 이전 키는 이 방의 모든 요청에서 401 IDENTITY_REVOKED, 초대 조회는 REVOKED.
+    const oldKey = live.members[1]!.key;
+    await expectError("이전 키 방 조회", call("GET", rooms, oldKey), 401, "IDENTITY_REVOKED");
+    expect((await call("GET", `/invites/${live.room.inviteCode}`, oldKey)).body).toMatchObject({ identity: "REVOKED" });
+    // 요청한 키는 같은 참여자로 복원된다(닉네임·order 그대로).
+    const restored = (await call<{ me: { id: string; nickname: string } }>("POST", `/invites/${live.room.inviteCode}/members`, requester, {})).body.me;
+    expect(restored).toMatchObject({ id: live.members[1]!.me.id, nickname: "참1" });
+
+    // 종료 뒤: 새 입장은 GAME_ENDED, 이어받기 요청·거절·취소는 된다(P-6).
+    await endGame(live);
+    await expectError("종료 뒤 새 입장", call("POST", `/invites/${live.room.inviteCode}/members`, newKey(), { nickname: "늦음" }), 409, "GAME_ENDED");
+    const late = newKey();
+    const lateClaim = (await requestClaim(live, late, "추가자")).claim;
+    await rejectClaim(live, lateClaim.id);
+    const again = (await requestClaim(live, late, "추가자")).claim;
+    expect((await cancelClaim(live, late, again.id)).claim.status).toBe("CANCELED");
+    expect(added.participant.isHost).toBe(false);
   });
 });

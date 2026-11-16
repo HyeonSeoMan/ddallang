@@ -12,7 +12,8 @@ import {
   type MutationRequest,
   type SubmitOptions,
 } from "@/lib/mutation/manager";
-import { epochAtom, sessionAtom } from "@/features/room/state";
+import { requestRefreshAtom } from "@/features/realtime/state";
+import { epochAtom, readOnlySelfAtom, sessionAtom } from "@/features/room/state";
 import { CLOCK_UNKNOWN_MESSAGE, describeApiError, type FieldErrors, NO_KEY_MESSAGE } from "./messages";
 
 export type MutationUi =
@@ -33,7 +34,7 @@ export const mutationUiAtom = atom<Record<string, MutationUi>>({});
 const managers = new Map<string, MutationManager>();
 
 /**
- * 매니저는 (방, 신원 키)별로 둔다. 키의 효력 범위가 (방, 요청자 RoomMember)이므로(S2 §5.1, AC-TXN-007-7) 같은 방에서
+ * 매니저는 (방, 신원 키)별로 둔다. 키의 효력 범위가 (방, 요청자 참여자)이므로(S2 §5.1, AC-TXN-007-7) 같은 방에서
  * 신원이 바뀌면 이전 신원의 불명 요청 키·최초 시각·진행 상태를 새 신원이 이어받지 않는다. 메모리에만 있다.
  */
 function managerFor(inviteCode: string, roomId: string, identityKey: string): MutationManager {
@@ -68,9 +69,42 @@ export interface RoomMutation {
   clear(): void;
 }
 
-/** 화면 상태의 작업 범위 이름. 요청자(RoomMember)별로 분리한다. */
+/** 화면 상태의 작업 범위 이름. 요청자 참여자별로 분리한다. */
 export function mutationScope(kind: "create" | "update" | "delete" | "end", target: string, memberId: string): string {
   return `${kind}:${target}:${memberId}`;
+}
+
+/** 작업 범위별: 비활성 거부(REQUESTER_INACTIVE) 뒤 조회 전용을 본 적이 있는가. 재활성화 때 거부 안내를 지우는 기준이다. */
+export const readOnlySeenAtom = atom<Record<string, boolean>>({});
+
+type Store = ReturnType<typeof useStore>;
+
+/**
+ * 비활성 거부(REQUESTER_INACTIVE) 뒤 조회 전용이 관측되면 그 작업 범위에 기록한다(재활성화 때 거부 안내를 지우는 기준,
+ * 검수 P1·F6·F11·F12). 폼이 다른 페이지에 있어 마운트되지 않았어도 기록되도록 스토어를 직접 본다.
+ * - 거부 시점에 이미 조회 전용이면 바로 기록한다(F11).
+ * - 그 범위의 상태가 더는 이 거부가 아니거나(재시도·성공·지움) 다른 방으로 옮기면 기록 없이 구독을 끝낸다(F12).
+ */
+function watchReadOnly(store: Store, scope: string, roomId: string): void {
+  const rejected = () => {
+    const ui = store.get(mutationUiAtom)[scope];
+    return ui?.kind === "rejected" && ui.code === "REQUESTER_INACTIVE";
+  };
+  const mark = () => store.set(readOnlySeenAtom, (all) => ({ ...all, [scope]: true }));
+  if (store.get(readOnlySelfAtom)) {
+    mark();
+    return;
+  }
+  const stops: Array<() => void> = [];
+  const stop = () => stops.splice(0).forEach((unsubscribe) => unsubscribe());
+  const check = () => {
+    if (!rejected() || store.get(sessionAtom)?.roomId !== roomId) return stop();
+    if (store.get(readOnlySelfAtom)) {
+      mark();
+      stop();
+    }
+  };
+  stops.push(store.sub(readOnlySelfAtom, check), store.sub(mutationUiAtom, check), store.sub(sessionAtom, check));
 }
 
 export function useRoomMutation(scope: string, config: { expiredGuide?: string } = {}): RoomMutation {
@@ -114,6 +148,8 @@ export function useRoomMutation(scope: string, config: { expiredGuide?: string }
         case "rejected": {
           const { message, fieldErrors } = describeApiError(outcome.error, { fresh, expiredGuide: config.expiredGuide });
           next = { kind: "rejected", code: outcome.error.code, message, fieldErrors };
+          // 비활성 참여자의 신원(S2 §9, FD-26): 서버 message를 보이고 입력은 그대로 둔 채 갱신해 조회 전용으로 바꾼다.
+          if (outcome.error.code === "REQUESTER_INACTIVE") store.set(requestRefreshAtom);
           break;
         }
         case "unknown":
@@ -129,6 +165,8 @@ export function useRoomMutation(scope: string, config: { expiredGuide?: string }
           return null;
       }
       setState(next);
+      // 거부 상태를 반영한 뒤 감시를 시작한다(감시는 "이 범위가 아직 이 거부인가"를 본다).
+      if (next.kind === "rejected" && next.code === "REQUESTER_INACTIVE") watchReadOnly(store, scope, session.roomId);
       return next;
     },
     [store, scope, setState, config.expiredGuide],

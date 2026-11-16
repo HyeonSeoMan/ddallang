@@ -27,7 +27,7 @@ const tx = (n: number, extra: Partial<Transaction> = {}): Transaction => ({
   amount: n * 10,
   reason: null,
   round: null,
-  authorId: fixtures.hostMember.id,
+  authorId: fixtures.hostParticipant.id,
   createdAt: "2026-11-08T03:21:45.123Z",
   updatedAt: "2026-11-08T03:21:45.123Z",
   ...extra,
@@ -126,7 +126,7 @@ describe("거래 내역 영역", () => {
     renderSection({
       renderActions: (t, { me, room }) => <span>{`${t.id}/${me.nickname}/${room.name}`}</span>,
     });
-    expect(screen.getByText(`t-1/방장/${fixtures.room.name}`)).toBeInTheDocument();
+    expect(screen.getByText(`t-1/가온/${fixtures.room.name}`)).toBeInTheDocument();
   });
 
   it("[F04] 수정·삭제 자리에 `닉네임 → 닉네임 금액 단위` 요약을 넘겨 같은 금액의 행을 구분하게 한다", () => {

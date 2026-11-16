@@ -19,6 +19,25 @@ export interface LiveClient {
   holds: (condition: (container: HTMLElement) => boolean) => boolean;
   /** 화면(`container`)이 `holds`를 만족하는 순간의 `Date.now()`. 이미 만족하면 즉시. 시간 안에 못 하면 `null`. */
   observe: (condition: (container: HTMLElement) => boolean, timeoutMs: number) => Promise<number | null>;
+  /** 연결 상태와 무관하게 조건만 본다(방 밖 화면: 이어받기 요청자, 접근 상실 안내). */
+  observeRaw: (condition: (container: HTMLElement) => boolean, timeoutMs: number) => Promise<number | null>;
+}
+
+/** 조건을 만족하는 순간을 DOM 변경 관찰로 잡는다. */
+function watch(container: HTMLElement, test: () => boolean, timeoutMs: number): Promise<number | null> {
+  return new Promise((resolve) => {
+    if (test()) return resolve(Date.now());
+    const done = (value: number | null) => {
+      observer.disconnect();
+      clearTimeout(timer);
+      resolve(value);
+    };
+    const observer = new MutationObserver(() => {
+      if (test()) done(Date.now());
+    });
+    observer.observe(container, { subtree: true, childList: true, characterData: true, attributes: true });
+    const timer = setTimeout(() => done(null), timeoutMs);
+  });
 }
 
 export async function mountClient(
@@ -50,20 +69,36 @@ export async function mountClient(
     store,
     container,
     unmount: () => view.unmount(),
-    observe: (condition, timeoutMs) =>
-      new Promise((resolve) => {
-        if (holds(condition)) return resolve(Date.now());
-        const done = (value: number | null) => {
-          observer.disconnect();
-          clearTimeout(timer);
-          resolve(value);
-        };
-        const observer = new MutationObserver(() => {
-          if (holds(condition)) done(Date.now());
-        });
-        observer.observe(container, { subtree: true, childList: true, characterData: true, attributes: true });
-        const timer = setTimeout(() => done(null), timeoutMs);
-      }),
+    observe: (condition, timeoutMs) => watch(container, () => holds(condition), timeoutMs),
+    observeRaw: (condition, timeoutMs) => watch(container, () => condition(container), timeoutMs),
+  };
+}
+
+/**
+ * 방 밖의 이어받기 요청자 화면(S5 §6.8): 실제 초대 코드의 초대 화면을 렌더링한다. 저장소에는 요청에 쓴 키를 둔다
+ * (`saveKey`). 대기 화면이 보일 때까지 기다린다. 요청자는 방마다 한 명만 쓰므로 실제 초대 코드 칸을 쓴다.
+ */
+export async function mountRequester(
+  inviteCode: string,
+  key: string,
+  saveKey: (inviteCode: string, key: string) => void,
+): Promise<LiveClient> {
+  saveKey(inviteCode, key);
+  const store = createStore();
+  const view = renderApp(<InviteScreen inviteCode={inviteCode}><AllPages /></InviteScreen>, store);
+  const container = view.container;
+  await waitFor(() => {
+    if (!container.textContent?.includes("방장의 승인을 기다리는 중")) throw new Error("대기 화면 대기");
+  }, { timeout: 30_000, interval: 50 });
+  const holds = (condition: (container: HTMLElement) => boolean) => condition(container);
+  return {
+    index: -1,
+    store,
+    container,
+    holds,
+    unmount: () => view.unmount(),
+    observe: (condition, timeoutMs) => watch(container, () => holds(condition), timeoutMs),
+    observeRaw: (condition, timeoutMs) => watch(container, () => condition(container), timeoutMs),
   };
 }
 

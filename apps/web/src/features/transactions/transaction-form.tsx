@@ -1,21 +1,22 @@
 "use client";
 
 import { atom, useAtom, useAtomValue } from "jotai";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { css } from "styled-system/css";
 import { useCanMutate } from "@/features/room/server-data-gate";
-import { snapshotAtom } from "@/features/room/state";
+import { readOnlySelfAtom, snapshotAtom } from "@/features/room/state";
 import { type ValidationReasonCode } from "@/lib/api";
 import { validateAmount, validateReason, validateRound } from "@/lib/validation/transaction";
 import { useAnnounce } from "@/ui/announcer";
+import { Banner } from "@/ui/banner";
 import { Button } from "@/ui/button";
 import { ChoiceChips } from "@/ui/choice-chips";
 import { CheckIcon } from "@/ui/icons";
 import { amountInputClass, TextField } from "@/ui/text-field";
 import { useDismissedServerErrors } from "./dismissed-errors";
-import { type FieldErrors, fieldReasonMessage, type TxField } from "./messages";
+import { type FieldErrors, fieldReasonMessage, READ_ONLY_SELF_NOTICE, type TxField } from "./messages";
 import { MutationNotice } from "./mutation-notice";
-import { mutationScope, useRoomMutation } from "./mutation-state";
+import { mutationScope, readOnlySeenAtom, useRoomMutation } from "./mutation-state";
 
 interface Draft {
   payerId: string;
@@ -33,7 +34,7 @@ const EMPTY: Draft = { payerId: "", payeeId: "", amount: "", reason: "", round: 
  */
 export const transactionDraftsAtom = atom<Record<string, Draft>>({});
 
-/** 초안의 키: 방과 요청자(RoomMember)별로 분리한다(S2 §5.1). 다른 방·신원으로 바뀌어도 초안이 이어지지 않는다. */
+/** 초안의 키: 방과 요청자 참여자별로 분리한다(S2 §5.1). 다른 방·신원으로 바뀌어도 초안이 이어지지 않는다. */
 export const draftKey = (roomId: string, memberId: string) => `${roomId}:${memberId}`;
 
 const toErrors = (field: TxField, code: ValidationReasonCode) => [fieldReasonMessage(field, code)];
@@ -72,6 +73,7 @@ function ParticipantChips({
 export function TransactionForm() {
   const snapshot = useAtomValue(snapshotAtom);
   const canMutate = useCanMutate();
+  const readOnly = useAtomValue(readOnlySelfAtom);
   const announce = useAnnounce();
   const [drafts, setDrafts] = useAtom(transactionDraftsAtom);
   const [clientErrors, setClientErrors] = useState<FieldErrors | null>(null);
@@ -85,13 +87,30 @@ export function TransactionForm() {
       const prev = all[key] ?? EMPTY;
       return { ...all, [key]: typeof update === "function" ? update(prev) : update };
     });
-  // 작업 범위는 요청자(RoomMember)별로 분리한다(S2 §5.1).
+  // 작업 범위는 요청자 참여자별로 분리한다(S2 §5.1).
   const scope = mutationScope("create", roomId, snapshot?.me.id ?? "");
   const mutation = useRoomMutation(scope);
   const serverErrors: FieldErrors = mutation.state?.kind === "rejected" ? mutation.state.fieldErrors : {};
   const dismissedServer = useDismissedServerErrors(scope, mutation.state, serverErrors);
+  // 비활성 거부(REQUESTER_INACTIVE) 뒤 조회 전용이 관측된 적이 있으면(기록은 `useRoomMutation`이 한다), 다시 변경할 수
+  // 있게 된 때(재활성화) 그 안내를 지운다. 거부 직후 갱신이 오기 전에는 지우지 않는다(서버 message를 보여야 한다, S2 §9).
+  // 끊김·페이지 이동으로 폼이 다시 마운트돼도 기록은 유지된다. 입력값은 그대로 둔다(검수 R4·N1·P1·F6).
+  const [readOnlySeen, setReadOnlySeen] = useAtom(readOnlySeenAtom);
+  const inactiveRejected = mutation.state?.kind === "rejected" && mutation.state.code === "REQUESTER_INACTIVE";
+  const seen = readOnlySeen[scope] === true;
+  const { clear } = mutation;
+  useEffect(() => {
+    if (!inactiveRejected || !canMutate || !seen) return;
+    clear();
+    setReadOnlySeen((all) => {
+      const next = { ...all };
+      delete next[scope];
+      return next;
+    });
+  }, [inactiveRejected, canMutate, seen, scope, clear, setReadOnlySeen]);
 
-  if (!snapshot || !canMutate) return null; // 종료 후에는 폼을 숨긴다(초안은 메모리에 남는다)
+  // 종료 후에는 폼을 숨긴다(초안은 메모리에 남는다). 조회 전용 본인은 폼을 남기되 비활성화한다(FD-26).
+  if (!snapshot || (!canMutate && !readOnly)) return null;
   const active = snapshot.participants.filter((p) => p.status === "ACTIVE");
   // 복구 뒤 더 이상 활성이 아닌 참여자 선택은 비운다(비활성화된 참여자를 몰래 보내지 않는다).
   const payerId = active.some((p) => p.id === draft.payerId) ? draft.payerId : "";
@@ -144,7 +163,7 @@ export function TransactionForm() {
   }
 
   async function submit(options?: { confirmNewAttempt?: boolean }) {
-    if (pending) return;
+    if (pending || readOnly) return;
     const built = build();
     if ("errors" in built) {
       setClientErrors(built.errors); // 오류가 있으면 보내지 않고 입력을 유지한다
@@ -180,6 +199,9 @@ export function TransactionForm() {
 
   return (
     <form onSubmit={onSubmit} noValidate className={css({ display: "flex", flexDirection: "column", gap: "3" })}>
+      {readOnly ? <Banner tone="info">{READ_ONLY_SELF_NOTICE}</Banner> : null}
+      {/* 조회 전용이면 입력 칸·저장을 비활성화하되 입력값은 남긴다(재활성화되면 그 값으로 저장할 수 있다, S2 §9). */}
+      <fieldset disabled={readOnly} className={css({ display: "contents" })}>
       {savedNotice ? (
         // 스크린리더에는 알림 영역(`announce`)이 같은 문장을 이미 읽으므로 중복해서 읽지 않게 숨긴다.
         <p
@@ -265,6 +287,7 @@ export function TransactionForm() {
       <Button type="submit" variant="primary" size="large" disabled={pending}>
         {pending ? "저장 중…" : "저장"}
       </Button>
+      </fieldset>
     </form>
   );
 }

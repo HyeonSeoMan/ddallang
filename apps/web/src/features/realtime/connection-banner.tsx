@@ -36,6 +36,8 @@ export function bannerFor(phase: ConnectionPhase): BannerContent | null {
       return { tone: "error", title: "연결할 수 없음", detail: INACCESSIBLE_MESSAGE };
     case "recovered":
       return { tone: "success", title: "최신 상태로 갱신됨" };
+    case "revoked":
+      return null; // 방 화면을 닫고 초대 화면이 접근 상실 배너를 보인다(FD-21)
     case "connected":
       return null;
   }

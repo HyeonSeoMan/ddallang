@@ -5,7 +5,7 @@ import { delay, http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { refreshRequestAtom } from "@/features/realtime/state";
 import { applySnapshotAtom, setConnectionAtom, snapshotAtom, startEpochAtom } from "@/features/room/state";
-import type { RoomMember } from "@/lib/api";
+import type { Participant } from "@/lib/api";
 import { expectNoA11yViolations } from "@/test/a11y";
 import { primeServerClock } from "@/test/clock-prime";
 import { installFakeStorage } from "@/test/fake-storage";
@@ -50,8 +50,8 @@ beforeEach(async () => {
   await primeServerClock(KEY);
 });
 
-function mount(options: { me?: RoomMember; status?: "IN_PROGRESS" | "ENDED" } = {}) {
-  seedRoom(store, { me: options.me ?? fixtures.hostMember, status: options.status });
+function mount(options: { me?: Participant; status?: "IN_PROGRESS" | "ENDED" } = {}) {
+  seedRoom(store, { me: options.me ?? fixtures.hostParticipant, status: options.status });
   return renderApp(<main><EndGame /></main>, store);
 }
 const openDialog = async (user: ReturnType<typeof userEvent.setup>) =>
@@ -66,7 +66,7 @@ describe("게임 종료 흐름 (FE-S4-1)", () => {
       host.unmount();
 
       store = createStore();
-      const guest = mount({ me: fixtures.guestMember });
+      const guest = mount({ me: fixtures.guestParticipant });
       expect(screen.queryByRole("button", { name: "게임 종료" })).not.toBeInTheDocument(); // 비방장
       guest.unmount();
 

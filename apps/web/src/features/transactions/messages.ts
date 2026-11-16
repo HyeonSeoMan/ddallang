@@ -6,6 +6,8 @@ export type TxField = "payerId" | "payeeId" | "amount" | "reason" | "round";
 export type FieldErrors = Partial<Record<TxField, string[]>>;
 
 export const UNKNOWN_RESULT = "결과를 확인하지 못했습니다.";
+/** 비활성 참여자 본인의 안내(plan §7 2.0.0, FD-26). */
+export const READ_ONLY_SELF_NOTICE = "비활성 참여자라 조회만 할 수 있습니다. 거래를 기록하거나 바꿀 수 없습니다.";
 /** 연결이 복구되어 재조회한 뒤에도 거래 내역에서 확인되지 않을 때(저장되지 않았다고 단정하지 않는다). */
 export const UNKNOWN_AFTER_RECOVERY = "저장 여부를 확인할 수 없습니다. 거래 내역을 확인해 주세요.";
 export const EXPIRED_GUIDE = "거래 내역에서 저장 여부를 먼저 확인해 주세요.";

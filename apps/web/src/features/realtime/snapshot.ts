@@ -1,12 +1,13 @@
-// 갱신 주기의 5개 조회(S5 §6.4): 한꺼번에 시작하고, 모두 2xx일 때만 하나의 스냅샷으로 만든다.
+// 갱신 주기의 조회(S5 §6.4): 5개, 방장은 대기 중인 이어받기 요청까지 6개(FD-25, S5-C2). 한꺼번에 시작하고,
+// 모두 2xx일 때만 하나의 스냅샷으로 만든다.
 import {
   type ApiClient,
   type ApiResponse,
   type Balance,
   bearerHeader,
+  type Claim,
   type Participant,
   type Room,
-  type RoomMember,
   type Settlement,
   type Transaction,
 } from "@/lib/api";
@@ -19,6 +20,11 @@ export interface SnapshotRequest {
   participantId: string | null;
   /** 이 조회를 시작한 연결 세대. 스냅샷에 기록되어 늦은 응답을 걸러내는 데 쓴다. */
   epoch: number;
+  /**
+   * 요청자가 방장인가. 방장만 대기 중인 이어받기 요청 목록을 함께 조회한다(비방장은 조회하지 않는다). 방장 여부는
+   * 바뀌지 않으므로(S1 I1) 입장 응답의 `me.isHost`를 쓴다.
+   */
+  isHost: boolean;
 }
 
 export type SnapshotResult =
@@ -27,7 +33,7 @@ export type SnapshotResult =
   | { ok: false; reason: "status-mismatch" };
 
 /**
- * 5개를 동시에 요청한다. 하나라도 실패하면(네트워크·10초 초과·4xx·5xx) 첫 오류를 던지고 일부도 반영하지 않는다.
+ * 5개(방장 6개)를 동시에 요청한다. 하나라도 실패하면(네트워크·10초 초과·4xx·5xx) 첫 오류를 던지고 일부도 반영하지 않는다.
  */
 export async function fetchRoomSnapshot(
   api: ApiClient,
@@ -46,21 +52,23 @@ export async function fetchRoomSnapshot(
     api.request<T>({ method: "GET", path: `${base}${path}`, query, headers, signal: inner.signal });
 
   let responses: [
-    ApiResponse<{ room: Room; me: RoomMember }>,
+    ApiResponse<{ room: Room; me: Participant }>,
     ApiResponse<{ participants: Participant[] }>,
     ApiResponse<{ balances: Balance[] }>,
     ApiResponse<{ transactions: Transaction[]; nextCursor: string | null }>,
     ApiResponse<{ settlement: Settlement }>,
+    ApiResponse<{ claims: Claim[] }> | null,
   ];
   try {
     responses = await Promise.all([
-      getInner<{ room: Room; me: RoomMember }>(""),
+      getInner<{ room: Room; me: Participant }>(""),
       getInner<{ participants: Participant[] }>("/participants"),
       getInner<{ balances: Balance[] }>("/balances"),
       getInner<{ transactions: Transaction[]; nextCursor: string | null }>("/transactions", {
         participantId: request.participantId ?? undefined,
       }),
       getInner<{ settlement: Settlement }>("/settlement"),
+      request.isHost ? getInner<{ claims: Claim[] }>("/claims") : Promise.resolve(null),
     ]);
   } catch (error) {
     inner.abort();
@@ -68,12 +76,13 @@ export async function fetchRoomSnapshot(
   } finally {
     signal?.removeEventListener("abort", forward);
   }
-  const [room, participants, balances, transactions, settlement] = responses.map((r) => r.data) as [
-    { room: Room; me: RoomMember },
+  const [room, participants, balances, transactions, settlement, claims] = responses.map((r) => r?.data ?? null) as [
+    { room: Room; me: Participant },
     { participants: Participant[] },
     { balances: Balance[] },
     { transactions: Transaction[]; nextCursor: string | null },
     { settlement: Settlement },
+    { claims: Claim[] } | null,
   ];
 
   const expectedKind = room.room.status === "ENDED" ? "FINAL" : "EXPECTED";
@@ -91,6 +100,7 @@ export async function fetchRoomSnapshot(
       nextCursor: transactions.nextCursor,
       transactionFilter: request.participantId,
       settlement: settlement.settlement,
+      claims: claims?.claims ?? [],
     },
   };
 }

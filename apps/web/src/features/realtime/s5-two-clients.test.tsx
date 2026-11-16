@@ -53,7 +53,7 @@ let storage: FakeStorage;
 
 function mountClient(): Client {
   const store = createStore();
-  store.set(sessionAtom, { inviteCode: INVITE_CODE, roomId: fixtures.room.id, me: fixtures.hostMember });
+  store.set(sessionAtom, { inviteCode: INVITE_CODE, roomId: fixtures.room.id, me: fixtures.hostParticipant });
   const view = renderApp(<InviteScreen inviteCode={INVITE_CODE}><AllPages /></InviteScreen>, store);
   return { store, root: view.container, ui: within(view.container), unmount: view.unmount };
 }

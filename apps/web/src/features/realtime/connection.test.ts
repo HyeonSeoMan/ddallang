@@ -35,6 +35,7 @@ interface FakeCoordinator {
 }
 
 function harness(options: { random?: number; online?: boolean } = {}) {
+  let revokedCalls = 0;
   let online = options.online ?? true;
   let visible = true;
   const listeners: Record<string, Set<() => void>> = {
@@ -78,6 +79,9 @@ function harness(options: { random?: number; online?: boolean } = {}) {
     setConnected: (value) => connected.push(value),
     startEpoch: () => ++epoch,
     setPhase: (phase) => phases.push(phase),
+    onAccessRevoked: () => {
+      revokedCalls += 1;
+    },
     now: () => Date.now(),
     random: () => options.random ?? 0.5,
     env: {
@@ -101,6 +105,7 @@ function harness(options: { random?: number; online?: boolean } = {}) {
     connected,
     listeners,
     lastPhase: () => phases[phases.length - 1],
+    revokedCalls: () => revokedCalls,
     lastConnected: () => connected[connected.length - 1],
     setOnline(value: boolean) {
       online = value;
@@ -349,6 +354,61 @@ describe("연결 제어·재연결", () => {
       expect(h.lastPhase()).toBe("inaccessible");
       await clock.advance(60_000);
       expect(h.streams).toHaveLength(1);
+    });
+
+    describe("접근 상실(FD-21, S5 §6.3 5)", () => {
+      const revokedError = () => new ApiError({ status: 401, code: "IDENTITY_REVOKED", message: "m" });
+      const expectNoReconnect = async (h: ReturnType<typeof harness>, streams: number) => {
+        await clock.advance(5 * 60_000);
+        h.setOnline(false);
+        h.setOnline(true);
+        h.setVisible(false);
+        await clock.advance(HIDDEN_LIMIT_MS + 1);
+        h.setVisible(true);
+        expect(h.streams).toHaveLength(streams);
+      };
+
+      it("[AC-VIEW-005-9] access.revoked를 받으면 seen·dirty를 바꾸지 않고 재연결 없이 접근 상실을 한 번 알린다", async () => {
+        const h = harness();
+        h.connection.start();
+        await h.openAndReady();
+        h.cycleOk();
+        const coordinator = h.coordinators[0]!;
+        const before = { ...coordinator.api.state };
+        h.streams[0]!.handlers.onItem({ kind: "event", id: null, event: "access.revoked", data: {}, malformed: false });
+        // 변경 이벤트가 아니므로 코디네이터에 넘기지 않는다(갱신 조회 없음).
+        expect(coordinator.handled.map((i) => (i.kind === "event" ? i.event : i.kind))).toEqual(["ready"]);
+        expect(coordinator.api.state).toEqual(before);
+        expect(coordinator.disposed).toBe(true);
+        expect(h.lastPhase()).toBe("revoked");
+        expect(h.lastConnected()).toBe(false);
+        expect(h.revokedCalls()).toBe(1);
+        // 서버가 스트림을 닫아도 끊김·재연결로 가지 않는다.
+        await h.end({ kind: "ended" }, 0);
+        expect(h.lastPhase()).toBe("revoked");
+        await expectNoReconnect(h, 1);
+        expect(h.revokedCalls()).toBe(1);
+      });
+
+      it("[AC-ROOM-009-5] 스트림 연결의 401 IDENTITY_REVOKED는 접근 불가가 아니라 접근 상실이며 다시 시도하지 않는다", async () => {
+        const h = harness();
+        h.connection.start();
+        await h.end({ kind: "rejected", error: revokedError() });
+        expect(h.lastPhase()).toBe("revoked");
+        expect(h.phases).not.toContain("inaccessible" satisfies ConnectionPhase);
+        expect(h.revokedCalls()).toBe(1);
+        await expectNoReconnect(h, 1);
+      });
+
+      it("[AC-ROOM-009-5] 갱신 조회의 401 IDENTITY_REVOKED도 접근 상실이다", async () => {
+        const h = harness();
+        h.connection.start();
+        await h.openAndReady();
+        h.cycleFail(revokedError());
+        expect(h.lastPhase()).toBe("revoked");
+        expect(h.revokedCalls()).toBe(1);
+        await expectNoReconnect(h, 1);
+      });
     });
 
     it("429는 Retry-After(30초) 이상 간격으로만 재시도하고 한도 안내 상태다", async () => {

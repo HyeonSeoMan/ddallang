@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { createStore } from "jotai";
 import { delay, http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { RoomMember, Transaction } from "@/lib/api";
+import type { Participant, Transaction } from "@/lib/api";
 import { expectNoA11yViolations } from "@/test/a11y";
 import { primeServerClock } from "@/test/clock-prime";
 import { installFakeStorage } from "@/test/fake-storage";
@@ -18,7 +18,7 @@ import { TransactionActions } from "./transaction-actions";
 const KEY = "a".repeat(43);
 const base = `/rooms/${fixtures.room.id}/transactions`;
 
-const own: Transaction = { ...fixtures.transactions[1]!, id: "t-own", authorId: fixtures.guestMember.id, amount: 100, reason: "점심", round: null };
+const own: Transaction = { ...fixtures.transactions[1]!, id: "t-own", authorId: fixtures.guestParticipant.id, amount: 100, reason: "점심", round: null };
 const others: Transaction = { ...own, id: "t-other", authorId: "someone-else" };
 
 interface Seen {
@@ -49,11 +49,11 @@ beforeEach(async () => {
   await primeServerClock(KEY);
 });
 
-function mount(tx: Transaction, options: { me?: RoomMember; status?: "IN_PROGRESS" | "ENDED" } = {}) {
-  seedRoom(store, { me: options.me ?? fixtures.guestMember, status: options.status });
+function mount(tx: Transaction, options: { me?: Participant; status?: "IN_PROGRESS" | "ENDED" } = {}) {
+  seedRoom(store, { me: options.me ?? fixtures.guestParticipant, status: options.status });
   return renderApp(
     <main>
-      <TransactionActions transaction={tx} me={options.me ?? fixtures.guestMember} room={{ ...fixtures.room, status: options.status ?? "IN_PROGRESS" }} />
+      <TransactionActions transaction={tx} me={options.me ?? fixtures.guestParticipant} room={{ ...fixtures.room, status: options.status ?? "IN_PROGRESS" }} />
     </main>,
     store,
   );
@@ -81,12 +81,12 @@ describe("거래 수정·삭제 컨트롤 (FE-S2-3)", () => {
     });
 
     it("방장에게는 타인의 거래에도 보인다", () => {
-      mount(others, { me: fixtures.hostMember });
+      mount(others, { me: fixtures.hostParticipant });
       expect(screen.getByRole("button", { name: /수정/ })).toBeInTheDocument();
     });
 
     it("작성자도 방장도 아니면 컨트롤이 없다(서버가 최종 판정)", () => {
-      mount(others, { me: fixtures.guestMember });
+      mount(others, { me: fixtures.guestParticipant });
       expect(screen.queryByRole("button")).not.toBeInTheDocument();
     });
 
@@ -165,7 +165,7 @@ describe("거래 수정·삭제 컨트롤 (FE-S2-3)", () => {
   });
 
   describe("연결 끊김과 재마운트 (Codex R-F01·R-F02)", () => {
-    function renderRow(me = fixtures.guestMember) {
+    function renderRow(me = fixtures.guestParticipant) {
       return renderApp(
         <main>
           <TransactionActions transaction={own} me={me} room={fixtures.room} />
@@ -176,7 +176,7 @@ describe("거래 수정·삭제 컨트롤 (FE-S2-3)", () => {
 
     it("[AC-SYS-001-5][R-F01] 수정 중이던 입력은 행이 언마운트됐다가 다시 마운트돼도 유지된다(자동 제출 없음)", async () => {
       handle("put", `${base}/t-own`, () => HttpResponse.json({ transaction: own }));
-      seedRoom(store, { me: fixtures.guestMember });
+      seedRoom(store, { me: fixtures.guestParticipant });
       const first = renderRow();
       const user = userEvent.setup();
       await user.click(screen.getByRole("button", { name: /수정/ }));
@@ -194,7 +194,7 @@ describe("거래 수정·삭제 컨트롤 (FE-S2-3)", () => {
     it("[R-F02] 결과 불명인 수정은 재마운트 뒤에도 안내와 수동 재시도가 남고, 다시 열어도 지워지지 않으며, 같은 키로 보낸다", async () => {
       let calls = 0;
       handle("put", `${base}/t-own`, () => (++calls === 1 ? HttpResponse.error() : HttpResponse.json({ transaction: own })));
-      seedRoom(store, { me: fixtures.guestMember });
+      seedRoom(store, { me: fixtures.guestParticipant });
       const first = renderRow();
       const user = userEvent.setup();
       await user.click(screen.getByRole("button", { name: /수정/ }));
@@ -240,7 +240,7 @@ describe("거래 수정·삭제 컨트롤 (FE-S2-3)", () => {
         }
         return calls === 1 ? HttpResponse.error() : HttpResponse.json({ transaction: own });
       });
-      seedRoom(store, { me: fixtures.guestMember });
+      seedRoom(store, { me: fixtures.guestParticipant });
       renderRow();
       const user = userEvent.setup();
       await closedUnknown(user);
@@ -264,7 +264,7 @@ describe("거래 수정·삭제 컨트롤 (FE-S2-3)", () => {
       handle("put", `${base}/t-own`, () =>
         ++calls === 1 ? HttpResponse.error() : errorResponse("GAME_ENDED", { message: "이미 종료된 게임입니다" }),
       );
-      seedRoom(store, { me: fixtures.guestMember });
+      seedRoom(store, { me: fixtures.guestParticipant });
       renderRow();
       const user = userEvent.setup();
       await closedUnknown(user);
@@ -283,7 +283,7 @@ describe("거래 수정·삭제 컨트롤 (FE-S2-3)", () => {
     it("[상태 조합] 닫힌 상태에서 24시간이 지난 불명 수정은 확인 버튼으로만 새 키로 보내고 자동 재전송하지 않는다", async () => {
       let calls = 0;
       handle("put", `${base}/t-own`, () => (++calls === 1 ? HttpResponse.error() : HttpResponse.json({ transaction: own })));
-      seedRoom(store, { me: fixtures.guestMember });
+      seedRoom(store, { me: fixtures.guestParticipant });
       renderRow();
       const user = userEvent.setup();
       await closedUnknown(user);
@@ -306,7 +306,7 @@ describe("거래 수정·삭제 컨트롤 (FE-S2-3)", () => {
         await delay(60);
         return errorResponse("NOT_AUTHOR_OR_HOST", { message: "작성자 또는 방장만 수정할 수 있습니다" });
       });
-      seedRoom(store, { me: fixtures.guestMember });
+      seedRoom(store, { me: fixtures.guestParticipant });
       const first = renderRow();
       const user = userEvent.setup();
       await user.click(screen.getByRole("button", { name: /수정/ }));
@@ -324,7 +324,7 @@ describe("거래 수정·삭제 컨트롤 (FE-S2-3)", () => {
     it("[F02] 불명 뒤 입력을 바꾸고 취소하면 보냈던 입력으로 되돌아가, 닫힌 상태의 다시 시도는 같은 요청의 같은 키 재시도다", async () => {
       let calls = 0;
       handle("put", `${base}/t-own`, () => (++calls === 1 ? HttpResponse.error() : HttpResponse.json({ transaction: own })));
-      seedRoom(store, { me: fixtures.guestMember });
+      seedRoom(store, { me: fixtures.guestParticipant });
       renderRow();
       const user = userEvent.setup();
       await user.click(screen.getByRole("button", { name: /수정/ }));
@@ -348,7 +348,7 @@ describe("거래 수정·삭제 컨트롤 (FE-S2-3)", () => {
           ? HttpResponse.error()
           : errorResponse("VALIDATION_FAILED", { details: [{ field: "amount", code: "OUT_OF_RANGE" }] }),
       );
-      seedRoom(store, { me: fixtures.guestMember });
+      seedRoom(store, { me: fixtures.guestParticipant });
       renderRow();
       const user = userEvent.setup();
       await closedUnknown(user);
@@ -364,7 +364,7 @@ describe("거래 수정·삭제 컨트롤 (FE-S2-3)", () => {
         await delay(60);
         return HttpResponse.json({ transaction: own });
       });
-      seedRoom(store, { me: fixtures.guestMember });
+      seedRoom(store, { me: fixtures.guestParticipant });
       renderRow();
       const user = userEvent.setup();
       await user.click(screen.getByRole("button", { name: /수정/ }));
@@ -381,10 +381,10 @@ describe("거래 수정·삭제 컨트롤 (FE-S2-3)", () => {
   describe("검수(Claude) 반영", () => {
     it("[F03] 삭제가 성공하면 그 거래의 컨트롤이 사라지고 수정 초안·상태가 남지 않는다", async () => {
       handle("delete", `${base}/t-own`, () => HttpResponse.json({ transactionId: "t-own", deletedAt: "x" }));
-      seedRoom(store, { me: fixtures.guestMember });
+      seedRoom(store, { me: fixtures.guestParticipant });
       const view = renderApp(
         <main>
-          <TransactionActions transaction={own} me={fixtures.guestMember} room={fixtures.room} />
+          <TransactionActions transaction={own} me={fixtures.guestParticipant} room={fixtures.room} />
         </main>,
         store,
       );
@@ -400,11 +400,11 @@ describe("거래 수정·삭제 컨트롤 (FE-S2-3)", () => {
     });
 
     it("[F04] summary가 있으면 같은 금액의 행도 접근 가능한 이름으로 구분된다", () => {
-      seedRoom(store, { me: fixtures.hostMember });
+      seedRoom(store, { me: fixtures.hostParticipant });
       renderApp(
         <main>
-          <TransactionActions transaction={own} me={fixtures.hostMember} room={fixtures.room} summary="가온 → 나래 100 원" />
-          <TransactionActions transaction={others} me={fixtures.hostMember} room={fixtures.room} summary="나래 → 다온 100 원" />
+          <TransactionActions transaction={own} me={fixtures.hostParticipant} room={fixtures.room} summary="가온 → 나래 100 원" />
+          <TransactionActions transaction={others} me={fixtures.hostParticipant} room={fixtures.room} summary="나래 → 다온 100 원" />
         </main>,
         store,
       );
@@ -413,10 +413,10 @@ describe("거래 수정·삭제 컨트롤 (FE-S2-3)", () => {
     });
 
     it("[F05] 고친 필드의 이전 검증 오류는 지워지고 다른 필드의 오류는 남는다", async () => {
-      seedRoom(store, { me: fixtures.guestMember });
+      seedRoom(store, { me: fixtures.guestParticipant });
       renderApp(
         <main>
-          <TransactionActions transaction={own} me={fixtures.guestMember} room={fixtures.room} />
+          <TransactionActions transaction={own} me={fixtures.guestParticipant} room={fixtures.room} />
         </main>,
         store,
       );
@@ -439,10 +439,10 @@ describe("거래 수정·삭제 컨트롤 (FE-S2-3)", () => {
       handle("put", `${base}/t-own`, () =>
         errorResponse("VALIDATION_FAILED", { details: [{ field: "amount", code: "OUT_OF_RANGE" }, { field: "reason", code: "INVALID_CHARACTER" }] }),
       );
-      seedRoom(store, { me: fixtures.guestMember });
+      seedRoom(store, { me: fixtures.guestParticipant });
       renderApp(
         <main>
-          <TransactionActions transaction={own} me={fixtures.guestMember} room={fixtures.room} />
+          <TransactionActions transaction={own} me={fixtures.guestParticipant} room={fixtures.room} />
         </main>,
         store,
       );
@@ -472,10 +472,10 @@ describe("거래 수정·삭제 컨트롤 (FE-S2-3)", () => {
       handle("put", `${base}/t-own`, () =>
         errorResponse("VALIDATION_FAILED", { details: [{ field: "amount", code: "OUT_OF_RANGE" }, { field: "reason", code: "INVALID_CHARACTER" }] }),
       );
-      seedRoom(store, { me: fixtures.guestMember });
+      seedRoom(store, { me: fixtures.guestParticipant });
       const view = renderApp(
         <main>
-          <TransactionActions transaction={own} me={fixtures.guestMember} room={fixtures.room} />
+          <TransactionActions transaction={own} me={fixtures.guestParticipant} room={fixtures.room} />
         </main>,
         store,
       );
@@ -489,7 +489,7 @@ describe("거래 수정·삭제 컨트롤 (FE-S2-3)", () => {
       view.unmount();
       renderApp(
         <main>
-          <TransactionActions transaction={own} me={fixtures.guestMember} room={fixtures.room} />
+          <TransactionActions transaction={own} me={fixtures.guestParticipant} room={fixtures.room} />
         </main>,
         store,
       );
@@ -503,10 +503,10 @@ describe("거래 수정·삭제 컨트롤 (FE-S2-3)", () => {
     });
 
     it("[F01] 수정 초안은 요청자별로 분리되어 같은 방에서 신원이 바뀌어도 이전 신원의 초안이 보이지 않는다", async () => {
-      seedRoom(store, { me: fixtures.hostMember });
+      seedRoom(store, { me: fixtures.hostParticipant });
       const first = renderApp(
         <main>
-          <TransactionActions transaction={own} me={fixtures.hostMember} room={fixtures.room} />
+          <TransactionActions transaction={own} me={fixtures.hostParticipant} room={fixtures.room} />
         </main>,
         store,
       );
@@ -515,10 +515,10 @@ describe("거래 수정·삭제 컨트롤 (FE-S2-3)", () => {
       await user.clear(screen.getByLabelText("금액"));
       await user.type(screen.getByLabelText("금액"), "777");
       first.unmount();
-      seedRoom(store, { me: fixtures.guestMember }); // 같은 방, 다른 신원
+      seedRoom(store, { me: fixtures.guestParticipant }); // 같은 방, 다른 신원
       renderApp(
         <main>
-          <TransactionActions transaction={own} me={fixtures.guestMember} room={fixtures.room} />
+          <TransactionActions transaction={own} me={fixtures.guestParticipant} room={fixtures.room} />
         </main>,
         store,
       );

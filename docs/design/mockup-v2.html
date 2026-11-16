@@ -6,8 +6,8 @@
 <title>딸랑 디자인 시안 v2</title>
 <link rel="icon" href="favicon-v2/a-green-32.svg" type="image/svg+xml" sizes="any">
 <!--
-  딸랑 디자인 시안 v2 (뱅크샐러드 조합안). 근거: docs/design/direction-v2-banksalad.md (DV-1~DV-12).
-  정적 HTML이며 최종 UI 승인이 아니다. 값은 참고이고 구현 코드는 새로 쓴다.
+  딸랑 디자인 시안 v2 (뱅크샐러드 조합안). 근거: docs/design/direction-v2-banksalad.md (DV-1~DV-20).
+  방향 문서 1.0.0의 최종 UI 확정본(사용자 위임에 따른 Claude 확정, 2026-11-16). 값은 참고이고 구현 코드는 새로 쓴다.
   문구는 현재 앱(apps/web)과 Spec 문구를 그대로 쓴다. 예시 데이터만 지어낸 것이다.
   외부 글꼴·스크립트를 불러오지 않는다(FD-18 (2)와 같은 이유). Pretendard가 설치된 기기에서는 Pretendard로 보인다.
 -->
@@ -126,10 +126,11 @@
   .amount-input { display: flex; align-items: baseline; justify-content: flex-end; gap: 6px; height: 64px; border-radius: var(--r-control); border: 2px solid var(--primary); padding: 0 16px; }
   .amount-input .num { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; align-self: center; }
   .amount-input .u { font-size: 16px; font-weight: 600; color: var(--ink-muted); align-self: center; }
-  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
-  .chip { min-height: 44px; padding: 0 16px; border-radius: 999px; border: 0; background: var(--paper-subtle); font: 600 15px var(--font); color: var(--ink); display: inline-flex; align-items: center; gap: 8px; }
-  .chip[aria-pressed="true"] { background: var(--primary); color: #fff; }
-  .chip[disabled] { color: var(--ink-muted); }
+  .select { height: 52px; border-radius: var(--r-control); border: 1px solid var(--line); background: var(--paper); padding: 0 40px 0 14px; font: 400 16px var(--font); color: var(--ink); display: flex; align-items: center; position: relative; }
+  .select::after { content: ""; position: absolute; right: 16px; top: 50%; width: 8px; height: 8px; border-right: 2px solid var(--ink-muted); border-bottom: 2px solid var(--ink-muted); transform: translateY(-70%) rotate(45deg); }
+  .select.pill { height: 44px; border: 0; border-radius: 999px; background: var(--paper-subtle); font-weight: 600; font-size: 14px; padding: 0 36px 0 16px; }
+  .filter-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+  .filter-row label { font-size: 14px; font-weight: 500; color: var(--ink-muted); }
   .swap { display: flex; align-items: center; gap: 8px; margin: -6px 0 12px; color: var(--ink-muted); font-size: 13px; }
   .swap::before, .swap::after { content: ""; flex: 1; height: 1px; background: var(--divider); }
 
@@ -145,9 +146,6 @@
   .transfer:last-child { border-bottom: 0; }
   .transfer .who { font-size: 16px; display: flex; align-items: center; gap: 8px; }
   .transfer .arrow { color: var(--ink-muted); }
-  .hero-label { font-size: 14px; font-weight: 500; color: var(--ink-muted); }
-  .hero-amt { font-size: 32px; font-weight: 800; letter-spacing: -.6px; font-variant-numeric: tabular-nums; margin: 4px 0 2px; white-space: nowrap; }
-  .hero-amt .unit { font-size: 22px; font-weight: 700; margin-left: 4px; }
   .sep { height: 1px; background: var(--divider); margin: 20px 0; }
 
   /* 끊김 가림 */
@@ -166,7 +164,6 @@
   .center { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 24px 16px 40px; }
   .logo { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 24px; }
   .logo .word { font-size: 22px; font-weight: 800; letter-spacing: -.4px; }
-  .seg { display: flex; gap: 8px; }
   .toast { position: absolute; left: 16px; right: 16px; bottom: 92px; background: var(--ink); color: #fff; border-radius: var(--r-tile); padding: 14px 16px; font-size: 14px; font-weight: 600; box-shadow: var(--shadow-float); }
 
   .ic { width: 28px; height: 28px; flex: none; }
@@ -276,7 +273,7 @@
 <div class="page">
   <section class="intro">
     <h1>딸랑 디자인 시안 v2 — 뱅크샐러드 조합안</h1>
-    <p>근거: <code>docs/design/direction-v2-banksalad.md</code>(DV-1~DV-12). 정적 시안이며 최종 UI 승인이 아닙니다.</p>
+    <p>근거: <code>docs/design/direction-v2-banksalad.md</code>(DV-1~DV-20). 최종 UI 확정본입니다(사용자 위임, 2026-11-16). 구현 화면은 이 시안을 따릅니다.</p>
     <p>문구는 현재 앱과 Spec 문구를 그대로 썼고, 사람 이름·금액은 예시입니다. 구역 순서와 4개 페이지 구성(FD-12)은 바꾸지 않았습니다.</p>
   </section>
 
@@ -306,8 +303,9 @@
               <li class="item inactive"><span class="avatar">정</span><span class="body"><span class="title">정다은 <span class="badge neutral">비활성</span></span></span><span class="amt">0<span class="unit">원</span></span></li>
             </ul>
           </section>
-          <div class="sec-head"><h3 class="sec-title"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-ledger"/></svg>거래 내역</h3><button class="btn btn-pill" type="button">전체 ⌄</button></div>
+          <div class="sec-head"><h3 class="sec-title"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-ledger"/></svg>거래 내역</h3></div>
           <section class="card">
+            <div class="filter-row"><label>참여자 필터</label><span class="select pill">전체</span></div>
             <ul class="list">
               <li class="item"><span class="icon-tile"><svg class="ic-md" aria-hidden="true" focusable="false"><use href="#i-coin"/></svg></span><span class="body"><span class="title">최준호 → 김철수</span><span class="meta">사유: 광박 · 라운드: 7 · 11/16 21:40</span>
                 <span class="actions"><button class="btn btn-pill sm" type="button">수정</button><button class="btn btn-pill sm danger-text" type="button">삭제</button></span></span><span class="amt">4,000<span class="unit">원</span></span></li>
@@ -335,20 +333,17 @@
           <div class="band soft"><svg class="ic-sm" aria-hidden="true" focusable="false"><use href="#i-check"/></svg><span class="grow">거래를 저장했습니다.</span></div>
           <div class="sec-head"><h3 class="sec-title"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-write"/></svg>거래 입력</h3></div>
           <section class="card">
-            <div class="field"><span class="label">지급자</span>
-              <div class="chips"><button class="chip" type="button" aria-pressed="false">김철수</button><button class="chip" type="button" aria-pressed="false">박민수</button><button class="chip" type="button" aria-pressed="true">이영희</button><button class="chip" type="button" aria-pressed="false">최준호</button></div></div>
+            <div class="field"><label>지급자</label><span class="select">이영희</span></div>
             <div class="swap">→</div>
-            <div class="field"><span class="label">수취자</span>
-              <div class="chips"><button class="chip" type="button" aria-pressed="true">김철수</button><button class="chip" type="button" aria-pressed="false">박민수</button><button class="chip" type="button" disabled>이영희</button><button class="chip" type="button" aria-pressed="false">최준호</button></div></div>
+            <div class="field"><label>수취자</label><span class="select">김철수</span></div>
             <div class="field"><label>금액</label><div class="amount-input"><span class="num">5,000</span><span class="u">원</span></div></div>
             <div class="field"><label>사유 (선택)</label><input class="input" value="3판 연속 피박" aria-label="사유 (선택)"></div>
             <div class="field" style="margin-bottom:4px"><label>라운드 (선택)</label><input class="input" placeholder="" aria-label="라운드 (선택)"></div>
+            <button class="btn btn-primary" type="button" style="margin-top:14px">저장</button>
           </section>
-          <p class="cap12" style="margin:4px 4px 0">칩 방식이 라벨·오류 연결 계약을 지키지 못하면 지금의 선택 상자를 유지하고 모양만 바꿉니다(RV-3).</p>
         </div>
-        <div class="fixed-cta"><button class="btn btn-primary" type="button">저장</button></div>
       </div>
-      <figcaption class="cap"><b>기록</b> · 입력 항목은 지금과 같음(지급자·수취자·금액·사유·라운드). 저장 뒤 머물며 연한 초록 띠로 안내(U-10). 같은 사람은 수취자에서 비활성.</figcaption>
+      <figcaption class="cap"><b>기록</b> · 입력 항목과 선택 상자는 지금과 같고 모양만 바꿈(DV-17). 저장 버튼은 폼 안 카드 아래 전폭. 저장 뒤 머물며 연한 초록 띠로 안내(U-10).</figcaption>
     </figure>
 
     <!-- 정산 -->
@@ -429,16 +424,14 @@
           <div class="sec-head"><h3 class="sec-title"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-bag"/></svg>최종 정산</h3></div>
           <section class="card">
             <div class="band soft"><span class="badge brand">게임 종료</span><span class="grow"></span><button class="btn btn-pill" type="button" style="background:#fff">정산 복사</button></div>
-            <div class="hero-label">이영희 → 김철수</div>
-            <div class="hero-amt">8,000<span class="unit">원</span></div>
-            <div class="sep" style="margin:16px 0 4px"></div>
+            <div class="transfer"><span class="who"><span class="avatar a3">이</span>이영희 <span class="arrow">→</span> 김철수</span><span class="amt">8,000<span class="unit">원</span></span></div>
             <div class="transfer"><span class="who"><span class="avatar a4">최</span>최준호 <span class="arrow">→</span> 김철수</span><span class="amt">4,000<span class="unit">원</span></span></div>
             <div class="transfer"><span class="who"><span class="avatar a4">최</span>최준호 <span class="arrow">→</span> 박민수</span><span class="amt">3,000<span class="unit">원</span></span></div>
           </section>
         </div>
         <div class="toast" role="status">정산 내용을 복사했습니다.</div>
       </div>
-      <figcaption class="cap"><b>종료된 방</b> · <code>기록</code> 탭이 없고 정산에서 시작(FD-12). 최종 정산 위에 연한 초록 띠. <b>검토 요청:</b> 첫 항목을 큰 금액(32/800)으로 보이는 모습은 순서·내용은 그대로지만 강조가 생기는 안이라, 원치 않으면 모든 항목을 같은 행으로 둡니다.</figcaption>
+      <figcaption class="cap"><b>종료된 방</b> · <code>기록</code> 탭이 없고 정산에서 시작(FD-12). 최종 정산 위에 연한 초록 띠. 모든 항목을 같은 행으로 보이고 특정 항목을 크게 강조하지 않음(DV-18).</figcaption>
     </figure>
 
     <!-- 끊김 -->
@@ -503,14 +496,13 @@
           </div>
           <section class="card" style="padding:24px 20px">
             <div class="field"><label>방 이름</label><input class="input focus" value="토요일 고스톱" aria-label="방 이름"></div>
-            <div class="field"><span class="label">정산 단위</span>
-              <div class="seg"><button class="chip" type="button" aria-pressed="true">원</button><button class="chip" type="button" aria-pressed="false">점수</button><button class="chip" type="button" aria-pressed="false">직접 입력</button></div></div>
+            <div class="field"><label>정산 단위</label><span class="select">원</span></div>
             <div class="field"><label>내 닉네임</label><input class="input" aria-label="내 닉네임"></div>
             <button class="btn btn-primary" type="button">방 만들기</button>
           </section>
         </div>
       </div>
-      <figcaption class="cap"><b>방 만들기</b> · 흰 카드 하나 + 전폭 주 버튼. 딸랑 노랑은 로고(동전 종)와 아이콘 안에만(DV-5). 정산 단위 선택지는 지금과 같음.</figcaption>
+      <figcaption class="cap"><b>방 만들기</b> · 흰 카드 하나 + 전폭 주 버튼. 딸랑 노랑은 로고(동전 종)와 아이콘 안에만(DV-5). 정산 단위는 지금처럼 선택 상자(DV-17).</figcaption>
     </figure>
   </div>
 

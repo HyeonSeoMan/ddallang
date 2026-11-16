@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
-import { type ReactNode, useId, useState } from "react";
+import { type ReactNode, useState } from "react";
 import { css, cx } from "styled-system/css";
 import { ApiError, bearerHeader, getApiClient, type RoomMember, type Room, type Transaction } from "@/lib/api";
 import { formatDateTime, formatMoney } from "@/lib/format";
@@ -10,7 +10,7 @@ import { participantFilterAtom, requestRefreshAtom } from "@/features/realtime/s
 import { type RoomSnapshot, sessionAtom, snapshotAtom } from "@/features/room/state";
 import { Banner } from "@/ui/banner";
 import { Button } from "@/ui/button";
-import { selectCompactClass } from "@/ui/select-style";
+import { ChoiceChips } from "@/ui/choice-chips";
 import { CoinIcon } from "@/ui/icons";
 import { listClass, rowAmountClass, rowBodyClass, rowFullClass, rowMetaClass, rowTitleClass, rowTopClass } from "@/ui/list-row";
 import { Money } from "@/ui/money";
@@ -67,7 +67,6 @@ export function TransactionsSection({
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const store = useStore();
-  const filterId = useId();
 
   if (!snapshot || !session) return null;
   const { room, me, participants } = snapshot;
@@ -125,29 +124,19 @@ export function TransactionsSection({
 
   return (
     <div className={css({ display: "flex", flexDirection: "column", gap: "3" })} aria-busy={switching}>
-      {/* 필터 한 줄(DV-17): 라벨과 선택 상자, 좁으면 선택 상자가 다음 줄로 내려간다. */}
-      <div className={css({ display: "flex", flexWrap: "wrap", alignItems: "center", columnGap: "3", rowGap: "1" })}>
-        <label htmlFor={filterId} className={css({ fontSize: "sm", fontWeight: "medium", color: "inkMuted" })}>
-          참여자 필터
-        </label>
-        <div className={css({ flex: "1 1 160px", minW: "160px" })}>
-          <select
-            id={filterId}
-            value={filter ?? ALL}
-            onChange={(e) => onFilterChange(e.target.value)}
-            className={selectCompactClass}
-          >
-            <option value={ALL}>전체</option>
-            {participants.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.nickname}
-                {p.status === "INACTIVE" ? " (비활성)" : ""}
-              </option>
-            ))}
-          </select>
-        </div>
+      {/* 참여자 필터 칩(DV-17 1.1.0): `전체` + 참여자 전원(비활성 표시). 고르면 바로 새 순회다. */}
+      <div className={css({ display: "flex", flexDirection: "column", gap: "1" })}>
+        <ChoiceChips
+          legend="참여자 필터"
+          options={[
+            { value: ALL, label: "전체" },
+            ...participants.map((p) => ({ value: p.id, label: `${p.nickname}${p.status === "INACTIVE" ? " (비활성)" : ""}` })),
+          ]}
+          value={filter ?? ALL}
+          onChange={onFilterChange}
+        />
         {switching ? (
-          <p aria-live="polite" className={css({ flexBasis: "100%", color: "inkMuted", fontSize: "sm" })}>
+          <p aria-live="polite" className={css({ color: "inkMuted", fontSize: "sm" })}>
             필터를 적용하는 중…
           </p>
         ) : null}

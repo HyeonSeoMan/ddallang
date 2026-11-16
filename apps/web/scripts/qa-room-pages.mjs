@@ -62,7 +62,8 @@ const HELPERS = `
     click: (sel, t) => { const e = [...document.querySelectorAll(sel)].find(x => x.textContent.trim() === t); if (!e) return false; e.click(); return true; },
     tab: (t) => { const a = [...document.querySelectorAll('nav[aria-label="방 페이지"] a')].find(x => x.textContent.trim() === t); if (!a) return false; a.click(); return true; },
     tabs: () => [...document.querySelectorAll('nav[aria-label="방 페이지"] a')].map(a => a.textContent.trim()),
-    option: (sel, text) => [...sel.options].find(o => o.textContent.trim() === text)?.value,
+    // 지급자·수취자는 칩 라디오(FD-18 (8)): legend 이름의 fieldset에서 글자가 같은 칩을 누른다.
+    choose: (g, t) => { const f = [...document.querySelectorAll('fieldset')].find(x => x.querySelector('legend')?.textContent.trim() === g); const l = f && [...f.querySelectorAll('label')].find(x => x.textContent.trim() === t); if (!l) return false; l.querySelector('input').click(); return true; },
   };`;
 
 await send("Page.enable");
@@ -114,7 +115,7 @@ try {
   await ev("__q.tab('기록')");
   await waitFor("location.pathname.endsWith('/record') && !!__q.label('금액')", "기록 페이지");
   check("C1 기록 페이지에는 거래 입력 구역만 있다", await ev("[...document.querySelectorAll('h2')].map(h => h.textContent).join('|') === '거래 입력'"));
-  await ev("const p = __q.label('지급자'), q = __q.label('수취자'); __q.set(p, __q.option(p, '가온')); __q.set(q, __q.option(q, '나래')); __q.set(__q.label('금액'), '1000'); true");
+  await ev("__q.choose('지급자', '가온'); __q.choose('수취자', '나래'); __q.set(__q.label('금액'), '1000'); true");
   await ev("__q.click('button', '저장')");
   await waitFor("!!document.querySelector('[data-testid=saved-notice]')", "저장 안내");
   check("C2 저장하면 눈에 보이는 저장 안내가 뜬다", await ev("document.querySelector('[data-testid=saved-notice]').textContent.trim() === '거래를 저장했습니다.'"));

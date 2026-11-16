@@ -3,6 +3,7 @@ import { act, screen, within } from "@testing-library/react";
 import { createStore } from "jotai";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { choiceGroup } from "@/test/choice";
 import { expectNoA11yViolations } from "@/test/a11y";
 import { renderApp } from "@/test/render";
 import { INVITE_CODE, seedRoom } from "@/test/room-seed";
@@ -107,7 +108,7 @@ describe("페이지별 구성(손익과 거래 내역은 한 화면, AC-VIEW-001
   it("기록: 거래 입력만", () => {
     mount(<RecordPage />);
     expect(headings()).toEqual(["거래 입력"]);
-    expect(screen.getByLabelText("지급자")).toBeInTheDocument();
+    expect(choiceGroup(screen, "지급자")).toBeInTheDocument();
   });
 
   it("정산: 예상 정산과 게임 종료(방장). 진행 중에만 종료 컨트롤이 있다", () => {

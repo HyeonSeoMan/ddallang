@@ -5,6 +5,7 @@ import { delay, http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ServerDataGate } from "@/features/room/server-data-gate";
 import { applySnapshotAtom, setConnectionAtom, snapshotAtom, startEpochAtom } from "@/features/room/state";
+import { choiceGroup, choiceNames, choose, chosenValue } from "@/test/choice";
 import { expectNoA11yViolations } from "@/test/a11y";
 import { primeServerClock } from "@/test/clock-prime";
 import { installFakeStorage } from "@/test/fake-storage";
@@ -58,8 +59,8 @@ function mount(options: Parameters<typeof seedRoom>[1] = {}) {
 }
 
 async function fill(user: ReturnType<typeof userEvent.setup>, v: { payer?: string; payee?: string; amount?: string; reason?: string; round?: string }) {
-  if (v.payer) await user.selectOptions(screen.getByLabelText("지급자"), v.payer);
-  if (v.payee) await user.selectOptions(screen.getByLabelText("수취자"), v.payee);
+  if (v.payer) await choose(user, screen, "지급자", v.payer);
+  if (v.payee) await choose(user, screen, "수취자", v.payee);
   if (v.amount !== undefined) await user.type(screen.getByLabelText("금액"), v.amount);
   if (v.reason !== undefined) await user.type(screen.getByLabelText("사유 (선택)"), v.reason);
   if (v.round !== undefined) await user.type(screen.getByLabelText("라운드 (선택)"), v.round);
@@ -85,8 +86,10 @@ describe("거래 입력 폼 (FE-S2-2)", () => {
   it("[AC-PART-002-3] 지급자·수취자 선택지에는 활성 참여자만 있고 비활성은 없다", async () => {
     const { container } = mount();
     for (const label of ["지급자", "수취자"]) {
-      const options = Array.from((screen.getByLabelText(label) as HTMLSelectElement).options).map((o) => o.text);
-      expect(options).toEqual(["선택", "가온", "나래"]); // 다온(비활성) 제외
+      const options = choiceNames(screen, label);
+      // RK-F22: 빈 선택지 `선택`은 칩에서 "선택된 라디오 없음"으로 나타나 목록에서 빠진다.
+      expect(options).toEqual(["가온", "나래"]); // 다온(비활성) 제외
+      expect(chosenValue(screen, label)).toBe("");
     }
     await expectNoA11yViolations(container);
   });
@@ -100,7 +103,7 @@ describe("거래 입력 폼 (FE-S2-2)", () => {
         participants: snapshot.participants.map((p) => (p.id === "p-3" ? { ...p, status: "ACTIVE" as const } : p)),
       });
     });
-    expect(Array.from((screen.getByLabelText("지급자") as HTMLSelectElement).options).map((o) => o.text)).toContain("다온");
+    expect(choiceNames(screen, "지급자")).toContain("다온");
   });
 
   it("[AC-TXN-001-3] 지급자·수취자·금액 누락은 사유를 보이고 보내지 않으며 입력을 유지한다", async () => {
@@ -108,8 +111,8 @@ describe("거래 입력 폼 (FE-S2-2)", () => {
     const user = userEvent.setup();
     await fill(user, { reason: "점심" });
     await user.click(save());
-    expect(screen.getByLabelText("지급자")).toHaveAccessibleDescription("필수 항목입니다.");
-    expect(screen.getByLabelText("수취자")).toHaveAccessibleDescription("필수 항목입니다.");
+    expect(choiceGroup(screen, "지급자")).toHaveAccessibleDescription("필수 항목입니다.");
+    expect(choiceGroup(screen, "수취자")).toHaveAccessibleDescription("필수 항목입니다.");
     expect(screen.getByLabelText("금액")).toHaveAccessibleDescription("필수 항목입니다.");
     expect(screen.getByLabelText("사유 (선택)")).toHaveValue("점심"); // 입력 유지
     expect(requests).toHaveLength(0);
@@ -120,7 +123,7 @@ describe("거래 입력 폼 (FE-S2-2)", () => {
     const user = userEvent.setup();
     await fill(user, { payer: "가온", payee: "가온", amount: "100" });
     await user.click(save());
-    expect(screen.getByLabelText("수취자")).toHaveAccessibleDescription("지급자와 수취자는 달라야 합니다.");
+    expect(choiceGroup(screen, "수취자")).toHaveAccessibleDescription("지급자와 수취자는 달라야 합니다.");
     expect(requests).toHaveLength(0);
   });
 
@@ -148,7 +151,7 @@ describe("거래 입력 폼 (FE-S2-2)", () => {
     expect(request!.key).toMatch(/^[A-Za-z0-9_-]{22}$/);
     expect(request!.firstAttemptAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
     expect(request!.authorization).toBe(`Bearer ${KEY}`);
-    expect(screen.getByLabelText("지급자")).toHaveValue("");
+    expect(chosenValue(screen, "지급자")).toBe("");
     expect(await screen.findAllByText("거래를 저장했습니다.")).not.toHaveLength(0);
   });
 
@@ -164,7 +167,7 @@ describe("거래 입력 폼 (FE-S2-2)", () => {
     // 스크린리더에는 알림 영역이 이미 같은 문장을 읽으므로 눈에 보이는 안내는 접근성 트리에서 숨긴다.
     expect(notice).toHaveAttribute("aria-hidden", "true");
     // 같은 폼이 비워진 채로 남아 연속 입력할 수 있다.
-    expect(screen.getByLabelText("지급자")).toBeInTheDocument();
+    expect(choiceGroup(screen, "지급자")).toBeInTheDocument();
     expect(screen.getByLabelText("금액")).toHaveValue("");
     await user.type(screen.getByLabelText("금액"), "1");
     expect(screen.queryByTestId("saved-notice")).not.toBeInTheDocument();
@@ -226,7 +229,7 @@ describe("거래 입력 폼 (FE-S2-2)", () => {
       const user = userEvent.setup();
       await fill(user, { payer: "가온", payee: "나래", amount: "10" });
       await user.click(save());
-      await waitFor(() => expect(screen.getByLabelText("지급자")).toHaveAccessibleDescription("비활성 참여자는 선택할 수 없습니다"));
+      await waitFor(() => expect(choiceGroup(screen, "지급자")).toHaveAccessibleDescription("비활성 참여자는 선택할 수 없습니다"));
     });
 
     it("서버 422의 필드 사유를 필드에 보이고 서버 message를 그대로 보인다(매핑 불가 시)", async () => {
@@ -413,10 +416,10 @@ describe("거래 입력 폼 (FE-S2-2)", () => {
       mount();
       const user = userEvent.setup();
       await user.click(save()); // 지급자·수취자·금액 모두 필수 오류
-      expect(screen.getByLabelText("지급자")).toHaveAccessibleDescription("필수 항목입니다.");
-      await user.selectOptions(screen.getByLabelText("지급자"), "가온");
-      expect(screen.getByLabelText("지급자")).not.toHaveAccessibleDescription("필수 항목입니다.");
-      expect(screen.getByLabelText("수취자")).toHaveAccessibleDescription("필수 항목입니다."); // 아직 고치지 않음
+      expect(choiceGroup(screen, "지급자")).toHaveAccessibleDescription("필수 항목입니다.");
+      await choose(user, screen, "지급자", "가온");
+      expect(choiceGroup(screen, "지급자")).not.toHaveAccessibleDescription("필수 항목입니다.");
+      expect(choiceGroup(screen, "수취자")).toHaveAccessibleDescription("필수 항목입니다."); // 아직 고치지 않음
       await user.type(screen.getByLabelText("금액"), "10");
       expect(screen.getByLabelText("금액")).not.toHaveAccessibleDescription("필수 항목입니다.");
     });
@@ -426,9 +429,9 @@ describe("거래 입력 폼 (FE-S2-2)", () => {
       const user = userEvent.setup();
       await fill(user, { payer: "가온", payee: "가온", amount: "10" });
       await user.click(save());
-      expect(screen.getByLabelText("수취자")).toHaveAccessibleDescription("지급자와 수취자는 달라야 합니다.");
-      await user.selectOptions(screen.getByLabelText("지급자"), "나래");
-      expect(screen.getByLabelText("수취자")).not.toHaveAccessibleDescription("지급자와 수취자는 달라야 합니다.");
+      expect(choiceGroup(screen, "수취자")).toHaveAccessibleDescription("지급자와 수취자는 달라야 합니다.");
+      await choose(user, screen, "지급자", "나래");
+      expect(choiceGroup(screen, "수취자")).not.toHaveAccessibleDescription("지급자와 수취자는 달라야 합니다.");
     });
   });
 
@@ -447,7 +450,7 @@ describe("거래 입력 폼 (FE-S2-2)", () => {
       await user.type(screen.getByLabelText("금액"), "20"); // 아직 저장되지 않은 새 입력
       await delay(160);
       expect(screen.getByLabelText("금액")).toHaveValue("20");
-      expect(screen.getByLabelText("지급자")).toHaveValue("p-1");
+      expect(chosenValue(screen, "지급자")).toBe("p-1");
       expect(requests).toHaveLength(1); // 새 입력은 자동 제출되지 않는다
     });
 
@@ -492,7 +495,7 @@ describe("거래 입력 폼 (FE-S2-2)", () => {
   describe("종료와 연결 끊김", () => {
     it("[AC-TXN-009-3] 게임이 종료되면 입력 폼이 숨겨진다", () => {
       mount({ status: "ENDED" });
-      expect(screen.queryByLabelText("지급자")).not.toBeInTheDocument();
+      expect(screen.queryByRole("group", { name: "지급자" })).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: /^저장/ })).not.toBeInTheDocument();
     });
 
@@ -516,8 +519,8 @@ describe("거래 입력 폼 (FE-S2-2)", () => {
       });
       expect(await screen.findByLabelText("금액")).toHaveValue("77");
       expect(screen.getByLabelText("사유 (선택)")).toHaveValue("작성중");
-      expect(screen.getByLabelText("지급자")).toHaveValue("p-1"); // 활성이라 유지
-      expect(screen.getByLabelText("수취자")).toHaveValue(""); // 비활성이 되어 비움
+      expect(chosenValue(screen, "지급자")).toBe("p-1"); // 활성이라 유지
+      expect(chosenValue(screen, "수취자")).toBe(""); // 비활성이 되어 비움
       expect(requests).toHaveLength(0); // 자동 제출 없음
     });
   });

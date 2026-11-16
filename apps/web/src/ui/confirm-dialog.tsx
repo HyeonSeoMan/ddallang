@@ -129,10 +129,10 @@ export function ConfirmDialog({
           {description}
         </p>
         <div className={css({ display: "flex", gap: "2", "& > button": { flex: "1" } })}>
-          <Button ref={cancelRef} variant="secondaryBlock" disabled={busy} onClick={onCancel}>
+          <Button ref={cancelRef} variant="secondaryBlock" size="large" disabled={busy} onClick={onCancel}>
             {cancelLabel}
           </Button>
-          <Button variant="dangerSolid" disabled={busy} onClick={onConfirm}>
+          <Button variant="dangerSolid" size="large" disabled={busy} onClick={onConfirm}>
             {confirmLabel}
           </Button>
         </div>

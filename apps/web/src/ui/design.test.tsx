@@ -208,19 +208,35 @@ describe("버튼 변형과 토큰(FD-18)", () => {
     }
   });
 
-  it("large 크기는 기본 터치 목표보다 큰 높이 클래스를 쓰고 기본 높이 클래스와 겹치지 않는다", () => {
+  // 높이(방향 문서 §4, 시안): 주·위험 52px, 회색 전폭 48px, 알약은 터치 목표 44px. `large`는 52px·전폭.
+  // FE-D1의 "large가 기본보다 높다" 단언은 주 버튼 기본 높이가 52px가 되면서 이 단언으로 옮겼다(RK-F21).
+  it.each([
+    ["primary", "min-h_52px"],
+    ["danger", "min-h_52px"],
+    ["dangerSolid", "min-h_52px"],
+    ["secondaryBlock", "min-h_48px"],
+    ["secondary", "min-h_touch"],
+    ["dangerText", "min-h_touch"],
+  ] as const)("%s 변형의 최소 높이는 %s이고 터치 목표 44px 이상이다", (variant, expected) => {
+    render(<Button variant={variant}>기본</Button>);
+    const minH = screen.getByRole("button", { name: "기본" }).className.split(" ").filter((c) => c.startsWith("min-h_"));
+    expect(minH).toEqual([expected]);
+  });
+
+  it("large 크기는 어느 변형이든 52px·전폭이다(대화상자의 두 버튼, 페이지 아래 행동)", () => {
     render(
       <>
-        <Button>기본</Button>
-        <Button size="large">크게</Button>
+        <Button size="large">저장</Button>
+        <Button variant="secondaryBlock" size="large">
+          취소
+        </Button>
       </>,
     );
-    const small = screen.getByRole("button", { name: "기본" }).className.split(" ");
-    const large = screen.getByRole("button", { name: "크게" }).className.split(" ");
-    const minH = (classes: string[]) => classes.filter((c) => c.startsWith("min-h_"));
-    expect(minH(small)).toHaveLength(1);
-    expect(minH(large)).toHaveLength(1);
-    expect(minH(large)[0]).not.toBe(minH(small)[0]);
+    for (const name of ["저장", "취소"]) {
+      const classes = screen.getByRole("button", { name }).className.split(" ");
+      expect(classes.filter((c) => c.startsWith("min-h_"))).toEqual(["min-h_52px"]);
+      expect(classes).toContain("w_full");
+    }
   });
 
   it("모서리와 그림자 토큰은 확정본의 단계를 따른다(카드 20·컨트롤 12·타일 14, 그림자는 대화상자만)", () => {

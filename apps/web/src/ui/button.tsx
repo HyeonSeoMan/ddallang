@@ -12,7 +12,7 @@ import { cva, cx } from "styled-system/css";
  */
 type Variant = "primary" | "secondary" | "secondaryBlock" | "dangerText" | "danger" | "dangerSolid";
 
-/** 높이는 크기 변형이 정한다. */
+/** 높이는 변형이 정한다(주·위험 52px, 회색 전폭 48px, 알약 44px). `large`는 52px·전폭이다. */
 type Size = "default" | "large";
 
 // 공통 모양과 변형을 한 `cva`로 병합한다. 원자 클래스를 `cx`로 이어 붙이면 같은 속성(테두리 색·모서리·여백)끼리는
@@ -34,15 +34,15 @@ const button = cva({
   },
   variants: {
     variant: {
-      primary: { bg: "primary", color: "primaryText", "&:active:not(:disabled)": { bg: "primaryPressed" } },
-      secondary: { ...pill, bg: "paperSubtle", color: "ink" },
-      secondaryBlock: { bg: "paperSubtle", color: "ink", w: "full", fontWeight: "semibold" },
-      dangerText: { ...pill, bg: "paperSubtle", color: "danger" },
-      danger: { bg: "paper", color: "danger", borderColor: "danger" },
-      dangerSolid: { bg: "danger", color: "dangerText" },
+      primary: { minH: "52px", bg: "primary", color: "primaryText", "&:active:not(:disabled)": { bg: "primaryPressed" } },
+      secondary: { ...pill, minH: "touch", bg: "paperSubtle", color: "ink" },
+      secondaryBlock: { minH: "48px", bg: "paperSubtle", color: "ink", w: "full", fontWeight: "semibold" },
+      dangerText: { ...pill, minH: "touch", bg: "paperSubtle", color: "danger" },
+      danger: { minH: "52px", bg: "paper", color: "danger", borderColor: "danger" },
+      dangerSolid: { minH: "52px", bg: "danger", color: "dangerText" },
     },
     size: {
-      default: { minH: "touch" },
+      default: {},
       // 페이지 아래 행동(저장, 거래 기록하기): 높이 52px, 화면 폭 전체.
       large: { minH: "52px", fontSize: "md", w: "full" },
     },

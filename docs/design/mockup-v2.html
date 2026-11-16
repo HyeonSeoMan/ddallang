@@ -6,7 +6,7 @@
 <title>딸랑 디자인 시안 v2</title>
 <link rel="icon" href="favicon-v2/a-green-32.svg" type="image/svg+xml" sizes="any">
 <!--
-  딸랑 디자인 시안 v2 (뱅크샐러드 조합안). 근거: docs/design/direction-v2-banksalad.md (DV-1~DV-20).
+  딸랑 디자인 시안 v2 (뱅크샐러드 조합안). 근거: docs/design/direction-v2-banksalad.md (DV-1~DV-21).
   방향 문서 1.0.0과 함께 최종 UI 확정안(사용자 위임에 따른 Claude 결정, 2026-11-16, 1단계 검수 통과 조건). 방향 문서와 다르면 방향 문서가 우선한다. 구현 코드는 새로 쓴다.
   문구는 현재 앱(apps/web)과 Spec 문구를 그대로 쓴다. 예시 데이터만 지어낸 것이다.
   외부 글꼴·스크립트를 불러오지 않는다(FD-18 (2)와 같은 이유). Pretendard가 설치된 기기에서는 Pretendard로 보인다.
@@ -78,7 +78,8 @@
 
   /* 목록 행 (DV-11) */
   .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-  .item { display: flex; align-items: center; gap: 12px; min-height: 64px; }
+  .item { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; min-height: 64px; }
+  .item .amt, .transfer .amt { margin-left: auto; }
   .item .body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
   .item .title { font-size: 16px; font-weight: 400; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   .item .meta { font-size: 14px; font-weight: 500; color: var(--ink-muted); }
@@ -110,12 +111,12 @@
   .badge { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
   .badge.info { background: var(--info-bg); color: var(--info-text); }
   .badge.neutral { background: var(--paper-subtle); color: var(--ink-muted); }
-  .badge.on-band { background: var(--paper); color: var(--ink-muted); }
-  .status-text { margin: -4px 2px 8px; font-size: 14px; font-weight: 500; color: var(--ink-muted); }
+  .status-text { margin: 8px 2px 0; font-size: 14px; font-weight: 500; color: var(--ink-muted); }
   .band { display: flex; align-items: center; gap: 10px; border-radius: var(--r-tile); padding: 12px 14px; font-size: 14px; font-weight: 600; margin-bottom: 12px; }
   .band.soft { background: var(--primary-soft); color: var(--brand-text); }
   .band.info { background: var(--info-bg); color: var(--info-text); }
   .band .grow { flex: 1; }
+  .card-badge { margin-bottom: 10px; }
   .band.warn { background: #FFF4E5; color: #8A4B00; align-items: flex-start; }
   .band .detail { font-weight: 400; }
 
@@ -125,6 +126,9 @@
   .input { height: 52px; border-radius: var(--r-control); border: 1px solid var(--line); background: var(--paper); padding: 0 14px; font: 400 16px var(--font); color: var(--ink); width: 100%; }
   .input.focus { border: 2px solid var(--primary); padding: 0 13px; }
   .amount-input { display: flex; align-items: baseline; justify-content: flex-end; gap: 6px; height: 64px; border-radius: var(--r-control); border: 2px solid var(--primary); padding: 0 16px; }
+  .amount-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .amount-row .amount-input { flex: 1; min-width: 160px; }
+  .amount-row .u { font-size: 16px; font-weight: 600; color: var(--ink-muted); }
   .amount-input.empty { border: 1px solid var(--line); padding: 0 17px; }
   .amount-input .num { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; align-self: center; }
   .amount-input .u { font-size: 16px; font-weight: 600; color: var(--ink-muted); align-self: center; }
@@ -133,6 +137,13 @@
   .select.compact { height: 44px; min-width: 120px; }
   .filter-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
   .filter-row label { font-size: 14px; font-weight: 500; color: var(--ink-muted); }
+  .unit-set { border: 0; padding: 0; margin: 0 0 18px; min-width: 0; }
+  .unit-set legend { padding: 0; margin-bottom: 8px; font-size: 14px; font-weight: 500; color: var(--ink-muted); }
+  .unit-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .unit-tile { position: relative; min-height: 76px; border: 1px solid var(--line); border-radius: var(--r-tile); background: var(--paper); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; font-size: 14px; font-weight: 600; color: var(--ink); cursor: pointer; text-align: center; padding: 8px 4px; }
+  .unit-tile input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .unit-tile:has(input:checked) { border: 2px solid var(--primary); background: var(--primary-soft); color: var(--brand-text); padding: 7px 3px; }
+  .unit-tile:has(input:focus-visible) { outline: 2px solid var(--primary); outline-offset: 2px; }
   .swap { display: flex; align-items: center; gap: 8px; margin: -6px 0 12px; color: var(--ink-muted); font-size: 13px; }
   .swap::before, .swap::after { content: ""; flex: 1; height: 1px; background: var(--divider); }
 
@@ -146,7 +157,7 @@
   .tile .link { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; color: var(--ink); }
 
   /* 정산 */
-  .transfer { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 56px; border-bottom: 1px solid var(--divider); }
+  .transfer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; min-height: 56px; border-bottom: 1px solid var(--divider); }
   .transfer:last-child { border-bottom: 0; }
   .transfer .who { font-size: 16px; display: flex; align-items: center; gap: 8px; }
   .transfer .arrow { color: var(--ink-muted); }
@@ -254,6 +265,16 @@
     <ellipse cx="13.5" cy="27" rx="2" ry="2.5" fill="#3B2314"/><ellipse cx="22.5" cy="27" rx="2" ry="2.5" fill="#3B2314"/>
     <path d="M12.5 33c3 3.5 8 3.5 11 0" stroke="#C86E00" stroke-width="2.5" stroke-linecap="round" fill="none"/>
   </symbol>
+  <symbol id="i-score" viewBox="0 0 48 48">
+    <path d="M24 4.5l5.6 12 13 1.5-9.6 8.9 2.6 12.9L24 33.3l-11.6 6.5 2.6-12.9-9.6-8.9 13-1.5z" fill="#2EA6F7" stroke="#2EA6F7" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M24 12l3.2 7" stroke="#BFE6FF" stroke-width="3.5" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-chip" viewBox="0 0 48 48">
+    <circle cx="24" cy="24" r="20" fill="#F2635E"/>
+    <path d="M24 4v7M24 37v7M4 24h7M37 24h7M9.9 9.9l5 5M33.1 33.1l5 5M38.1 9.9l-5 5M14.9 33.1l-5 5" stroke="#FFF6E0" stroke-width="4" stroke-linecap="butt"/>
+    <circle cx="24" cy="24" r="10.5" fill="#C8433F"/>
+    <circle cx="24" cy="24" r="6.5" fill="#FFF6E0"/>
+  </symbol>
   <symbol id="i-check" viewBox="0 0 48 48">
     <circle cx="24" cy="24" r="20" fill="#00C176"/>
     <path d="M15 24.5l6 6 12-12" stroke="#E6FFF3" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
@@ -273,7 +294,7 @@
 <div class="page">
   <section class="intro">
     <h1>딸랑 디자인 시안 v2 — 뱅크샐러드 조합안</h1>
-    <p>근거: <code>docs/design/direction-v2-banksalad.md</code>(DV-1~DV-20). 최종 UI 확정안입니다(사용자 위임, 2026-11-16, 1단계 검수 통과 조건). 방향 문서와 다르면 방향 문서가 우선합니다.</p>
+    <p>근거: <code>docs/design/direction-v2-banksalad.md</code>(DV-1~DV-21). 최종 UI 확정안입니다(사용자 위임, 2026-11-16, 1단계 검수 통과 조건). 방향 문서와 다르면 방향 문서가 우선합니다.</p>
     <p>문구는 현재 앱과 Spec 문구를 그대로 썼고, 사람 이름·금액은 예시입니다. 구역 순서와 4개 페이지 구성(FD-12)은 바꾸지 않았습니다.</p>
   </section>
 
@@ -307,10 +328,10 @@
           <section class="card">
             <div class="filter-row"><label>참여자 필터</label><span class="select compact">전체</span></div>
             <ul class="list">
-              <li class="item"><span class="icon-tile"><svg class="ic-md" aria-hidden="true" focusable="false"><use href="#i-coin"/></svg></span><span class="body"><span class="title">최준호 → 김철수</span><span class="meta">사유: 광박 · 라운드: 7 · 11/16 21:40</span>
+              <li class="item"><span class="icon-tile"><svg class="ic-md" aria-hidden="true" focusable="false"><use href="#i-coin"/></svg></span><span class="body"><span class="title">최준호 → 김철수</span><span class="meta">사유: 광박</span><span class="meta">라운드: 7</span><span class="meta">11/16 21:40</span>
                 <span class="actions"><button class="btn btn-pill" type="button">수정</button><button class="btn btn-pill danger-text" type="button">삭제</button></span></span><span class="amt">4,000 원</span></li>
-              <li class="item"><span class="icon-tile"><svg class="ic-md" aria-hidden="true" focusable="false"><use href="#i-coin"/></svg></span><span class="body"><span class="title">이영희 → 박민수</span><span class="meta">라운드: 6 · 11/16 21:22</span></span><span class="amt">3,000 원</span></li>
-              <li class="item"><span class="icon-tile"><svg class="ic-md" aria-hidden="true" focusable="false"><use href="#i-coin"/></svg></span><span class="body"><span class="title">이영희 → 김철수</span><span class="meta">사유: 3판 연속 피박 · 11/16 21:05</span></span><span class="amt">5,000 원</span></li>
+              <li class="item"><span class="icon-tile"><svg class="ic-md" aria-hidden="true" focusable="false"><use href="#i-coin"/></svg></span><span class="body"><span class="title">이영희 → 박민수</span><span class="meta">라운드: 6</span><span class="meta">11/16 21:22</span></span><span class="amt">3,000 원</span></li>
+              <li class="item"><span class="icon-tile"><svg class="ic-md" aria-hidden="true" focusable="false"><use href="#i-coin"/></svg></span><span class="body"><span class="title">이영희 → 김철수</span><span class="meta">사유: 3판 연속 피박</span><span class="meta">11/16 21:05</span></span><span class="amt">5,000 원</span></li>
               <li class="item"><span class="icon-tile"><svg class="ic-md" aria-hidden="true" focusable="false"><use href="#i-coin"/></svg></span><span class="body"><span class="title">최준호 → 김철수</span><span class="meta">11/16 20:48</span></span><span class="amt">3,000 원</span></li>
             </ul>
             <button class="btn btn-wide" type="button" style="margin-top:8px">더 보기</button>
@@ -336,7 +357,7 @@
             <div class="field"><label>지급자</label><span class="select">선택</span></div>
             <div class="swap">→</div>
             <div class="field"><label>수취자</label><span class="select">선택</span></div>
-            <div class="field"><label>금액</label><div class="amount-input empty"><span class="u">원</span></div></div>
+            <div class="field"><label>금액</label><div class="amount-row"><div class="amount-input empty"></div><span class="u">원</span></div></div>
             <div class="field"><label>사유 (선택)</label><input class="input" aria-label="사유 (선택)"></div>
             <div class="field" style="margin-bottom:4px"><label>라운드 (선택)</label><input class="input" placeholder="" aria-label="라운드 (선택)"></div>
             <button class="btn btn-primary" type="button" style="margin-top:14px">저장</button>
@@ -355,8 +376,9 @@
           <nav class="tabs" aria-label="방 페이지"><span class="tab">현황</span><span class="tab">기록</span><span class="tab" aria-current="page">정산</span><span class="tab">방</span></nav>
         </div>
         <div class="scroll">
-          <div class="sec-head"><h3 class="sec-title"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-bag"/></svg>예상 정산</h3><span class="badge info">진행 중</span></div>
+          <div class="sec-head"><h3 class="sec-title"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-bag"/></svg>예상 정산</h3></div>
           <section class="card">
+            <div class="card-badge"><span class="badge info">진행 중</span></div>
             <div class="band info" style="margin-bottom:8px"><svg class="ic-sm" aria-hidden="true" focusable="false"><use href="#i-info"/></svg>거래가 바뀌면 달라질 수 있습니다.</div>
             <div class="transfer"><span class="who">이영희 <span class="arrow">→</span> 김철수</span><span class="amt">8,000 원</span></div>
             <div class="transfer"><span class="who">최준호 <span class="arrow">→</span> 김철수</span><span class="amt">4,000 원</span></div>
@@ -364,10 +386,9 @@
           </section>
           <div class="sep"></div>
           <button class="btn btn-danger-line" type="button">게임 종료</button>
-          <p class="cap12" style="margin:8px 4px 0">방장에게만 보입니다. 누르면 확인 대화상자가 열립니다(아래 2번 줄).</p>
         </div>
       </div>
-      <figcaption class="cap"><b>정산</b> · 이체 방향은 글자 <code>→</code>로 전함. <code>게임 종료</code>는 구분선으로 떨어진 테두리형 위험 버튼(빨강 채움은 확인 대화상자에서만).</figcaption>
+      <figcaption class="cap"><b>정산</b> · 이체 방향은 글자 <code>→</code>로 전함. <code>게임 종료</code>는 구분선으로 떨어진 테두리형 위험 버튼(방장에게만 보임, 빨강 채움은 확인 대화상자에서만, 대화상자는 아래 2번 줄).</figcaption>
     </figure>
 
     <!-- 방 -->
@@ -401,7 +422,7 @@
             </ul>
             <div class="sep" style="margin:12px 0 16px"></div>
             <div class="field" style="margin-bottom:10px"><label>참여자 닉네임</label><input class="input" aria-label="참여자 닉네임"></div>
-            <button class="btn btn-wide" type="button">참여자 등록</button>
+            <button class="btn btn-primary" type="button">참여자 등록</button>
           </section>
         </div>
       </div>
@@ -423,15 +444,16 @@
         <div class="scroll">
           <div class="sec-head"><h3 class="sec-title"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-bag"/></svg>최종 정산</h3></div>
           <section class="card">
-            <div class="band soft"><span class="badge on-band">게임 종료</span><span class="grow"></span><button class="btn btn-pill" type="button" style="background:#fff">정산 복사</button></div>
-            <p class="status-text">정산 내용을 복사했습니다.</p>
+            <div class="card-badge"><span class="badge neutral">게임 종료</span></div>
             <div class="transfer"><span class="who">이영희 <span class="arrow">→</span> 김철수</span><span class="amt">8,000 원</span></div>
             <div class="transfer"><span class="who">최준호 <span class="arrow">→</span> 김철수</span><span class="amt">4,000 원</span></div>
             <div class="transfer"><span class="who">최준호 <span class="arrow">→</span> 박민수</span><span class="amt">3,000 원</span></div>
+            <button class="btn btn-wide" type="button" style="margin-top:12px">정산 복사</button>
+            <p class="status-text">정산 내용을 복사했습니다.</p>
           </section>
         </div>
       </div>
-      <figcaption class="cap"><b>종료된 방</b> · <code>기록</code> 탭이 없고 정산에서 시작(FD-12). 최종 정산 위에 연한 초록 띠, 복사 결과는 버튼 아래 상태 문단(토스트 없음). 모든 항목을 같은 행으로 보이고 특정 항목을 크게 강조하지 않음(DV-18).</figcaption>
+      <figcaption class="cap"><b>종료된 방</b> · <code>기록</code> 탭이 없고 정산에서 시작(FD-12). 카드 안 순서는 지금 앱 그대로(배지 → 항목 → 정산 복사 → 결과 문단, 토스트 없음). 모든 항목을 같은 행으로 보이고 특정 항목을 크게 강조하지 않음(DV-18).</figcaption>
     </figure>
 
     <!-- 끊김 -->
@@ -460,8 +482,9 @@
           <nav class="tabs" aria-label="방 페이지"><span class="tab">현황</span><span class="tab">기록</span><span class="tab" aria-current="page">정산</span><span class="tab">방</span></nav>
         </div>
         <div class="scroll">
-          <div class="sec-head"><h3 class="sec-title"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-bag"/></svg>예상 정산</h3><span class="badge info">진행 중</span></div>
+          <div class="sec-head"><h3 class="sec-title"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-bag"/></svg>예상 정산</h3></div>
           <section class="card">
+            <div class="card-badge"><span class="badge info">진행 중</span></div>
             <div class="transfer"><span class="who">이영희 <span class="arrow">→</span> 김철수</span><span class="amt">8,000 원</span></div>
             <div class="transfer"><span class="who">최준호 <span class="arrow">→</span> 김철수</span><span class="amt">4,000 원</span></div>
           </section>
@@ -489,19 +512,25 @@
           <section class="card" style="padding:24px 20px">
             <h3 class="card-title" style="margin-bottom:16px">방 만들기</h3>
             <div class="field"><label>방 이름</label><input class="input focus" value="토요일 고스톱" aria-label="방 이름"></div>
-            <div class="field"><label>정산 단위</label><span class="select">원</span></div>
+            <fieldset class="field unit-set"><legend>정산 단위</legend>
+              <div class="unit-tiles">
+                <label class="unit-tile"><input type="radio" name="unit" checked><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-coin"/></svg><span>원</span></label>
+                <label class="unit-tile"><input type="radio" name="unit"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-score"/></svg><span>점수</span></label>
+                <label class="unit-tile"><input type="radio" name="unit"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-chip"/></svg><span>칩</span></label>
+                <label class="unit-tile"><input type="radio" name="unit"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-write"/></svg><span>직접 입력</span></label>
+              </div></fieldset>
             <div class="field"><label>내 닉네임</label><input class="input" aria-label="내 닉네임"></div>
             <button class="btn btn-primary" type="button">방 만들기</button>
           </section>
         </div>
       </div>
-      <figcaption class="cap"><b>방 만들기</b> · h1 <code>DDALLANG</code>과 카드 제목 <code>방 만들기</code>는 지금 문구 그대로. 흰 카드 하나 + 전폭 주 버튼. 딸랑 노랑은 로고(동전 종)와 아이콘 안에만(DV-5). 정산 단위는 지금처럼 선택 상자(DV-17).</figcaption>
+      <figcaption class="cap"><b>방 만들기</b> · h1 <code>DDALLANG</code>과 카드 제목 <code>방 만들기</code>는 지금 문구 그대로. 흰 카드 하나 + 전폭 주 버튼. 딸랑 노랑은 로고(동전 종)와 아이콘 안에만(DV-5). 정산 단위는 아이콘 + 글자 타일 라디오(DV-21, 사용자 지시 U-18). 직접 입력을 고르면 지금처럼 입력란이 아래에 나옴.</figcaption>
     </figure>
   </div>
 
   <h2 class="row-title">3. 아이콘 — 뱅크샐러드 아이콘 2.0 규칙</h2>
   <p class="cap12" style="margin:-6px 0 14px;font-size:13px">외곽선 없음 · 채도 높은 이모지풍 면 · 아이콘당 2~3색(밝은 띠·어두운 부속) · 뭉툭한 곡률 · 그림자·두께 면 없음 · 겹치는 곳은 컷아웃(사람들·끊김) · ₩은 크림색 굵은 획 + 양옆 짧은 가로획. 48/24/16px, 흰 바탕과 회색 바탕에서 확인. 모두 장식이라 <code>aria-hidden</code>이고 곁에 글자가 있다.</p>
-  <div class="icon-sheet"><div class="icon-cell"><div class="sizes"><svg width="48" height="48" aria-hidden="true"><use href="#i-bell"/></svg><svg width="24" height="24" aria-hidden="true"><use href="#i-bell"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-bell"/></svg></div><div class="sizes on-canvas"><svg width="24" height="24" aria-hidden="true"><use href="#i-bell"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-bell"/></svg></div><b>동전 종</b><span>브랜드 로고</span></div><div class="icon-cell"><div class="sizes"><svg width="48" height="48" aria-hidden="true"><use href="#i-coin"/></svg><svg width="24" height="24" aria-hidden="true"><use href="#i-coin"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-coin"/></svg></div><div class="sizes on-canvas"><svg width="24" height="24" aria-hidden="true"><use href="#i-coin"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-coin"/></svg></div><b>코인</b><span>누적 손익</span></div><div class="icon-cell"><div class="sizes"><svg width="48" height="48" aria-hidden="true"><use href="#i-ledger"/></svg><svg width="24" height="24" aria-hidden="true"><use href="#i-ledger"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-ledger"/></svg></div><div class="sizes on-canvas"><svg width="24" height="24" aria-hidden="true"><use href="#i-ledger"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-ledger"/></svg></div><b>장부</b><span>거래 내역</span></div><div class="icon-cell"><div class="sizes"><svg width="48" height="48" aria-hidden="true"><use href="#i-write"/></svg><svg width="24" height="24" aria-hidden="true"><use href="#i-write"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-write"/></svg></div><div class="sizes on-canvas"><svg width="24" height="24" aria-hidden="true"><use href="#i-write"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-write"/></svg></div><b>연필</b><span>거래 입력</span></div><div class="icon-cell"><div class="sizes"><svg width="48" height="48" aria-hidden="true"><use href="#i-bag"/></svg><svg width="24" height="24" aria-hidden="true"><use href="#i-bag"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-bag"/></svg></div><div class="sizes on-canvas"><svg width="24" height="24" aria-hidden="true"><use href="#i-bag"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-bag"/></svg></div><b>주머니</b><span>예상·최종 정산</span></div><div class="icon-cell"><div class="sizes"><svg width="48" height="48" aria-hidden="true"><use href="#i-house"/></svg><svg width="24" height="24" aria-hidden="true"><use href="#i-house"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-house"/></svg></div><div class="sizes on-canvas"><svg width="24" height="24" aria-hidden="true"><use href="#i-house"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-house"/></svg></div><b>집</b><span>방 정보</span></div><div class="icon-cell"><div class="sizes"><svg width="48" height="48" aria-hidden="true"><use href="#i-people"/></svg><svg width="24" height="24" aria-hidden="true"><use href="#i-people"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-people"/></svg></div><div class="sizes on-canvas"><svg width="24" height="24" aria-hidden="true"><use href="#i-people"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-people"/></svg></div><b>얼굴 둘</b><span>참여자</span></div><div class="icon-cell"><div class="sizes"><svg width="48" height="48" aria-hidden="true"><use href="#i-check"/></svg><svg width="24" height="24" aria-hidden="true"><use href="#i-check"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-check"/></svg></div><div class="sizes on-canvas"><svg width="24" height="24" aria-hidden="true"><use href="#i-check"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-check"/></svg></div><b>완료</b><span>저장 안내 띠</span></div><div class="icon-cell"><div class="sizes"><svg width="48" height="48" aria-hidden="true"><use href="#i-info"/></svg><svg width="24" height="24" aria-hidden="true"><use href="#i-info"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-info"/></svg></div><div class="sizes on-canvas"><svg width="24" height="24" aria-hidden="true"><use href="#i-info"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-info"/></svg></div><b>안내</b><span>안내 띠</span></div><div class="icon-cell"><div class="sizes"><svg width="48" height="48" aria-hidden="true"><use href="#i-offline"/></svg><svg width="24" height="24" aria-hidden="true"><use href="#i-offline"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-offline"/></svg></div><div class="sizes on-canvas"><svg width="24" height="24" aria-hidden="true"><use href="#i-offline"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-offline"/></svg></div><b>끊김</b><span>연결 끊김 띠</span></div></div>
+  <div class="icon-sheet"><div class="icon-cell"><div class="sizes"><svg width="48" height="48" aria-hidden="true"><use href="#i-bell"/></svg><svg width="24" height="24" aria-hidden="true"><use href="#i-bell"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-bell"/></svg></div><div class="sizes on-canvas"><svg width="24" height="24" aria-hidden="true"><use href="#i-bell"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-bell"/></svg></div><b>동전 종</b><span>브랜드 로고</span></div><div class="icon-cell"><div class="sizes"><svg width="48" height="48" aria-hidden="true"><use href="#i-coin"/></svg><svg width="24" height="24" aria-hidden="true"><use href="#i-coin"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-coin"/></svg></div><div class="sizes on-canvas"><svg width="24" height="24" aria-hidden="true"><use href="#i-coin"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-coin"/></svg></div><b>코인</b><span>누적 손익, 정산 단위 원</span></div><div class="icon-cell"><div class="sizes"><svg width="48" height="48" aria-hidden="true"><use href="#i-ledger"/></svg><svg width="24" height="24" aria-hidden="true"><use href="#i-ledger"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-ledger"/></svg></div><div class="sizes on-canvas"><svg width="24" height="24" aria-hidden="true"><use href="#i-ledger"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-ledger"/></svg></div><b>장부</b><span>거래 내역</span></div><div class="icon-cell"><div class="sizes"><svg width="48" height="48" aria-hidden="true"><use href="#i-write"/></svg><svg width="24" height="24" aria-hidden="true"><use href="#i-write"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-write"/></svg></div><div class="sizes on-canvas"><svg width="24" height="24" aria-hidden="true"><use href="#i-write"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-write"/></svg></div><b>연필</b><span>거래 입력, 정산 단위 직접 입력</span></div><div class="icon-cell"><div class="sizes"><svg width="48" height="48" aria-hidden="true"><use href="#i-bag"/></svg><svg width="24" height="24" aria-hidden="true"><use href="#i-bag"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-bag"/></svg></div><div class="sizes on-canvas"><svg width="24" height="24" aria-hidden="true"><use href="#i-bag"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-bag"/></svg></div><b>주머니</b><span>예상·최종 정산</span></div><div class="icon-cell"><div class="sizes"><svg width="48" height="48" aria-hidden="true"><use href="#i-house"/></svg><svg width="24" height="24" aria-hidden="true"><use href="#i-house"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-house"/></svg></div><div class="sizes on-canvas"><svg width="24" height="24" aria-hidden="true"><use href="#i-house"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-house"/></svg></div><b>집</b><span>방 정보</span></div><div class="icon-cell"><div class="sizes"><svg width="48" height="48" aria-hidden="true"><use href="#i-people"/></svg><svg width="24" height="24" aria-hidden="true"><use href="#i-people"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-people"/></svg></div><div class="sizes on-canvas"><svg width="24" height="24" aria-hidden="true"><use href="#i-people"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-people"/></svg></div><b>얼굴 둘</b><span>참여자</span></div><div class="icon-cell"><div class="sizes"><svg width="48" height="48" aria-hidden="true"><use href="#i-score"/></svg><svg width="24" height="24" aria-hidden="true"><use href="#i-score"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-score"/></svg></div><div class="sizes on-canvas"><svg width="24" height="24" aria-hidden="true"><use href="#i-score"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-score"/></svg></div><b>별</b><span>정산 단위 점수</span></div><div class="icon-cell"><div class="sizes"><svg width="48" height="48" aria-hidden="true"><use href="#i-chip"/></svg><svg width="24" height="24" aria-hidden="true"><use href="#i-chip"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-chip"/></svg></div><div class="sizes on-canvas"><svg width="24" height="24" aria-hidden="true"><use href="#i-chip"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-chip"/></svg></div><b>칩</b><span>정산 단위 칩</span></div><div class="icon-cell"><div class="sizes"><svg width="48" height="48" aria-hidden="true"><use href="#i-check"/></svg><svg width="24" height="24" aria-hidden="true"><use href="#i-check"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-check"/></svg></div><div class="sizes on-canvas"><svg width="24" height="24" aria-hidden="true"><use href="#i-check"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-check"/></svg></div><b>완료</b><span>저장 안내 띠</span></div><div class="icon-cell"><div class="sizes"><svg width="48" height="48" aria-hidden="true"><use href="#i-info"/></svg><svg width="24" height="24" aria-hidden="true"><use href="#i-info"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-info"/></svg></div><div class="sizes on-canvas"><svg width="24" height="24" aria-hidden="true"><use href="#i-info"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-info"/></svg></div><b>안내</b><span>안내 띠</span></div><div class="icon-cell"><div class="sizes"><svg width="48" height="48" aria-hidden="true"><use href="#i-offline"/></svg><svg width="24" height="24" aria-hidden="true"><use href="#i-offline"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-offline"/></svg></div><div class="sizes on-canvas"><svg width="24" height="24" aria-hidden="true"><use href="#i-offline"/></svg><svg width="16" height="16" aria-hidden="true"><use href="#i-offline"/></svg></div><b>끊김</b><span>연결 끊김 띠</span></div></div>
 
   <h2 class="row-title">4. 로고 — 동전이 종이 되어 딸랑!</h2>
   <p class="cap12" style="margin:-6px 0 14px;font-size:13px">동전 몸통에 종의 테·추를 붙이고 살짝 기울여 흔들리게, 양옆 짧은 획으로 소리를 낸다. 획 표시는 뱅크샐러드 아이콘의 "박수" 효과선과 같은 방식이다.</p>

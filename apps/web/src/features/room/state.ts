@@ -2,6 +2,7 @@
 import { atom } from "jotai";
 import type {
   Balance,
+  Claim,
   Participant,
   Room,
   Settlement,
@@ -17,7 +18,7 @@ export interface Session {
 
 export type ConnectionState = "connected" | "disconnected";
 
-/** 5개 조회를 하나로 묶은 스냅샷. 만들어진 연결 세대를 기록한다. */
+/** 갱신 주기의 조회(5개, 방장 6개)를 하나로 묶은 스냅샷. 만들어진 연결 세대를 기록한다. */
 export interface RoomSnapshot {
   epoch: number;
   room: Room;
@@ -29,6 +30,8 @@ export interface RoomSnapshot {
   /** 이 거래 목록(첫 페이지)을 조회할 때 쓴 참여자 필터. "더 보기"는 같은 필터로 이어 간다. */
   transactionFilter: string | null;
   settlement: Settlement;
+  /** 대기 중인 이어받기 요청(방장만 조회한다. 비방장은 항상 빈 배열, FD-25). */
+  claims: Claim[];
 }
 
 export const sessionAtom = atom<Session | null>(null);

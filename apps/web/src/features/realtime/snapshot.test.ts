@@ -4,7 +4,7 @@ import * as fixtures from "@/test/fixtures";
 import { fetchRoomSnapshot } from "./snapshot";
 
 const KEY = "k".repeat(43);
-const request = { roomId: "room-1", identityKey: KEY, participantId: null, epoch: 3 };
+const request = { roomId: "room-1", identityKey: KEY, participantId: null, epoch: 3, isHost: false };
 
 type Responder = (path: string, url: URL) => Response | Promise<Response>;
 
@@ -31,6 +31,7 @@ function ok(path: string, kind: "EXPECTED" | "FINAL" = "EXPECTED", status = "IN_
     "/rooms/room-1/balances": { balances: fixtures.balances },
     "/rooms/room-1/transactions": { transactions: fixtures.transactions, nextCursor: "c1" },
     "/rooms/room-1/settlement": { settlement: { ...fixtures.expectedSettlement, kind } },
+    "/rooms/room-1/claims": { claims: [fixtures.pendingClaim] },
   };
   return new Response(JSON.stringify(bodies[path]), { status: 200 });
 }
@@ -146,5 +147,36 @@ describe("fetchRoomSnapshot", () => {
     expect(await fetchRoomSnapshot(reverse.api, request)).toEqual({ ok: false, reason: "status-mismatch" });
     const ended = setup((path) => ok(path, "FINAL", "ENDED"));
     expect((await fetchRoomSnapshot(ended.api, request)).ok).toBe(true);
+  });
+
+  describe("방장의 갱신 대상 6개(FD-25, S5 §6.4, S5-C2)", () => {
+    const hostRequest = { ...request, isHost: true };
+
+    it("방장은 대기 중인 이어받기 요청까지 6개를 한꺼번에 조회해 스냅샷에 담는다", async () => {
+      const env = setup((path) => ok(path));
+      const result = await fetchRoomSnapshot(env.api, hostRequest);
+      expect(env.calls.map((c) => c.path).sort()).toEqual([
+        "/rooms/room-1",
+        "/rooms/room-1/balances",
+        "/rooms/room-1/claims",
+        "/rooms/room-1/participants",
+        "/rooms/room-1/settlement",
+        "/rooms/room-1/transactions",
+      ]);
+      expect(result.ok && result.snapshot.claims).toEqual([fixtures.pendingClaim]);
+    });
+
+    it("비방장은 대기 목록을 조회하지 않고 스냅샷의 claims는 빈 배열이다", async () => {
+      const env = setup((path) => ok(path));
+      const result = await fetchRoomSnapshot(env.api, request);
+      expect(env.calls.map((c) => c.path)).not.toContain("/rooms/room-1/claims");
+      expect(env.calls).toHaveLength(5);
+      expect(result.ok && result.snapshot.claims).toEqual([]);
+    });
+
+    it("6개 중 대기 목록 하나만 실패해도 스냅샷 없이 오류를 던진다(부분 반영 없음)", async () => {
+      const env = setup((path) => (path.endsWith("/claims") ? new Response("{}", { status: 503 }) : ok(path)));
+      await expect(fetchRoomSnapshot(env.api, hostRequest)).rejects.toMatchObject({ status: 503 });
+    });
   });
 });

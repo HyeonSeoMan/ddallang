@@ -6,7 +6,7 @@ import {
   setConnectionAtom,
   startEpochAtom,
 } from "@/features/room/state";
-import type { Participant } from "@/lib/api";
+import type { Claim, Participant } from "@/lib/api";
 import * as fixtures from "./fixtures";
 
 export const INVITE_CODE = fixtures.INVITE_CODE;
@@ -15,6 +15,7 @@ export interface SeedOptions {
   me?: Participant;
   status?: "IN_PROGRESS" | "ENDED";
   participants?: Participant[];
+  claims?: Claim[];
 }
 
 export function makeSnapshot(epoch: number, options: SeedOptions = {}): RoomSnapshot {
@@ -28,6 +29,7 @@ export function makeSnapshot(epoch: number, options: SeedOptions = {}): RoomSnap
     nextCursor: null,
     transactionFilter: null,
     settlement: options.status === "ENDED" ? fixtures.finalSettlement : fixtures.expectedSettlement,
+    claims: options.claims ?? [],
   };
 }
 

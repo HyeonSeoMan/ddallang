@@ -2,6 +2,7 @@
 
 import { useAtomValue } from "jotai";
 import { BalancesSection } from "@/features/balances/balances-section";
+import { ClaimRequestsSection } from "@/features/claims/claim-requests-section";
 import { ParticipantsSection } from "@/features/participants/participants-section";
 import { EndGame } from "@/features/settlement/end-game";
 import { SettlementSection } from "@/features/settlement/settlement-section";
@@ -60,12 +61,13 @@ export function SettlementPage() {
   );
 }
 
-/** 방: 방 정보(초대 링크)와 참여자. */
+/** 방: 방 정보(초대 링크), (방장에게 대기 요청이 있으면) 이어받기 요청, 참여자(FD-24: 참여자 구역 위). */
 export function RoomPage() {
   return (
-    <RoomSections
-      only={["info", "participants"]}
-      slots={{ info: <RoomInfo />, participants: <ParticipantsSection /> }}
-    />
+    <>
+      <RoomSections only={["info"]} slots={{ info: <RoomInfo /> }} />
+      <ClaimRequestsSection />
+      <RoomSections only={["participants"]} slots={{ participants: <ParticipantsSection /> }} />
+    </>
   );
 }

@@ -7,6 +7,7 @@ import { getApiBaseUrl } from "@/lib/env";
 import { getStoredKey } from "@/lib/identity";
 import {
   applySnapshotAtom,
+  sessionAtom,
   setConnectionAtom,
   startEpochAtom,
 } from "@/features/room/state";
@@ -80,6 +81,7 @@ export function useRoomConnection(
               identityKey,
               participantId: store.get(participantFilterAtom),
               epoch,
+              isHost: store.get(sessionAtom)?.me.isHost ?? false,
             }, signal);
           },
           applySnapshot: (snapshot) => store.set(applySnapshotAtom, snapshot),

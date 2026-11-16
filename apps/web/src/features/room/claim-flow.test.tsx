@@ -188,6 +188,26 @@ describe("이어받기 요청의 결과 불명(응답 유실) 뒤 복구 (S1 §6
     expect(counts.lookups()).toBe(2);
   });
 
+  it.each([
+    ["502 게이트웨이 오류", () => new HttpResponse(null, { status: 502 })],
+    ["2xx인데 본문을 해석할 수 없음", () => new HttpResponse("<html>", { status: 201 })],
+  ])("요청 응답이 %s이면 거부가 아니라 결과 불명으로 보고 다시 조회한다(검수 L4)", async (_name, respond) => {
+    let lookups = 0;
+    server.use(
+      http.get(apiUrl(INVITE), () => {
+        lookups += 1;
+        return HttpResponse.json(
+          lookups === 1 ? fixtures.inviteLookup() : fixtures.inviteLookup({ identity: "PENDING", claim: claim({ id: "new" }) }),
+        );
+      }),
+      http.post(apiUrl(`${INVITE}/claims`), respond),
+    );
+    mount();
+    await requestClaim(userEvent.setup());
+    expect(await screen.findByRole("heading", { name: WAITING_TITLE })).toBeInTheDocument();
+    expect(lookups).toBe(2);
+  });
+
   it("그 사이 승인됐으면(PARTICIPANT) 입장 요청으로 복원해 방 화면에 들어간다", async () => {
     lostRequest(fixtures.inviteLookup({ identity: "PARTICIPANT" }));
     server.use(
@@ -294,6 +314,24 @@ describe("요청 취소의 결과 불명·이미 처리됨 (S1 §6.5)", () => {
     await cancelWith("lost", claim({ status: "CANCELED" }));
     expect(await screen.findByText("이어받기 요청이 취소된 상태입니다.")).toBeInTheDocument();
     expect(screen.queryByText("이어받기 요청을 취소했습니다.")).not.toBeInTheDocument();
+  });
+
+  it("결과 불명·이미 처리됨이 아닌 취소 거부는 서버 안내만 보이고 확인 조회를 하지 않는다(검수 L3)", async () => {
+    storage.setItem(STORAGE_NAME, "p".repeat(43));
+    const checks: string[] = [];
+    server.use(
+      http.get(apiUrl(INVITE), () => HttpResponse.json(fixtures.inviteLookup({ identity: "PENDING", claim: claim() }))),
+      http.post(apiUrl(`${INVITE}/claims/:id/cancel`), () => errorResponse("CLAIM_NOT_FOUND", { message: "요청을 찾을 수 없습니다" })),
+      http.get(apiUrl(`${INVITE}/claims/:id`), ({ params }) => {
+        checks.push(String(params.id));
+        return HttpResponse.json({ claim: claim() });
+      }),
+    );
+    mount();
+    await userEvent.click(await screen.findByRole("button", { name: "요청 취소" }));
+    expect(await screen.findByText("요청을 찾을 수 없습니다")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: WAITING_TITLE })).toBeInTheDocument();
+    expect(checks).toEqual([]);
   });
 
   it("확인 조회까지 실패하면 대기를 유지하고 확인하지 못했다고 안내한다", async () => {

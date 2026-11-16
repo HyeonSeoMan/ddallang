@@ -86,6 +86,8 @@ export type InviteEvent =
   | { type: "CANCELED"; claim: MyClaim }
   /** 취소의 결과 불명 또는 `CLAIM_ALREADY_RESOLVED`. 내 요청 조회로 현재 상태를 확인한다. */
   | { type: "CANCEL_UNCERTAIN" }
+  /** 그 밖의 취소 거부. 서버 안내를 보이고 대기에 남는다(주기 조회가 이어서 상태를 확인한다). */
+  | { type: "CANCEL_FAILED"; message: string }
   | { type: "ACCESS_REVOKED" }
   | { type: "RETRY" };
 
@@ -193,8 +195,11 @@ export function inviteReducer(state: InviteState, event: InviteEvent): InviteSta
     case "CHOOSE_JOIN":
       return view.stage === "choose" && !state.ended ? { ...state, notice: null, view: { stage: "nickname" } } : state;
     case "CHOOSE_CLAIM":
-      return (view.stage === "choose" || view.stage === "nickname") && state.candidates.length > 0
-        ? { ...state, notice: null, view: { stage: "candidates" } }
+      if (view.stage !== "choose" && view.stage !== "nickname") return state;
+      if (state.candidates.length > 0) return { ...state, notice: null, view: { stage: "candidates" } };
+      // 입장 거부 뒤의 `이어받기로 가기`: 처음 조회한 후보가 비어 있었어도 그 사이 생겼을 수 있으니 다시 불러온다.
+      return view.stage === "nickname"
+        ? { ...state, notice: null, view: { stage: "checking", returnTo: "candidates" } }
         : state;
     case "BACK":
       if (view.stage === "nickname" || view.stage === "candidates") return { ...state, notice: null, view: { stage: "choose" } };
@@ -254,6 +259,10 @@ export function inviteReducer(state: InviteState, event: InviteEvent): InviteSta
         : state;
     case "CANCEL_UNCERTAIN":
       return view.stage === "canceling" ? { ...state, view: { stage: "cancel-checking", claim: view.claim } } : state;
+    case "CANCEL_FAILED":
+      return view.stage === "canceling"
+        ? { ...state, notice: { kind: "server", message: event.message }, view: { stage: "waiting", claim: view.claim } }
+        : state;
     case "ACCESS_REVOKED":
       return { ...state, notice: null, view: { stage: "checking" } };
     case "RETRY":

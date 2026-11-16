@@ -160,6 +160,15 @@ describe("접근 상실 처리 (FE-M2)", () => {
     expect(storage.getItem(STORAGE_NAME)).toBe(NEW);
   });
 
+  it("다른 401(UNAUTHENTICATED)은 접근 상실이 아니라 기존 접근 불가 안내다(검수 L6)", async () => {
+    await openRoomAs(fixtures.hostParticipant.id);
+    server.use(http.get(apiUrl(`/rooms/${fixtures.room.id}`), () => errorResponse("UNAUTHENTICATED")));
+    backend.commit("participant.created", { participantId: "p-x" });
+    expect(await screen.findByText("연결할 수 없음")).toBeInTheDocument();
+    expect(screen.queryByText(ACCESS_LOST_NOTICE, { exact: false })).not.toBeInTheDocument();
+    expect(storage.getItem(STORAGE_NAME)).toBe(OLD);
+  });
+
   it("다른 401·404는 접근 상실이 아니라 기존 접근 불가 안내다", async () => {
     await openRoomAs(fixtures.hostParticipant.id);
     // 키가 이 방에서 연결되지 않은 것처럼 서버가 방 조회를 404 ROOM_NOT_FOUND로 거부한다.

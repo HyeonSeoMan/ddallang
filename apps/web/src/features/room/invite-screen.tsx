@@ -285,7 +285,7 @@ export function InviteScreen({ inviteCode, children }: { inviteCode: string; chi
       if (mounted.current) dispatch({ type: "CLAIM_CREATED", claim: data.claim });
     } catch (error) {
       if (!mounted.current || isRevoked(error)) return;
-      if (error instanceof NetworkError) dispatch({ type: "CLAIM_LOST" });
+      if (isResultUnknown(error)) dispatch({ type: "CLAIM_LOST" });
       else dispatch({ type: "CLAIM_REJECTED", code: errorCode(error), message: errorMessage(error) });
     }
   }
@@ -305,7 +305,12 @@ export function InviteScreen({ inviteCode, children }: { inviteCode: string; chi
       if (mounted.current) dispatch({ type: "CANCELED", claim: data.claim });
     } catch (error) {
       if (!mounted.current || isRevoked(error)) return;
-      dispatch({ type: "CANCEL_UNCERTAIN" });
+      // 결과 불명과 이미 처리됨만 내 요청 조회로 확인한다(S1 §6.5). 그 밖의 거부는 서버 안내를 보인다.
+      if (isResultUnknown(error) || (error instanceof ApiError && error.code === "CLAIM_ALREADY_RESOLVED")) {
+        dispatch({ type: "CANCEL_UNCERTAIN" });
+      } else {
+        dispatch({ type: "CANCEL_FAILED", message: errorMessage(error) });
+      }
     }
   }
 
@@ -314,7 +319,7 @@ export function InviteScreen({ inviteCode, children }: { inviteCode: string; chi
   const notice = state.notice ? inviteNoticeContent(state.notice) : null;
   const noticeBanner = notice ? <Banner tone={notice.tone}>{notice.text}</Banner> : null;
   const claimableHint =
-    state.notice?.kind === "server" && state.notice.claimable && state.candidates.length > 0 ? (
+    state.notice?.kind === "server" && state.notice.claimable ? (
       <div className={columnClass}>
         <p className={hintClass}>{CLAIMABLE_HINT}</p>
         <Button variant="secondary" onClick={() => dispatch({ type: "CHOOSE_CLAIM" })}>
@@ -528,6 +533,17 @@ function RoomConnection({
 }) {
   useRoomConnection(inviteCode, roomId, onAccessRevoked, connectionRef);
   return null;
+}
+
+/**
+ * 처리됐는지 알 수 없는 응답: 응답을 받지 못했거나(`NetworkError`), 게이트웨이·서버 오류(5xx)이거나, 2xx인데 본문을
+ * 해석하지 못했다. 같은 키로 자동 재전송하지 않고 현재 상태를 다시 조회한다(S1 §6.5).
+ */
+function isResultUnknown(error: unknown): boolean {
+  return (
+    error instanceof NetworkError ||
+    (error instanceof ApiError && (error.status >= 500 || error.code === "INVALID_RESPONSE"))
+  );
 }
 
 function isRevoked(error: unknown): boolean {

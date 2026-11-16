@@ -186,6 +186,26 @@ describe("초대 링크 화면", () => {
     expect(screen.getByRole("heading", { name: "이어받을 참여자 선택" })).toBeInTheDocument();
   });
 
+  it("[AC-ROOM-002-6] 처음 조회의 후보가 비어 있었어도 이어받기 안내를 보이고 누르면 후보를 다시 불러온다(검수 L5)", async () => {
+    let lookups = 0;
+    server.use(
+      http.get(apiUrl(`/invites/${CODE}`), ({ request }) => {
+        record(request);
+        lookups += 1;
+        return HttpResponse.json(fixtures.inviteLookup({ claimableNicknames: lookups === 1 ? [] : ["나래"] }));
+      }),
+      joinHandler(() => errorResponse("NICKNAME_TAKEN", { message: "이미 사용 중인 닉네임입니다" })),
+    );
+    renderApp(<InviteScreen inviteCode={CODE}><AllPages /></InviteScreen>);
+    const user = userEvent.setup();
+    await user.type(await openNewJoin(user), "나래");
+    await user.click(screen.getByRole("button", { name: "입장" }));
+    await user.click(await screen.findByRole("button", { name: "이어받기로 가기" }));
+    expect(await screen.findByRole("heading", { name: "이어받을 참여자 선택" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "나래" })).toBeInTheDocument();
+    expect(lookups).toBe(2);
+  });
+
   it("[AC-ROOM-002-6] 닉네임이 중복이면 목록을 조회하지 않고 서버 안내와 이어받기 안내를 보인다", async () => {
     server.use(
       inviteHandler(),

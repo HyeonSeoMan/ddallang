@@ -105,6 +105,17 @@ describe("초대 화면 상태기계 (FD-22)", () => {
       }
     });
 
+    it("입장 거부 뒤 `이어받기로 가기`는 처음 후보가 비어 있었어도 후보를 다시 불러온다(검수 L5)", () => {
+      const rejected = run(
+        [{ type: "JOIN_REJECTED", code: "NICKNAME_TAKEN", message: "m" }],
+        at({ stage: "joining" }, { candidates: [] }),
+      );
+      const reloading = run([{ type: "CHOOSE_CLAIM" }], rejected);
+      expect(reloading.view).toEqual({ stage: "checking", returnTo: "candidates" });
+      expect(stageOf(run([checked({ claimableNicknames: ["다온"] })], reloading))).toBe("candidates");
+      expect(stageOf(run([checked({ claimableNicknames: [] })], reloading))).toBe("choose");
+    });
+
     it("다른 거부(검증·네트워크)는 이어받기 안내 없이 닉네임 단계로 돌아간다", () => {
       const state = run([{ type: "JOIN_REJECTED", code: "VALIDATION_FAILED", message: "m" }], at({ stage: "joining" }));
       expect(state.notice).toEqual({ kind: "server", message: "m", claimable: false });
@@ -261,6 +272,14 @@ describe("초대 화면 상태기계 (FD-22)", () => {
           view: { stage: "waiting", claim: claim() },
           notice: { kind: "cancel-unconfirmed" },
         });
+      });
+    });
+
+    it("결과 불명·이미 처리됨이 아닌 취소 거부는 서버 안내를 보이고 대기에 남는다(검수 L3)", () => {
+      const state = run([{ type: "CANCEL" }, { type: "CANCEL_FAILED", message: "요청을 찾을 수 없습니다" }], waiting);
+      expect(state).toMatchObject({
+        view: { stage: "waiting", claim: claim() },
+        notice: { kind: "server", message: "요청을 찾을 수 없습니다" },
       });
     });
 

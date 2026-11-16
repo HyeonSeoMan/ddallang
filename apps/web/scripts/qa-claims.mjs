@@ -42,10 +42,16 @@ async function attach(port, role) {
     }
     if (x.method === "Network.responseReceived") {
       const r = x.params.response;
-      if (r.url.includes("onrender.com") && r.status >= 400) bad.push(`${r.status} ${r.url.replace(/^https:\/\/[^/]+/, "")}`);
+      // 앱 출처가 아닌 응답(= API)의 4xx/5xx. API 주소에 묶지 않는다(검수 F5).
+      if (new URL(r.url).origin !== new URL(WEB).origin && r.status >= 400) {
+        bad.push({ at: Date.now(), status: r.status, path: new URL(r.url).pathname, text: `${r.status} ${new URL(r.url).pathname}` });
+      }
+    }
+    if (x.method === "Runtime.consoleAPICalled" && x.params.type === "error") {
+      bad.push({ at: Date.now(), text: "console.error: " + x.params.args.map((a) => a.value ?? a.description ?? "").join(" ").slice(0, 160) });
     }
     if (x.method === "Runtime.exceptionThrown") {
-      bad.push("JS 예외: " + (x.params.exceptionDetails.exception?.description ?? x.params.exceptionDetails.text).slice(0, 160));
+      bad.push({ at: Date.now(), text: "JS 예외: " + (x.params.exceptionDetails.exception?.description ?? x.params.exceptionDetails.text).slice(0, 160) });
     }
   };
   const send = (method, params = {}) =>
@@ -85,6 +91,7 @@ const A = await attach(PA, "A");
 const B = await attach(PB, "B");
 const C = await attach(PC, "C");
 const ROOM = `이어받기점검${Date.now() % 10000}`;
+let tApprove = Number.POSITIVE_INFINITY;
 try {
   // ---------- A: 방 만들기 ----------
   await A.send("Page.navigate", { url: WEB + "/" });
@@ -132,7 +139,7 @@ try {
   // ---------- A 승인 → C 방 화면, B 접근 상실 ----------
   await A.ev("__q.aria('이전B 이어받기 승인')");
   await A.waitFor("!!document.querySelector('[role=dialog]')", "A 승인 확인");
-  const tApprove = Date.now();
+  tApprove = Date.now();
   await A.ev("[...document.querySelectorAll('[role=dialog] button')].find(b => b.textContent.trim() === '승인').click(); true");
   const [cMs, bMs] = await Promise.all([
     C.waitFor("!!document.querySelector('section[data-section=balances]')", "C 방 화면", 30000).then(() => Date.now() - tApprove),
@@ -156,14 +163,18 @@ try {
   await A.shot("a-room-after-390");
 
   // ---------- 오류 기록 ----------
-  const expectedB = (x) => x.startsWith("401 ");
-  const badA = [...new Set(A.bad)];
-  const badB = [...new Set(B.bad)].filter((x) => !expectedB(x));
-  const badC = [...new Set(C.bad)];
+  // B에서 예상되는 오류는 승인 뒤 이 방·초대 경로의 401(IDENTITY_REVOKED)뿐이다(검수 F4). 코드는 CDP 응답 본문 없이
+  // 알 수 없으므로 시각·경로·상태로 좁힌다. 그 밖의 401·승인 전 401은 예상 밖이다.
+  const roomPath = (p) => p.startsWith("/rooms/") || p.startsWith("/invites/");
+  const expectedB = (x) => x.status === 401 && x.at >= tApprove && roomPath(x.path ?? "");
+  const texts = (list) => [...new Set(list.map((x) => x.text))];
+  const badA = texts(A.bad);
+  const badB = texts(B.bad.filter((x) => !expectedB(x)));
+  const badC = texts(C.bad);
   check(
-    "14 예상 밖 4xx/5xx·JS 예외가 없다(B의 401 IDENTITY_REVOKED는 예상)",
+    "14 예상 밖 4xx/5xx·console.error·JS 예외가 없다(B의 승인 뒤 401은 예상)",
     badA.length + badB.length + badC.length === 0,
-    [...badA, ...badB, ...badC].join(" | ") || `없음(B 401 ${[...new Set(B.bad)].filter(expectedB).length}종)`,
+    [...badA, ...badB, ...badC].join(" | ") || `없음(B 승인 뒤 401 ${B.bad.filter(expectedB).length}건)`,
   );
 } catch (e) {
   check("스크립트 오류 없음", false, String(e.message).slice(0, 300));

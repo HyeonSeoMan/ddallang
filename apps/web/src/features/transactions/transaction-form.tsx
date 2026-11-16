@@ -16,7 +16,7 @@ import { amountInputClass, TextField } from "@/ui/text-field";
 import { useDismissedServerErrors } from "./dismissed-errors";
 import { type FieldErrors, fieldReasonMessage, READ_ONLY_SELF_NOTICE, type TxField } from "./messages";
 import { MutationNotice } from "./mutation-notice";
-import { mutationScope, useRoomMutation } from "./mutation-state";
+import { mutationScope, readOnlySeenAtom, useRoomMutation } from "./mutation-state";
 
 interface Draft {
   payerId: string;
@@ -32,9 +32,6 @@ const EMPTY: Draft = { payerId: "", payeeId: "", amount: "", reason: "", round: 
  * 거래 입력 초안. 메모리 원자라서 연결이 끊겨 영역이 가려져도 유지되고(AC-SYS-001-5) 새로고침하면 사라진다(AC-SYS-002-4).
  * 끊김 중에 작성한 입력은 복구 때 자동 제출되지 않는다(AC-SYS-002-2).
  */
-/** 작업 범위별: 비활성 거부 뒤 조회 전용을 본 적이 있는가(재활성화 때 거부 안내를 지우는 기준). */
-const readOnlySeenAtom = atom<Record<string, boolean>>({});
-
 export const transactionDraftsAtom = atom<Record<string, Draft>>({});
 
 /** 초안의 키: 방과 요청자 참여자별로 분리한다(S2 §5.1). 다른 방·신원으로 바뀌어도 초안이 이어지지 않는다. */
@@ -95,24 +92,22 @@ export function TransactionForm() {
   const mutation = useRoomMutation(scope);
   const serverErrors: FieldErrors = mutation.state?.kind === "rejected" ? mutation.state.fieldErrors : {};
   const dismissedServer = useDismissedServerErrors(scope, mutation.state, serverErrors);
-  // 비활성 거부(REQUESTER_INACTIVE) 뒤 조회 전용을 본 적이 있으면, 다시 변경할 수 있게 된 때(재활성화) 그 안내를 지운다.
-  // 거부 직후 갱신이 오기 전에는 지우지 않는다(서버 message를 보여야 한다, S2 §9). "본 적 있음"은 작업 범위별 전역
-  // 상태라 끊김·페이지 이동으로 폼이 다시 마운트돼도 유지된다. 입력값은 그대로 둔다(검수 R4·N1·P1).
+  // 비활성 거부(REQUESTER_INACTIVE) 뒤 조회 전용이 관측된 적이 있으면(기록은 `useRoomMutation`이 한다), 다시 변경할 수
+  // 있게 된 때(재활성화) 그 안내를 지운다. 거부 직후 갱신이 오기 전에는 지우지 않는다(서버 message를 보여야 한다, S2 §9).
+  // 끊김·페이지 이동으로 폼이 다시 마운트돼도 기록은 유지된다. 입력값은 그대로 둔다(검수 R4·N1·P1·F6).
   const [readOnlySeen, setReadOnlySeen] = useAtom(readOnlySeenAtom);
   const inactiveRejected = mutation.state?.kind === "rejected" && mutation.state.code === "REQUESTER_INACTIVE";
   const seen = readOnlySeen[scope] === true;
   const { clear } = mutation;
   useEffect(() => {
-    if (inactiveRejected && readOnly && !seen) setReadOnlySeen((all) => ({ ...all, [scope]: true }));
-    if (inactiveRejected && canMutate && seen) {
-      clear();
-      setReadOnlySeen((all) => {
-        const next = { ...all };
-        delete next[scope];
-        return next;
-      });
-    }
-  }, [inactiveRejected, readOnly, canMutate, seen, scope, clear, setReadOnlySeen]);
+    if (!inactiveRejected || !canMutate || !seen) return;
+    clear();
+    setReadOnlySeen((all) => {
+      const next = { ...all };
+      delete next[scope];
+      return next;
+    });
+  }, [inactiveRejected, canMutate, seen, scope, clear, setReadOnlySeen]);
 
   // 종료 후에는 폼을 숨긴다(초안은 메모리에 남는다). 조회 전용 본인은 폼을 남기되 비활성화한다(FD-26).
   if (!snapshot || (!canMutate && !readOnly)) return null;

@@ -121,7 +121,9 @@ async function measureRaw(
 const saveKey = (code: string, key: string) => storage.setItem(`ddallang:identity:${code}`, key);
 const claimRow = (nickname: string) => (container: HTMLElement) =>
   (section(container, "이어받기 요청")?.textContent ?? "").includes(`${nickname} 이어받기 요청`);
-const accessLost = (container: HTMLElement) => (container.textContent ?? "").includes(ACCESS_LOST_NOTICE);
+/** 접근 상실 안내가 보이고 데이터 영역(방 화면)이 닫혔다(S5 §6.7 "안내·차단", 검수 F7). */
+const accessLost = (container: HTMLElement) =>
+  (container.textContent ?? "").includes(ACCESS_LOST_NOTICE) && section(container, "누적 손익") === null;
 /** 요청자 화면이 방 화면(현황)으로 들어갔다. */
 const inRoom = (container: HTMLElement) => section(container, "누적 손익") !== null && (container.textContent ?? "").includes("참0");
 
@@ -382,6 +384,8 @@ describe("화면 반영 지연 (FE-S5-6, S5 §6.7)", () => {
       const target = live.members[9]!.me.nickname;
       try {
         const claim = await requestClaim(live, newKey(), target);
+        // 변경은 한 번에 하나(§6.7): 요청 생성(`claim.created`)이 방장 화면까지 반영된 뒤 승인한다(검수 F7).
+        if ((await clients[0]!.observe(claimRow(target), WAIT_MS)) === null) throw new Error("접근 상실 안내: 요청 반영 대기 시간 초과");
         await measureRaw("접근 상실 안내", old, () => approveClaim(live, claim.claim.id), accessLost);
       } finally {
         closeClients(clients);
@@ -396,12 +400,15 @@ describe("화면 반영 지연 (FE-S5-6, S5 §6.7)", () => {
       const lossyKey = live.members[9]!.key;
       let dropped = 0;
       let firstDropped = false;
+      let opens = 0; // 이 접속자가 스트림을 연 횟수(재연결 감지)
       const realFetch = globalThis.fetch;
       vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
         const response = await realFetch(input, init);
         const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
         const auth = new Headers(init?.headers).get("Authorization");
-        if (!url.endsWith("/events") || auth !== `Bearer ${lossyKey}` || !response.body) return response;
+        if (!url.endsWith("/events") || auth !== `Bearer ${lossyKey}`) return response;
+        opens += 1;
+        if (!response.body) return response;
         // 이 접속자의 스트림에서 첫 `access.revoked` 프레임만 버린다(재확인으로 다시 오는 것은 통과).
         const decoder = new TextDecoder();
         const encoder = new TextEncoder();
@@ -428,8 +435,17 @@ describe("화면 반영 지연 (FE-S5-6, S5 §6.7)", () => {
       const clients = await openClients(live);
       try {
         const claim = await requestClaim(live, newKey(), live.members[9]!.me.nickname);
+        if ((await clients[0]!.observe(claimRow(live.members[9]!.me.nickname), WAIT_MS)) === null) {
+          throw new Error("접근 상실 유실 수렴: 요청 반영 대기 시간 초과");
+        }
+        const opensBefore = opens;
         await measureRaw("접근 상실 유실 수렴", clients[9]!, () => approveClaim(live, claim.claim.id), accessLost, CONVERGE_LIMIT_MS + 10_000);
         if (dropped === 0) throw new Error("접근 상실 유실 수렴: access.revoked가 버려지지 않아 측정이 무효입니다.");
+        // 서버는 access.revoked를 보낸 뒤 스트림을 닫는다(S5 §4.2). 클라이언트가 재연결해 401로 안내했다면 하트비트 경로가
+        // 아니므로 측정이 무효다(검수 F1). 이 경로는 클라이언트 쪽 필터로 재현할 수 없어 서버 측정(BE-M8)에 맡긴다.
+        if (opens !== opensBefore) {
+          throw new Error("접근 상실 유실 수렴: 재연결(401) 경로로 수렴해 하트비트 경로 측정이 무효입니다(서버가 스트림을 닫음).");
+        }
       } finally {
         vi.unstubAllGlobals();
         closeClients(clients);

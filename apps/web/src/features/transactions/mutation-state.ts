@@ -13,7 +13,7 @@ import {
   type SubmitOptions,
 } from "@/lib/mutation/manager";
 import { requestRefreshAtom } from "@/features/realtime/state";
-import { epochAtom, sessionAtom } from "@/features/room/state";
+import { epochAtom, readOnlySelfAtom, sessionAtom } from "@/features/room/state";
 import { CLOCK_UNKNOWN_MESSAGE, describeApiError, type FieldErrors, NO_KEY_MESSAGE } from "./messages";
 
 export type MutationUi =
@@ -74,6 +74,9 @@ export function mutationScope(kind: "create" | "update" | "delete" | "end", targ
   return `${kind}:${target}:${memberId}`;
 }
 
+/** 작업 범위별: 비활성 거부(REQUESTER_INACTIVE) 뒤 조회 전용을 본 적이 있는가. 재활성화 때 거부 안내를 지우는 기준이다. */
+export const readOnlySeenAtom = atom<Record<string, boolean>>({});
+
 export function useRoomMutation(scope: string, config: { expiredGuide?: string } = {}): RoomMutation {
   const store = useStore();
   const stateAtom = useMemo(() => atom((get) => get(mutationUiAtom)[scope] ?? null), [scope]);
@@ -116,7 +119,16 @@ export function useRoomMutation(scope: string, config: { expiredGuide?: string }
           const { message, fieldErrors } = describeApiError(outcome.error, { fresh, expiredGuide: config.expiredGuide });
           next = { kind: "rejected", code: outcome.error.code, message, fieldErrors };
           // 비활성 참여자의 신원(S2 §9, FD-26): 서버 message를 보이고 입력은 그대로 둔 채 갱신해 조회 전용으로 바꾼다.
-          if (outcome.error.code === "REQUESTER_INACTIVE") store.set(requestRefreshAtom);
+          if (outcome.error.code === "REQUESTER_INACTIVE") {
+            // 이 거부 뒤 조회 전용이 실제로 관측되면 기록한다(재활성화 때 안내를 지우는 기준, 검수 P1·F6). 폼이 다른
+            // 페이지에 있어 마운트되지 않았어도 기록되도록 스토어를 직접 구독한다.
+            const unsubscribe = store.sub(readOnlySelfAtom, () => {
+              if (!store.get(readOnlySelfAtom)) return;
+              store.set(readOnlySeenAtom, (all) => ({ ...all, [scope]: true }));
+              unsubscribe();
+            });
+            store.set(requestRefreshAtom);
+          }
           break;
         }
         case "unknown":

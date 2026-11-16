@@ -184,6 +184,33 @@ describe("조회 전용 본인 (FD-26, FE-C6)", () => {
     view.unmount();
   });
 
+  it("다른 페이지에 있는 사이 비활성·재활성화가 끝나도 돌아오면 비활성 거부 안내가 없다(검수 F6)", async () => {
+    await primeServerClock(KEY);
+    server.use(
+      http.post(apiUrl(`/rooms/${fixtures.room.id}/transactions`), () =>
+        errorResponse("REQUESTER_INACTIVE", { message: "비활성 참여자는 거래를 기록할 수 없습니다" }),
+      ),
+    );
+    seedRoom(store, { me: fixtures.guestParticipant });
+    const record = renderApp(<main><RecordPage /></main>, store);
+    const user = userEvent.setup();
+    await choose(user, screen, "지급자", "가온");
+    await choose(user, screen, "수취자", "나래");
+    await user.type(screen.getByLabelText("금액"), "500");
+    await user.click(screen.getByRole("button", { name: "저장" }));
+    expect(await screen.findByText("비활성 참여자는 거래를 기록할 수 없습니다")).toBeInTheDocument();
+    record.unmount(); // 현황 등 다른 페이지로 옮겼다(폼이 마운트되지 않음)
+    act(() => {
+      seedRoom(store, { me: inactiveMe, participants: withMeInactive }); // 갱신: 조회 전용
+    });
+    act(() => {
+      seedRoom(store, { me: fixtures.guestParticipant }); // 재활성화
+    });
+    renderApp(<main><RecordPage /></main>, store); // 기록 페이지로 돌아온다
+    await waitFor(() => expect(screen.queryByText("비활성 참여자는 거래를 기록할 수 없습니다")).not.toBeInTheDocument());
+    expect(screen.getByLabelText("금액")).toHaveValue("500");
+  });
+
   it("끊긴 사이 재활성화돼도 재연결 뒤 비활성 거부 안내를 지운다(검수 P1)", async () => {
     await primeServerClock(KEY);
     server.use(

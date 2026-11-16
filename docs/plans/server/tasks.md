@@ -1,5 +1,6 @@
 # 백엔드 Tasks — `ddallang-server` (G3)
 
+- 문서 버전: **2.0.0 초안** (2026-11-16). Spec v0.3.0 반영 개정 Task를 §J(`BE-M1`~`BE-M8`, `BE-Z2`)에 더한다. 기준 Spec은 S1~S5 v0.3.0(`plan.md` §1.1). §A~§I는 v1.x(Spec v0.2.x) 기록이며 구현이 끝났다. 둘이 어긋나면 §J와 `plan.md` §11.3이 우선한다
 - 문서 버전: 1.0.0 (**G3 확정, 사용자 판단 승인 2026-11-09 — Codex PASS 없음**, 본문 커밋 `f2f1dc6`). 짝 문서: `plan.md`(결정·소유·위험), `ac-matrix.md`(AC 매핑)
 - 기준 Spec: S1 v0.2.3, S2 v0.2.2, S3 v0.2.4, S5 v0.2.3, S4 v0.2.0(커밋은 `plan.md` §1.1)
 - 표기: `PD-n`은 `plan.md` §2.2의 결정, `RK-n`은 §6의 위험. Spec 절은 `S2 §5.4`처럼 쓴다. "완료 기준"은 Task가 끝났다고 판정하는 조건이며 모두 자동 시험으로 증명한다. 시험 제목은 `[AC-…]` 태그를 쓴다.
@@ -120,3 +121,26 @@
 | 종료 변경의 지연 측정, 재연결 후 5개 조회(정산 포함)·끊김 중 종료 반영(AC-SYS-002-1·002-3) | 종료(S4)·정산 조회(S4) | BE-S4-7 |
 | 참여자 손익이 목록·정산에 포함(AC-PART-002-6) | 순손익(S3)·정산(S4) | BE-S3-1, BE-S4-2 |
 | 비활성 참여자가 포함된 거래 수정(AC-PART-002-7) | 거래 수정(S2) | BE-S2-3 |
+
+## J. v2.0.0 개정 — Spec v0.3.0 (근거: `plan.md` §11)
+
+이미 구현된 v1.x 서버를 고친다. 순서는 `BE-M1 → M2 → M3 → M4 → M5 → M6 → M7 → M8 → Z2`이며 M1~M3은 한 브랜치에서 이어서 한다(`plan.md` §11.4). "완료 기준"의 AC는 `ac-matrix.md`(v2.0.0)에서 그 Task에 배정된 `**개정**`·`**신규**` 행이며 아래에는 대표 항목만 적는다. 모든 Task는 회귀 시험(바뀌지 않은 AC의 기존 시험) 통과를 함께 요구한다.
+
+| ID | 제목 | 선행 | 근거 | 내용 | 완료 기준 |
+| --- | --- | --- | --- | --- | --- |
+| BE-M1 | 스키마 이행 | v1.x 완료 | PD-21, PD-22, S1 §2.1, S2 §2.1 | 마이그레이션 하나(소유): `RoomMember` 삭제, `Participant.isHost`·`identityKeyHash`와 부분 유일 인덱스 2개, `ClaimRequest`(CHECK·부분 유일 인덱스), `RevokedIdentity`, `Transaction.authorId`·`deletedById`·`IdempotencyRecord`·`StreamLease`의 참조를 `Participant`로. 시작 시 `Room` 행이 있으면 실패하는 가드, 데이터 삭제용 `prisma/reset-v1-data.sql`(실행은 로컬·시험만), Prisma 스키마·생성 코드 갱신 | 빈 DB 적용, 데이터 없는 v1.x DB 적용, 데이터 있는 DB에서 실패하는 시험. 제약 시험: 같은 방 같은 해시 두 참여자 거부, 방장 둘 거부, 같은 키 `PENDING` 둘 거부, `RevokedIdentity` 중복 거부, CHECK 값 밖 거부 |
+| BE-M2 | 신원 상태 해석·인증 | M1 | PD-23, PD-24, S1 §2.2, §3.1, §3.3, S2 §3.4 2 | `resolveIdentity`, BE-F4 가드 개정(`/rooms/…`: LINKED만 통과, REVOKED `401 IDENTITY_REVOKED`, 나머지 `404 ROOM_NOT_FOUND`), 잠금 안 재확인 도우미, 오류 레지스트리에 S1 §3.4·S2 §3.6의 새 코드(`IDENTITY_REVOKED`, `ALREADY_PARTICIPANT`, `CLAIM_PENDING`, `CLAIM_ALREADY_RESOLVED`, `CLAIM_REQUESTER_LINKED`, `CLAIM_NOT_FOUND`, `HOST_CANNOT_BE_DEACTIVATED`, `REQUESTER_INACTIVE`) 추가, `MEMBER_LIMIT_EXCEEDED` 제거 | 상태 4가지 단위 시험, 불변식 위반 시 500, 비참여자·대기 키와 없는 방이 같은 404, 접근 상실 401(AC-SYS-003-6의 REST 쪽, AC-TXN-003-2) |
+| BE-M3 | S1 기존 엔드포인트 개정 | M2 | S1 §4.1~§4.8, §6.4, §8 | `POST /rooms`(방장 참여자에 키 연결, `me: Participant`), `GET /invites`(`identity`·`claim`(최근 1건 `MyClaim`)·`claimableNicknames`(방장 제외, `order` 순, NONE·REVOKED일 때만), 공개 필드 제한), `POST …/members`(상태 분기: LINKED 복원 200, REVOKED 401, PENDING `CLAIM_PENDING`, NONE 새 참여자: 종료면 `GAME_ENDED`, 7→8→9, `participant.created`), 방·참여자 조회의 `me`, 직접 추가(신원 없는 참여자), 상태 변경(`HOST_CANNOT_BE_DEACTIVATED`, 비활성의 신원 유지), 한도 하나(10), `NICKNAME_TAKEN`·`PARTICIPANT_LIMIT_EXCEEDED` 안내 문구(이어받기 안내), 라우트 레지스트리(§4.8 표·이어받기 경로의 405) | AC-ROOM-001-1·2·7·9, 002-1·5·6·8, 004-1·2·4, 005-1·3·5·6, 006-1·5·6·8·10, 007-1, 008-1·2·4·6·7·8, PART-001-1·2·4·6, 002-9·10, 003-3, 004-1·2(`개정` 행). 입장 복원은 이벤트 없음, 새 입장은 `revision`+1 |
+| BE-M4 | 이어받기 API | M3 | S1 §4.9~§4.15, §5.5, §2.3 I9, PD-24~PD-26 | 7개 엔드포인트(요청·내 요청 조회·취소·방장 목록·승인·거절·방장 단건), 응답 형태 `Claim`/`MyClaim`(요청자에게 참여자 ID·처리자 ID 없음), 승인 2~7단계 한 트랜잭션(이전 키 `RevokedIdentity`, 새 키 연결, `TARGET_CLAIMED` 일괄 거절), `REQUESTER_LINKED`의 커밋 후 409(PD-25), 이벤트 `claim.created`·`claim.canceled`·`claim.resolved`, 게임 상태·한도와 무관, 만료 없음, 키 해시 비노출, Swagger 데코레이터 | AC-ROOM-009-1~14, 004-5, 005-4·7·8, 008-11의 API 부분. 우회 요청 전부 거부(009-13), 응답·로그에 키 해시 없음 |
+| BE-M5 | 거래·조회·정산 요청자 개정 | M3 | S2 §3.1, §3.4 2·5a, §5.1, §7 1, S3 §3.1, S4 §3.1, §3.2 | 거래 3종: 요청자 = 연결된 참여자, 접근 상실은 재전송(5)보다 앞, 5a `403 REQUESTER_INACTIVE`(기록 없음), 잠금 안 재확인, `authorId`·`deletedById` = 참여자 ID, 멱등 범위 (방, 참여자). 종료(`END`)도 같은 범위와 요청자 판정. 조회·정산: 비활성 참여자 허용, 대기·없음 404, 접근 상실 401 | AC-TXN-003-1~4, 004-1·3, 007-7·13, 009-1, PART-002-3·7·11·12, ROOM-004-2·005-2·009-5·009-6·009-10(거래·정산 통합), SET-001-3·005-1·008-1 |
+| BE-M6 | 실시간 개정 | M4, M5 | S5 §4.2, §6.1, §6.2, E-9, PD-26~PD-28 | 이벤트 종류 3개 추가(이벤트 직렬화·레지스트리), 연결 한도 단위 참여자, 스트림 메타(참여자·키 해시), `revokedParticipantId` 통지 처리와 `access.revoked` 후 닫기, 하트비트 신원 재확인(방당 한 질의), 접근 상실 키의 스트림 연결 `401 IDENTITY_REVOKED`, 대기 키·다른 방 키 `404` | AC-VIEW-005-3(서버 측: 입장·직접 추가 이벤트), VIEW-005-9(서버 측: 이벤트·`access.revoked`), SYS-003-6. 같은 인스턴스·다른 인스턴스의 `access.revoked`, 통지 차단 뒤 하트비트로 닫힘, 닫힘 뒤 임대 반납 |
+| BE-M7 | 개정 경합 시험 | M4, M5, M6 | S1 §7 1~9, S2 §7 1 | 프로세스 2개 이상: 같은 키 입장·요청 동시, 승인 대 같은 키 입장(`REQUESTER_LINKED`), 같은 요청의 승인·거절·취소 동시, 같은 대상 두 승인 동시, 입장·직접 추가 섞인 닉네임·마지막 슬롯·`order` 경쟁, 종료 대 입장, 비활성화 대 거래 생성·변경, 승인 대 이전 키의 거래(재전송 포함) | AC-ROOM-002-7, 004-3, 006-11, 008-5, 009-8·14, PART-001-5, 002-8·13. 경합마다 성공 1건·불변식 유지·`revision`과 이벤트 수 일치 |
+| BE-M8 | 지연 측정 확장 | M6 | S5 §6.7, §6.8, BE-C8 | 하네스에 이어받기 3행(요청 생성·취소의 방장 화면, 승인·거절의 요청자 화면: 2초 주기 조회 흉내, 접근 상실 안내)과 참여자 생성 행의 입장·직접 추가 분리, 접근 상실 유실 수렴(승인 직후 통지를 버림, 다른 인스턴스 포함) | AC-VIEW-005-8의 서버 측(새 행 포함), VIEW-005-9의 측정: 기준 초과 시 실패. 환경·한계 보고 |
+| BE-Z2 | 개정 통합 검증·증거 | M1~M8 | plan §11.5 | 전체 게이트(타입·린트·포맷·의존 방향·빌드·`test:ac`·`ac:check`), 다중 프로세스·지연 결과, 지우거나 다시 쓴 v1.x 시험 목록과 대체 시험, Swagger·README API 표·`docs/frontend-handoff.md` 갱신(Spec v0.3.0 커밋 기준), 배포 DB 적용 절차(PD-22, 실행은 사용자 승인 뒤) | `docs/g4-evidence.md`에 v2.0.0 절. 실행하지 못한 검증 명시 |
+
+## K. v2.0.0 소유 점검
+
+- 스키마 변경은 `BE-M1`만 한다. 다른 M Task는 마이그레이션을 만들지 않는다.
+- 신원 판정은 `BE-M2`의 `resolveIdentity`만 구현하고 모든 엔드포인트·SSE가 이를 호출한다.
+- 이벤트 파이프라인(BE-F7)은 그대로 소유하며 `BE-M4`·`BE-M6`은 이벤트 종류와 PD-25의 결과 형식만 더한다.
+- v1.x 시험의 교체는 그 AC를 맡은 M Task가 한다. 교체 목록은 `BE-Z2`가 모은다.

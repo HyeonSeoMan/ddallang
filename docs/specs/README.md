@@ -31,22 +31,22 @@
 
 | Spec | 버전 | 상태 | 승인일 | 위치 |
 | --- | --- | --- | --- | --- |
-| S1 방·신원·참여자 | 0.2.3 | **확정 (G2 승인)** | 2026-11-07 | `docs/specs/S1-room-identity-participant/spec.md` |
-| S2 거래 CRUD | 0.2.2 | **확정 (G2 승인)** | 2026-11-08 | `docs/specs/S2-transaction-crud/spec.md` |
-| S3 조회·손익 | 0.2.4 | **확정 (G2 승인)** | 2026-11-08 | `docs/specs/S3-view-balance/spec.md` |
-| S5 실시간·연결 | 0.2.3 | **확정 (G2 승인)** | 2026-11-08 | `docs/specs/S5-realtime-connection/spec.md` |
-| S4 정산·종료 | 0.2.0 | **확정 (G2 승인)** | 2026-11-09 | `docs/specs/S4-settlement-end/spec.md` |
+| S1 방·신원·참여자 | 0.3.0 | **확정 (G2 승인)** | 2026-11-16 | `docs/specs/S1-room-identity-participant/spec.md` |
+| S2 거래 CRUD | 0.3.0 | **확정 (G2 승인)** | 2026-11-16 | `docs/specs/S2-transaction-crud/spec.md` |
+| S3 조회·손익 | 0.3.0 | **확정 (G2 승인)** | 2026-11-16 | `docs/specs/S3-view-balance/spec.md` |
+| S5 실시간·연결 | 0.3.0 | **확정 (G2 승인)** | 2026-11-16 | `docs/specs/S5-realtime-connection/spec.md` |
+| S4 정산·종료 | 0.3.0 | **확정 (G2 승인)** | 2026-11-16 | `docs/specs/S4-settlement-end/spec.md` |
 
 Spec 작성 당시의 기준 PRD는 v0.5.1(`main` `ca2104d`)이고, 이후 확정 PRD는 v0.5.2(`94b7914`), v0.6.0(PR #59, `f13826a`)이다. S1 이후 Spec의 기준 PRD도 승인 시점의 확정 버전을 명시한다.
 
-### v0.3.0 개정 (PRD v0.6.0 접속자·참여자 통합, 작성·검수 완료, 사용자 승인 대기)
+### v0.3.0 개정 (PRD v0.6.0 접속자·참여자 통합) — 사용자 G2 승인 2026-11-16
 
-사용자 지시(2026-11-16, `open-questions.md` 2.17절)에 따라 S1~S5를 PRD v0.6.0에 맞춰 개정하고, 다섯 Spec이 모두 끝난 뒤 G2 승인을 한꺼번에 받는다. 승인 전에는 위 표의 확정본이 구현 기준이다. 각 Spec의 "Claude 임의 결정"(§12)은 사용자 승인 대기다.
+사용자 지시(2026-11-16, `open-questions.md` 2.17절)에 따라 S1~S5를 PRD v0.6.0에 맞춰 개정하고, 다섯 Spec이 모두 끝난 뒤 G2 승인을 한꺼번에 받았다(사용자: "전부 승인 합니다. main 까지 병합하세요", 2026-11-16). 각 Spec의 "Claude 임의 결정"(§12)도 함께 승인되었다. 현재 구현 기준은 v0.3.0이다.
 
 | Spec | 초안 | Codex 검수(v0.3.0) | 상태 |
 | --- | --- | --- | --- |
-| S1 | 0.3.0 | 1/3 REVISE → 2/3 PASS | 사용자 G2 승인 대기 |
-| S2 | 0.3.0 | 1/3 PASS (LOW 2건 반영) | 사용자 G2 승인 대기 |
-| S3 | 0.3.0 | 1/3 PASS (LOW 1건 반영) | 사용자 G2 승인 대기 |
-| S5 | 0.3.0 | 1/3 REVISE → 2/3 PASS | 사용자 G2 승인 대기 |
-| S4 | 0.3.0 | 1/3 REVISE → 2/3 PASS | 사용자 G2 승인 대기 |
+| S1 | 0.3.0 | 1/3 REVISE → 2/3 PASS | **확정 (G2 승인 2026-11-16)** |
+| S2 | 0.3.0 | 1/3 PASS (LOW 2건 반영) | **확정 (G2 승인 2026-11-16)** |
+| S3 | 0.3.0 | 1/3 PASS (LOW 1건 반영) | **확정 (G2 승인 2026-11-16)** |
+| S5 | 0.3.0 | 1/3 REVISE → 2/3 PASS | **확정 (G2 승인 2026-11-16)** |
+| S4 | 0.3.0 | 1/3 REVISE → 2/3 PASS | **확정 (G2 승인 2026-11-16)** |

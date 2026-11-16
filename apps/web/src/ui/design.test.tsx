@@ -89,8 +89,8 @@ describe("아이콘(FD-18)", () => {
     expect(svg).toHaveAttribute("focusable", "false");
     expect(svg).toHaveAttribute("width", "40");
     expect(container.querySelector("title, text, image, use")).toBeNull();
-    // 그림자 없음(FD-18 1.3.0).
-    expect(svg?.getAttribute("class") ?? "").not.toMatch(/drop-shadow|filter/);
+    // 그림자 없음(FD-18 1.3.0): 필터 요소·속성, 그림자 스타일이 없다.
+    expect(container.querySelector("filter, [filter], [style*='shadow'], [class*='shadow']")).toBeNull();
   });
 
   it("마스크를 쓰는 아이콘을 한 화면에 여러 번 그려도 마스크 id가 겹치지 않는다", () => {
@@ -134,6 +134,36 @@ describe("버튼 변형과 토큰(FD-18)", () => {
       expect(button).toBeDisabled();
     },
   );
+
+  // jsdom은 Panda CSS를 적용하지 않으므로, 한 속성에 원자 클래스가 둘 붙어 CSS 순서로 승부가 나는 일이 없는지 클래스 이름으로 확인한다.
+  it.each(["primary", "secondary", "secondaryBlock", "dangerText", "danger", "dangerSolid"] as const)(
+    "%s 변형은 같은 속성의 원자 클래스를 하나만 가진다(변형 값이 공통 모양에 지지 않는다)",
+    (variant) => {
+      render(<Button variant={variant}>버튼</Button>);
+      const classes = screen.getByRole("button", { name: "버튼" }).className.split(" ").filter(Boolean);
+      const properties = classes.map((name) => name.slice(0, name.indexOf("_")));
+      expect(properties).toEqual([...new Set(properties)]);
+    },
+  );
+
+  it("위험 테두리·알약 모양은 변형 값으로 나온다", () => {
+    render(
+      <>
+        <Button variant="danger">게임 종료</Button>
+        <Button variant="secondary">수정</Button>
+        <Button variant="dangerText">삭제</Button>
+      </>,
+    );
+    const danger = screen.getByRole("button", { name: "게임 종료" }).className.split(" ");
+    expect(danger).toContain("bd-c_danger");
+    expect(danger).not.toContain("bd-c_transparent");
+    for (const name of ["수정", "삭제"]) {
+      const classes = screen.getByRole("button", { name }).className.split(" ");
+      expect(classes).toContain("bdr_full");
+      expect(classes).toContain("px_4");
+      expect(classes).not.toContain("bdr_md");
+    }
+  });
 
   it("large 크기는 기본 터치 목표보다 큰 높이 클래스를 쓰고 기본 높이 클래스와 겹치지 않는다", () => {
     render(

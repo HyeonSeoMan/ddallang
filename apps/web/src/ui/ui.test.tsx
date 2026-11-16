@@ -34,6 +34,43 @@ describe("기본 컴포넌트", () => {
     await expectNoA11yViolations(container);
   });
 
+  // FD-18 (1) 시각 API: suffix는 장식이라 이름·설명을 바꾸지 않고, 없으면 입력이 감싸개 없이 그대로 나온다.
+  it("금액 단위 suffix는 보조기기에 숨겨지고 입력의 이름·설명·오류 연결은 그대로다", async () => {
+    const { container, rerender } = render(<TextField label="금액" suffix="원" errors={["1 이상 입력하세요"]} />);
+    const input = screen.getByLabelText("금액");
+    expect(input).toHaveAccessibleName("금액");
+    expect(input).toHaveAccessibleDescription("1 이상 입력하세요");
+    expect(screen.getByText("원")).toHaveAttribute("aria-hidden", "true");
+    expect(input.nextElementSibling).toBe(screen.getByText("원"));
+    await expectNoA11yViolations(container);
+
+    rerender(<TextField label="금액" />);
+    expect(screen.queryByText("원")).toBeNull();
+    // suffix가 없으면 라벨 바로 다음이 입력이다(이전 마크업과 같다).
+    expect(screen.getByText("금액").nextElementSibling).toBe(screen.getByLabelText("금액"));
+  });
+
+  it("배너의 icon은 장식이고 역할·이름은 아이콘 없는 배너와 같다", async () => {
+    const { container } = render(
+      <main>
+        <Banner tone="warning" icon={<svg data-testid="icon" />}>
+          연결 끊김
+        </Banner>
+        <Banner tone="success" icon={<svg />}>
+          최신 상태로 갱신됨
+        </Banner>
+        <Banner tone="info">연결 중</Banner>
+      </main>,
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent("연결 끊김");
+    expect(screen.getByTestId("icon").parentElement).toHaveAttribute("aria-hidden", "true");
+    const statuses = screen.getAllByRole("status");
+    expect(statuses.map((el) => el.textContent)).toEqual(["최신 상태로 갱신됨", "연결 중"]);
+    // 아이콘이 없으면 역할 요소 안에 글자만 있다(이전 마크업과 같다).
+    expect(statuses[1]!.childElementCount).toBe(0);
+    await expectNoA11yViolations(container);
+  });
+
   it("배지는 텍스트로 상태를 보이고 배너는 긴급도에 맞는 role을 쓴다", async () => {
     const { container } = render(
       <main>

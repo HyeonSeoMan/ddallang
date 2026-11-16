@@ -215,7 +215,7 @@ describe("실서버 연동 점검 (FE-I1)", () => {
       const sent = control.log.filter((l) => l.method === "POST" && l.path.endsWith("/transactions"));
       expect(sent).toHaveLength(2);
       expect(sent[1]!.status).not.toBeNull();
-    });
+    }, { timeout: 15_000 }); // 배포본은 쓰기 한 번에 약 2초(서버 싱가포르 ↔ DB 시드니)
 
     const posts = control.log.filter((l) => l.method === "POST" && l.path.endsWith("/transactions"));
     expect(posts[1]!.idempotencyKey).toBe(posts[0]!.idempotencyKey); // 같은 키

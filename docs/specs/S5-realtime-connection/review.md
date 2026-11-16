@@ -22,3 +22,19 @@ G2 검수 시도 3/3 사용(마지막 PASS). 이후 `spec.md`가 의미 있게 �
 ## 후속 (2026-11-08)
 
 사용자가 S5 Spec v0.2.3을 G2 승인했다(`spec.md` "승인 기록").
+
+---
+
+# v0.3.0 개정 사이클 — Codex 독립 검수 기록 (G2 재검수)
+
+- 대상: `spec.md` v0.3.0 초안 (기준 PRD v0.6.0 = `main` `f13826a`, 사용자 결정 `open-questions.md` 2.16절, 기준 Spec S1·S2·S3 v0.3.0 초안)
+- 진행 규칙: 사용자 지시(2026-11-16, `open-questions.md` 2.17절). S1~S5 개정이 모두 끝난 뒤 G2 승인을 한꺼번에 받는다.
+- 방법: 새 Codex Worker, 읽기 전용 터미널(`codex --sandbox read-only --ask-for-approval never -c model_reasoning_effort=medium`), 검수자가 `sandbox_mode=read-only` 확인. 판정 뒤 터미널을 닫았다.
+- **PASS는 품질 판정이며 사용자 G2 승인이 아니다.**
+
+| 시도 | 대상 | 판정 | 지적 | 조치 |
+| --- | --- | --- | --- | --- |
+| 1/3 | v0.3.0 초안(커밋 `df4b10b`+`access.revoked` 순서 규칙) | REVISE | S5-01 HIGH `access.revoked` 유실 시 40초 무수신 뒤에야 안내되어 AC-VIEW-005-8·9의 유실 시 20초 수렴을 넘음(다중 인스턴스 전달 유실 포함). S5-02 MEDIUM R-I2·§6.1이 모든 거부에 revision·이벤트가 없다고 해 `CLAIM_REQUESTER_LINKED` 예외(§8.1)와 충돌. 참고: S4 E-I3의 종료 후 revision 고정 규칙은 이어받기(P-6)와 정합 확인 필요 | S5-01: 하트비트 직전에 스트림 신원을 DB로 재확인하고 접근 상실이면 `access.revoked` 후 종료(§6.2, S5-C3 보강), 측정 시나리오·위험 갱신. S5-02: R-I2와 §6.1에 예외 명시. S4 E-I3은 S4 검수와 함께 처리 |
+| 2/3 | v0.3.0 초안(1/3 반영본, 커밋 `30d955b` 이후) | **PASS** | 확정된 HIGH/MEDIUM 결함 없음. AC 27개 추적, 요청자·키 상태별 접근 통제, 이벤트·revision 불변식, 순서·중복·누락 복구, 갱신 대상, 다중 인스턴스 전달 확인. 하트비트 신원 재확인과 `CLAIM_REQUESTER_LINKED` 예외 반영 확인, S4의 종료 뒤 `claim.*` revision 허용과 정합 | 수정 없음 |
+
+- 한계·잔여 위험(검수자): 구현·API·UI·성능 시험은 실행하지 않았다. 2초 주기 조회와 하트비트 복구의 실제 지연, 브라우저 호환성은 구현 단계에서 검증해야 한다. S5-C1~C5와 G2 사용자 승인은 대기 상태다.

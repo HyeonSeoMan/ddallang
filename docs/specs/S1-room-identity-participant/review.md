@@ -22,3 +22,16 @@ G2 검수 시도 3/3 사용. 이후 `spec.md`가 의미 있게 바뀌면 거버�
 ## 후속 (2026-11-07)
 
 사용자가 S1 Spec v0.2.3을 G2 승인했다(`spec.md` "승인 기록").
+
+---
+
+# v0.3.0 개정 사이클 — Codex 독립 검수 기록 (G2 재검수)
+
+- 대상: `spec.md` v0.3.0 초안 (기준 PRD v0.6.0 = `main` `f13826a`, 사용자 결정 `open-questions.md` 2.16절)
+- 진행 규칙: 사용자 지시(2026-11-16, `open-questions.md` 2.17절). S1~S5 개정이 모두 끝난 뒤 G2 승인을 한꺼번에 받는다. Spec당 Codex 최대 3회, 소진 시 남은 지적을 기록하고 다음 Spec으로 간다.
+- 방법: 새 Codex Worker, 읽기 전용 터미널(`codex --sandbox read-only --ask-for-approval never -c model_reasoning_effort=medium`). 업데이트 안내는 `esc`로 건너뛰었다. 판정을 받은 뒤 터미널을 닫았으므로 이후의 "Worker lost" 알림은 정상이다.
+- **PASS는 품질 판정이며 사용자 G2 승인이 아니다.**
+
+| 시도 | 대상 | 판정 | 지적 | 조치 |
+| --- | --- | --- | --- | --- |
+| 1/3 | v0.3.0 초안(커밋 `1b95c36`) | REVISE | S1-001 MEDIUM 요청자에게 주는 Claim에 `participantId`가 있어 입장 전 비공개와 충돌. S1-002 MEDIUM 방장의 승인·거절 응답 유실 뒤 끝난 요청을 다시 볼 경로 없음(P-10). S1-003 MEDIUM 늦게 온 이전 키의 401이 다른 탭이 새로 저장한 키를 지울 수 있음. S1-004 MEDIUM AC-ROOM-004-5의 "승인자를 참여자로 기록·표시" 누락. S1-005 LOW §11 004-1 검증의 "상태 없음"이 `room.status`와 혼동 | 모두 반영: 응답을 방장용 `Claim`과 요청자용 `MyClaim`으로 분리(S1-C13), 방장용 단건 조회 §4.15 신설, 키 조건부 삭제(§3.1), `resolvedById` 기록(S1-C14), 검증 문구 정정 |

@@ -344,11 +344,12 @@ export function CreateRoomForm() {
       ) : unknown ? (
         <>
           <Banner tone="warning">{CREATE_UNKNOWN_NOTICE}</Banner>
-          <div className={css({ display: "flex", gap: "2" })}>
-            <Button onClick={retry} disabled={pending}>
+          {/* 두 버튼을 같은 폭·높이로 나란히 둔다(확인 대화상자와 같은 모양). */}
+          <div className={css({ display: "flex", gap: "2", "& > button": { flex: "1" } })}>
+            <Button size="large" onClick={retry} disabled={pending}>
               다시 시도
             </Button>
-            <Button variant="secondary" onClick={cancelRetry} disabled={pending}>
+            <Button variant="secondaryBlock" size="large" onClick={cancelRetry} disabled={pending}>
               취소
             </Button>
           </div>

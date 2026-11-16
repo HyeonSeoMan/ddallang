@@ -74,8 +74,20 @@ export const dataVisibleAtom = atom((get) => {
   return get(connectionAtom) === "connected" && snapshot !== null && snapshot.epoch === get(epochAtom);
 });
 
-/** 변경 컨트롤을 쓸 수 있는지: 데이터가 보이고 방이 진행 중일 때(`canMutate`). */
+/**
+ * 변경 컨트롤을 쓸 수 있는지(`canMutate`): 데이터가 보이고 방이 진행 중이며 요청자가 활성 참여자일 때(FD-26).
+ * 비활성 참여자의 신원은 조회만 할 수 있다(OQ-044, S2 §3.1).
+ */
 export const canMutateAtom = atom((get) => {
   const snapshot = get(snapshotAtom);
-  return get(dataVisibleAtom) && snapshot?.room.status === "IN_PROGRESS";
+  return get(dataVisibleAtom) && snapshot?.room.status === "IN_PROGRESS" && snapshot.me.status === "ACTIVE";
+});
+
+/**
+ * 조회 전용 본인(FD-26): 진행 중인 방에서 요청자가 비활성 참여자다. 거래 입력 폼은 없애지 않고 비활성화하며
+ * (입력값 유지, S2 §9) 수정·삭제 컨트롤은 숨긴다. 재활성화되면 다음 갱신에서 컨트롤이 돌아온다.
+ */
+export const readOnlySelfAtom = atom((get) => {
+  const snapshot = get(snapshotAtom);
+  return get(dataVisibleAtom) && snapshot?.room.status === "IN_PROGRESS" && snapshot.me.status === "INACTIVE";
 });

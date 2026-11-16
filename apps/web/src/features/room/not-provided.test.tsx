@@ -72,7 +72,6 @@ describe("S1 비제공 UI 점검", () => {
     const names = screen.getAllByRole("button").map((b) => b.getAttribute("aria-label") ?? b.textContent);
     expect(names).toEqual([
       "초대 링크 복사",
-      "가온 비활성화",
       "나래 비활성화",
       "다온 재활성화",
       "참여자 등록",

@@ -12,6 +12,7 @@ import {
   type MutationRequest,
   type SubmitOptions,
 } from "@/lib/mutation/manager";
+import { requestRefreshAtom } from "@/features/realtime/state";
 import { epochAtom, sessionAtom } from "@/features/room/state";
 import { CLOCK_UNKNOWN_MESSAGE, describeApiError, type FieldErrors, NO_KEY_MESSAGE } from "./messages";
 
@@ -114,6 +115,8 @@ export function useRoomMutation(scope: string, config: { expiredGuide?: string }
         case "rejected": {
           const { message, fieldErrors } = describeApiError(outcome.error, { fresh, expiredGuide: config.expiredGuide });
           next = { kind: "rejected", code: outcome.error.code, message, fieldErrors };
+          // 비활성 참여자의 신원(S2 §9, FD-26): 서버 message를 보이고 입력은 그대로 둔 채 갱신해 조회 전용으로 바꾼다.
+          if (outcome.error.code === "REQUESTER_INACTIVE") store.set(requestRefreshAtom);
           break;
         }
         case "unknown":

@@ -53,7 +53,13 @@ export function TransactionActions({
   const [confirming, setConfirming] = useState(false);
   const [errors, setErrors] = useState<FieldErrors | null>(null);
 
-  if (!canMutate || !canEditTransaction(transaction, me)) return null;
+  if (!canMutate || !canEditTransaction(transaction, me)) {
+    // 조회 전용으로 바뀌어 컨트롤이 사라져도 거부 사유(서버 message, REQUESTER_INACTIVE)는 남긴다(S2 §9, FD-26).
+    const rejected = [update.state, remove.state].find((s) => s?.kind === "rejected" && s.code === "REQUESTER_INACTIVE");
+    return rejected ? (
+      <MutationNotice state={rejected} onRetry={() => undefined} onConfirmNew={() => undefined} />
+    ) : null;
+  }
   // 삭제가 확정되었다면 스트림 갱신으로 행이 사라질 때까지 컨트롤을 보이지 않는다(삭제된 거래를 다시 수정·삭제하지 못하게).
   if (remove.state?.kind === "success") return null;
   const draftKeyId = editDraftKey(me.id, transaction.id);

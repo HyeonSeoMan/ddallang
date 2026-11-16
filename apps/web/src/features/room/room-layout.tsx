@@ -4,7 +4,7 @@ import { type ReactNode, useId } from "react";
 import { css } from "styled-system/css";
 import { useAtomValue } from "jotai";
 import { BagIcon, BookIcon, CoinIcon, HouseIcon, PencilIcon, PeopleIcon } from "@/ui/icons";
-import { canMutateAtom, dataVisibleAtom } from "./state";
+import { canMutateAtom, dataVisibleAtom, readOnlySelfAtom } from "./state";
 import { ServerDataGate } from "./server-data-gate";
 
 /** 방 화면 구역 순서(FD-12, 제안): 연결 배너 → 방 정보 → 누적 손익 → 정산 → 거래 입력 → 거래 내역 → 참여자. */
@@ -50,11 +50,13 @@ export function RoomSection({
   // 서버 유래 값에 따라 달라지는 제목(`titles`)은 게이트가 열렸을 때만 쓴다. 끊김 중에는 기본 제목이다.
   const visible = useAtomValue(dataVisibleAtom);
   const canMutate = useAtomValue(canMutateAtom);
+  const readOnly = useAtomValue(readOnlySelfAtom);
   const heading = visible ? title : ROOM_SECTION_TITLES[id];
   const SectionIcon = SECTION_ICONS[id];
   // 구역 구조는 바꾸지 않는다(FD-12). 본문이 없는 구역은 바탕 위 제목만 남고 카드가 없다(방향 문서 §5.1):
   // 끊김 중(가려진 이유는 연결 배너가 알린다), 그리고 게임이 끝나 거래 입력 폼이 없는 거래 입력 구역(S2 §9).
-  const compact = !visible || (id === "entry" && !canMutate);
+  // 조회 전용 본인은 비활성화된 폼이 있으므로 카드를 그린다(FD-26).
+  const compact = !visible || (id === "entry" && !canMutate && !readOnly);
   return (
     <section
       aria-labelledby={headingId}

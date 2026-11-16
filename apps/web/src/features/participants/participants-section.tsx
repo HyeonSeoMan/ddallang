@@ -225,10 +225,12 @@ export function ParticipantsSection() {
               <div className={rowBodyClass}>
                 <div className={cx(rowTitleClass, p.status === "INACTIVE" ? css({ color: "inkMuted" }) : undefined)}>
                   <span>{p.nickname}</span>
+                  {p.isHost ? <Badge tone="info">방장</Badge> : null}
                   {p.status === "INACTIVE" ? <Badge tone="neutral">비활성</Badge> : null}
                 </div>
               </div>
-              {canControl && !isUnknown ? (
+              {/* 방장 자기 행(방장 참여자)에는 비활성화 컨트롤이 없다(AC-PART-002-10, P-4). */}
+              {canControl && !isUnknown && !p.isHost ? (
                 <span className={rowAmountClass}>
                   <Button
                     variant="secondary"

@@ -73,6 +73,8 @@ const unitTileClass = css({
   "&:has(input:focus-visible)": { outline: "2px solid", outlineColor: "primary", outlineOffset: "2px" },
   "&:has(input:disabled)": { bgColor: "disabledBg", color: "disabledText", cursor: "not-allowed" },
   "&:has(input:disabled:checked)": { borderColor: "inkMuted", boxShadow: "inset 0 0 0 1px {colors.inkMuted}" },
+  // 고대비 모드는 그림자·바탕색을 지우므로 선택 타일을 굵은 바깥 선으로도 구분한다.
+  "@media (forced-colors: active)": { "&:has(input:checked)": { outline: "3px solid CanvasText", outlineOffset: "-3px" } },
 });
 
 type Field = "name" | "unit" | "nickname";
@@ -286,6 +288,9 @@ export function CreateRoomForm() {
         >
           {UNIT_OPTIONS.map(({ value, label, Icon }) => (
             <label key={value} className={unitTileClass}>
+              {/* ARIA 1.2는 radio에 aria-invalid를 두지 않지만, fieldset은 aria-invalid를 지원하지 않으므로 네 라디오 모두에
+                  건다(DV-21, FD-18 (5) 결정). axe 검사에서는 위반이 아니다. */}
+              {/* eslint-disable-next-line jsx-a11y/role-supports-aria-props */}
               <input
                 type="radio"
                 name={`${unitGroupId}-unit`}
@@ -301,17 +306,14 @@ export function CreateRoomForm() {
           ))}
         </div>
         {/* 목록에서 고른 단위를 서버가 거부하면(예: 허용 규칙 변경) 여기에 사유를 보인다. */}
-        {unitError ? (
-          <div
-            id={`${unitGroupId}-error`}
-            aria-live="polite"
-            className={css({ mt: "2", color: "danger", fontSize: "sm", fontWeight: "medium" })}
-          >
-            {errors.unit?.map((message) => (
-              <p key={message}>{message}</p>
-            ))}
-          </div>
-        ) : null}
+        {/* 알림 영역은 오류가 없어도 유지해야 나중에 생긴 오류가 안내된다(TextField와 같다). 연결은 오류가 있을 때만 한다. */}
+        <div
+          id={`${unitGroupId}-error`}
+          aria-live="polite"
+          className={css({ color: "danger", fontSize: "sm", fontWeight: "medium", _empty: { display: "none" }, mt: "2" })}
+        >
+          {unitError ? errors.unit?.map((message) => <p key={message}>{message}</p>) : null}
+        </div>
       </fieldset>
       {unitChoice === CUSTOM_UNIT ? (
         <TextField

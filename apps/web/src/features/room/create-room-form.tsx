@@ -310,7 +310,8 @@ export function CreateRoomForm() {
         <div
           id={`${unitGroupId}-error`}
           aria-live="polite"
-          className={css({ color: "danger", fontSize: "sm", fontWeight: "medium", _empty: { display: "none" }, mt: "2" })}
+          // 빈 영역도 접근성 트리에 남겨야 처음 생긴 오류가 안내된다(display: none을 쓰지 않는다).
+          className={css({ color: "danger", fontSize: "sm", fontWeight: "medium", "&:not(:empty)": { mt: "2" } })}
         >
           {unitError ? errors.unit?.map((message) => <p key={message}>{message}</p>) : null}
         </div>

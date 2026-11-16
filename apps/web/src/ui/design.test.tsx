@@ -31,7 +31,7 @@ const WEB = join(SRC, "..");
  * jsdom은 Panda CSS를 적용하지 않는다. 원자 클래스를 `cx`로 이어 붙이면 같은 속성끼리는 생성 CSS의 순서가 이기므로,
  * 한 요소에 같은 속성(또는 줄임 속성과 그 개별 속성)을 정하는 클래스가 둘 이상 붙었는지 이름으로 찾는다.
  * 조건부 클래스(`disabled:` 등)는 조건별로 따로 본다. 다루는 줄임 속성은 아래 표에 있는 것뿐이고, 임의 조건 클래스
- * 중 조건에 공백이 든 것(`[@media …]:…`, `[& > button]:…`)은 이름을 정확히 나누지 못해 건너뛴다(그 충돌은 생성 CSS로 따로 본다).
+ * 중 조건에 공백이 든 것(`[@media …]:…`, `[& > button]:…`)은 이름을 정확히 나누지 못해 건너뛴다(이 도우미로는 검사하지 않는다).
  */
 function conflictingClasses(className: string): string[] {
   const props = className

@@ -214,7 +214,8 @@ describe("참여자 영역", () => {
     let patches = 0;
     server.use(
       handler("patch", `${base}/p-2`, () => (++patches === 1 ? HttpResponse.error() : HttpResponse.json({ participant: fixtures.participants[1] }))),
-      handler("get", base, () => HttpResponse.json({ participants: [fixtures.participants[0]] })),
+      // 재조회 목록에 대상(나래)이 있고 아직 ACTIVE다(목표 INACTIVE가 아님, 검수 R2).
+      handler("get", base, () => HttpResponse.json({ participants: fixtures.participants })),
     );
     renderSection();
     const user = userEvent.setup();

@@ -125,6 +125,10 @@ describe("방장의 이어받기 요청 구역 (FE-M5)", () => {
     Object.assign(backend.claims[0]!, { status: "REJECTED", rejectReason: "HOST_REJECTED", resolvedById: fixtures.hostParticipant.id });
     await userEvent.click(within(region).getByRole("button", { name: "나래 이어받기 거절" }));
     expect(await screen.findByText(`이미 처리된 요청입니다. 현재 상태: 거절됨 처리: ${fixtures.hostParticipant.nickname}`)).toBeInTheDocument();
+    // 대기 요청이 없어져도 안내는 남고, 닫으면 구역이 사라진다(검수 R5).
+    await waitFor(() => expect(within(region).queryAllByRole("listitem")).toHaveLength(0));
+    await userEvent.click(screen.getByRole("button", { name: "안내 닫기" }));
+    expect(section()).not.toBeInTheDocument();
   });
 
   it("승인 응답을 받지 못하면(결과 불명) 단건 조회로 현재 상태를 안내하고 승인됐다고 단정하지 않는다", async () => {
@@ -170,7 +174,10 @@ describe("방장의 이어받기 요청 구역 (FE-M5)", () => {
     expect(await screen.findByRole("link", { name: `방 ${pendingBadgeLabel(2)}` })).toBeInTheDocument();
 
     act(() => store.set(setConnectionAtom, "disconnected"));
-    expect(screen.queryByText(pendingBadgeLabel(2))).not.toBeInTheDocument();
+    // 끊김 중에는 배지가 없다: 탭의 접근 가능한 이름이 그냥 `방`이고 숫자 배지 요소도 없다(검수 R1).
+    const roomTab = screen.getByRole("link", { name: "방" });
+    expect(roomTab).toHaveAccessibleName("방");
+    expect(roomTab.querySelector("[aria-hidden=true]")).toBeNull();
     expect(section()).not.toBeInTheDocument();
   });
 

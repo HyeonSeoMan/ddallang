@@ -117,6 +117,15 @@ describe("초대 화면 상태기계 (FD-22)", () => {
         view: { stage: "choose" },
         notice: { kind: "no-candidates" }, // 다시 불러와도 후보가 없으면 이유를 알린다(검수 F3)
       });
+      // 그 사이 내 이전 요청이 거절로 끝났다면 그 결과 안내가 우선이다(검수 R3).
+      const withResult = run(
+        [checked({ claimableNicknames: [], claim: claim({ id: "late", status: "REJECTED", rejectReason: "HOST_REJECTED" }) })],
+        reloading,
+      );
+      expect(withResult).toMatchObject({
+        notice: { kind: "claim-result", status: "REJECTED", reason: "HOST_REJECTED" },
+        shownClaimId: "late",
+      });
     });
 
     it("다른 거부(검증·네트워크)는 이어받기 안내 없이 닉네임 단계로 돌아간다", () => {

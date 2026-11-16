@@ -157,6 +157,15 @@ describe("조회 전용 본인 (FD-26, FE-C6)", () => {
     await waitFor(() => expect(screen.getByLabelText("금액")).toBeDisabled());
     expect(screen.getByLabelText("금액")).toHaveValue("500");
     expect(screen.getByText(READ_ONLY_SELF_NOTICE)).toBeInTheDocument();
+    // 조회 전용으로 바뀐 뒤에도 서버 message는 남는다(검수 R4).
+    expect(screen.getByText("비활성 참여자는 거래를 기록할 수 없습니다")).toBeInTheDocument();
+    // 재활성화되면 그 안내는 지워지고 입력값은 남는다.
+    backend.participants = backend.participants.map((p) => (p.id === inactiveMe.id ? fixtures.guestParticipant : p));
+    backend.commit("participant.status_changed", { participantId: inactiveMe.id });
+    await waitFor(() => expect(screen.getByLabelText("금액")).toBeEnabled());
+    // 안내는 재활성화가 반영된 다음 렌더의 effect에서 지워진다.
+    await waitFor(() => expect(screen.queryByText("비활성 참여자는 거래를 기록할 수 없습니다")).not.toBeInTheDocument());
+    expect(screen.getByLabelText("금액")).toHaveValue("500");
     view.unmount();
   });
 

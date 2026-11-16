@@ -104,7 +104,15 @@ export function ClaimRequestsSection() {
         {CLAIM_REQUESTS_TITLE}
       </h2>
       <div className={css({ mt: "3", p: "5", bgColor: "paper", borderRadius: "lg", display: "flex", flexDirection: "column", gap: "3" })}>
-        {notice ? <Banner tone={notice.tone}>{notice.text}</Banner> : null}
+        {notice ? (
+          <div className={css({ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "2" })}>
+            <Banner tone={notice.tone}>{notice.text}</Banner>
+            {/* 처리 결과 안내는 사용자가 닫는다. 대기 요청이 없으면 닫은 뒤 구역이 사라진다(검수 R5). */}
+            <Button variant="secondary" onClick={() => setNotice(null)}>
+              안내 닫기
+            </Button>
+          </div>
+        ) : null}
         {[...countByTarget].filter(([, n]) => n > 1).map(([participantId, n]) => (
           <p key={participantId} className={rowMetaClass}>
             {nicknameOf(participantId) ?? ""}: {duplicateNotice(n)}

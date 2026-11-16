@@ -2,6 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import { createStore } from "jotai";
 import { beforeEach, describe, expect, it } from "vitest";
 import { InviteScreen } from "@/features/room/invite-screen";
+import { choose } from "@/test/choice";
 import { AllPages } from "@/test/all-pages";
 import { connectionAtom, sessionAtom, snapshotAtom } from "@/features/room/state";
 import { mockClipboard } from "@/test/clipboard";
@@ -77,7 +78,6 @@ describe("정산 영역 × 갱신·종료 (FE-S4-2 통합)", () => {
     const settlementText = () =>
       within(screen.getByRole("heading", { name: "예상 정산" }).closest("section")!).getByRole("list").textContent;
     const before = settlementText();
-    const filter = () => screen.getByLabelText("참여자 필터");
     const user = userEvent.setup();
 
     // 각 선택이 새 스냅샷에 실제로 반영된 뒤(선택한 참여자 ID, 해제는 null)에 정산을 비교한다.
@@ -88,7 +88,7 @@ describe("정산 영역 × 갱신·종료 (FE-S4-2 통합)", () => {
       ["전체", null],
     ];
     for (const [choice, filterId] of expectedFilter) {
-      await user.selectOptions(filter(), choice);
+      await choose(user, screen, "참여자 필터", choice);
       await waitFor(() => expect(store.get(snapshotAtom)?.transactionFilter).toBe(filterId));
       expect(settlementText()).toBe(before); // 정산은 필터와 무관하다
     }

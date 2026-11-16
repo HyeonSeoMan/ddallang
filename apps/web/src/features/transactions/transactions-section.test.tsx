@@ -1,4 +1,4 @@
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createStore } from "jotai";
 import { delay, http, HttpResponse } from "msw";
@@ -7,6 +7,7 @@ import { participantFilterAtom, refreshRequestAtom } from "@/features/realtime/s
 import { applySnapshotAtom, snapshotAtom } from "@/features/room/state";
 import type { Transaction } from "@/lib/api";
 import { formatDateTime } from "@/lib/format";
+import { choiceGroup, choiceNames, choose } from "@/test/choice";
 import { expectNoA11yViolations } from "@/test/a11y";
 import { installFakeStorage } from "@/test/fake-storage";
 import * as fixtures from "@/test/fixtures";
@@ -253,30 +254,42 @@ describe("거래 내역 영역", () => {
     it("전체와 모든 참여자(비활성 포함)를 고를 수 있다(1명만)", () => {
       seed([tx(1)]);
       renderSection();
-      const select = screen.getByLabelText("참여자 필터") as HTMLSelectElement;
-      expect(Array.from(select.options).map((o) => o.text)).toEqual(["전체", "가온", "나래", "다온 (비활성)"]);
-      expect(select.multiple).toBe(false);
+      // RK-F22: 선택 상자 옵션 → 칩 라디오. "1명만"은 단일 선택 라디오 묶음(같은 name)으로 보인다.
+      expect(choiceNames(screen, "참여자 필터")).toEqual(["전체", "가온", "나래", "다온 (비활성)"]);
+      const radios = within(choiceGroup(screen, "참여자 필터")).getAllByRole("radio") as HTMLInputElement[];
+      expect(new Set(radios.map((r) => r.name)).size).toBe(1);
+      expect(radios.every((r) => r.type === "radio")).toBe(true);
     });
 
     it("[AC-VIEW-004-3][AC-VIEW-004-5] 선택·변경·해제는 새 순회(전체 갱신)를 요청한다", async () => {
       seed([tx(1)]);
       renderSection();
-      const select = screen.getByLabelText("참여자 필터");
       const user = userEvent.setup();
       const start = store.get(refreshRequestAtom);
-      await user.selectOptions(select, "나래");
+      await choose(user, screen, "참여자 필터", "나래");
       expect(store.get(participantFilterAtom)).toBe("p-2");
-      await user.selectOptions(select, "다온 (비활성)");
+      await choose(user, screen, "참여자 필터", "다온 (비활성)");
       expect(store.get(participantFilterAtom)).toBe("p-3");
-      await user.selectOptions(select, "전체");
+      await choose(user, screen, "참여자 필터", "전체");
       expect(store.get(participantFilterAtom)).toBeNull();
       expect(store.get(refreshRequestAtom)).toBe(start + 3);
+    });
+
+    it("화살표 키로 필터 칩을 옮기면 옮길 때마다 새 순회를 요청한다(FD-18 (8), RK-F22)", async () => {
+      seed([tx(1)]);
+      renderSection();
+      const user = userEvent.setup();
+      const start = store.get(refreshRequestAtom);
+      await choose(user, screen, "참여자 필터", "가온");
+      await user.keyboard("{ArrowRight}");
+      expect(store.get(participantFilterAtom)).toBe("p-2");
+      expect(store.get(refreshRequestAtom)).toBe(start + 2);
     });
 
     it("[AC-VIEW-004-8] 새 순회가 반영되기 전에는 기존 목록을 유지하다가 한 번에 교체한다", async () => {
       seed([tx(1), tx(2)]);
       renderSection();
-      await userEvent.selectOptions(screen.getByLabelText("참여자 필터"), "나래");
+      await choose(userEvent, screen, "참여자 필터", "나래");
       // 새 스냅샷이 오기 전: 이전 목록 유지 + 적용 중 표시
       expect(rows()).toHaveLength(2);
       expect(screen.getByText("필터를 적용하는 중…")).toBeInTheDocument();

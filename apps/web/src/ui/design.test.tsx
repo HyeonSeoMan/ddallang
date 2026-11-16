@@ -20,7 +20,7 @@ import {
   PeopleIcon,
   StarIcon,
 } from "./icons";
-import { selectClass, selectCompactClass } from "./select-style";
+import { ChoiceChips } from "./choice-chips";
 import { TextField } from "./text-field";
 import { colors, FONT_STACK, radii, shadows } from "./tokens";
 
@@ -30,14 +30,20 @@ const WEB = join(SRC, "..");
 /**
  * jsdom은 Panda CSS를 적용하지 않는다. 원자 클래스를 `cx`로 이어 붙이면 같은 속성끼리는 생성 CSS의 순서가 이기므로,
  * 한 요소에 같은 속성(또는 줄임 속성과 그 개별 속성)을 정하는 클래스가 둘 이상 붙었는지 이름으로 찾는다.
- * 조건부 클래스(`disabled:` 등)는 조건별로 따로 본다. 다루는 줄임 속성은 아래 표에 있는 것뿐이고, 선택자에 공백이 든
- * 조건부 클래스(`[&_>_button]:…`)는 이름을 정확히 나누지 못하므로 이 도우미를 적용하는 요소에 쓰지 않는다.
+ * 조건부 클래스(`disabled:` 등)는 조건별로 따로 본다. 다루는 줄임 속성은 아래 표에 있는 것뿐이고, 임의 조건 클래스
+ * 중 조건에 공백이 든 것(`[@media …]:…`, `[& > button]:…`)은 이름을 정확히 나누지 못해 건너뛴다(이 도우미로는 검사하지 않는다).
  */
 function conflictingClasses(className: string): string[] {
   const props = className
     .split(" ")
     .filter(Boolean)
-    .map((name) => (name.includes("_") ? name.slice(0, name.indexOf("_")) : name));
+    // 임의 조건 클래스는 `[조건]:속성_값`이다. 조건에 밑줄(공백)이 든 것(`[@media_…]`, `[&_>_button]`)은 나눌 수 없어 보지 않는다.
+    .filter((name) => !(name.startsWith("[") && name.slice(0, name.indexOf("]:")).includes("_")))
+    .map((name) => {
+      const head = name.startsWith("[") ? name.indexOf("]:") + 2 : 0;
+      const cut = name.indexOf("_", head);
+      return cut < 0 ? name : name.slice(0, cut);
+    });
   const shorthands: Record<string, string[]> = { bg: ["bg-c", "bg-i", "bg-r", "bg-p", "bg-s"], bd: ["bd-w", "bd-c", "bd-s"], p: ["px", "py", "pl", "pr", "pt", "pb"], px: ["pl", "pr"], py: ["pt", "pb"] };
   const found: string[] = [];
   props.forEach((prop, index) => {
@@ -174,19 +180,18 @@ describe("버튼 변형과 토큰(FD-18)", () => {
     expect(conflictingClasses(screen.getByRole("button", { name: "버튼" }).className)).toEqual([]);
   });
 
-  it("입력·선택 상자의 결합 클래스도 속성이 겹치지 않는다(비활성 바탕이 선택 상자 화살표를 지우지 않는다)", () => {
+  // 1.4.0: 선택 상자가 칩으로 바뀌어(FD-18 (8)) 선택 상자 결합 검사는 칩 검사로 옮겼다.
+  it("입력란과 칩의 결합 클래스도 속성이 겹치지 않는다", () => {
     render(
       <>
         <TextField label="금액" suffix="원" />
-        <select aria-label="지급자" className={selectClass} disabled>
-          <option>가</option>
-        </select>
+        <ChoiceChips legend="지급자" options={[{ value: "p-1", label: "가온" }]} value="p-1" onChange={() => undefined} />
       </>,
     );
     expect(conflictingClasses(screen.getByLabelText("금액").className)).toEqual([]);
-    const select = screen.getByRole("combobox", { name: "지급자" }).className;
-    expect(conflictingClasses(select)).toEqual([]);
-    expect(select).toMatch(/bg-i_/);
+    const chip = screen.getByRole("radio", { name: "가온" }).closest("label")!.className;
+    expect(conflictingClasses(chip)).toEqual([]);
+    expect(chip.split(" ").filter((c) => c.startsWith("min-h_"))).toEqual(["min-h_touch"]);
   });
 
   it("위험 테두리·알약 모양은 변형 값으로 나온다", () => {
@@ -284,41 +289,14 @@ describe("파비콘(FD-18 (6))", () => {
 });
 
 describe("브라우저 QA 후속 수정(FD-18)", () => {
-  it("모든 네이티브 select 요소가 하나도 빠짐없이 공통 모양(selectClass)을 쓴다: 기본 화살표가 쏠리지 않는다", () => {
-    const offenders: string[] = [];
+  // 1.4.0: 앱의 고르기는 모두 라디오(정산 단위 타일 DV-21, 지급자·수취자·필터 칩 DV-17)다. 네이티브 select가 다시 생기면
+  // 기본 화살표가 쏠리는 문제(브라우저 QA)가 되살아나므로 모양을 정하고 이 수를 맞춘다. 공통 select 모양(select-style)은 지웠다.
+  it("기능 화면에 네이티브 select 요소가 없다(고르기는 모두 라디오 칩·타일)", () => {
     let total = 0;
     for (const file of sourceFiles(join(SRC, "features"))) {
-      const text = readFileSync(file, "utf8");
-      // `<select`부터 `</select>`까지를 요소 하나로 보고 요소마다 className을 확인한다(파일에 문자열이 있기만 한 경우를 막는다).
-      for (const match of text.matchAll(/<select\b[\s\S]*?<\/select>/g)) {
-        total += 1;
-        // 폼 선택 상자는 selectClass(52px), 거래 내역 필터는 selectCompactClass(44px, DV-17). 둘 다 같은 화살표 모양이다.
-        if (!/className=\{select(Compact)?Class\}/.test(match[0])) offenders.push(`${file}: ${match[0].slice(0, 60)}`);
-      }
+      total += [...readFileSync(file, "utf8").matchAll(/<select\b/g)].length;
     }
-    // 요소 2개: 거래 입력의 ParticipantSelect(지급자·수취자가 공유하는 요소 1개), 거래 내역 필터.
-    // 방 만들기 정산 단위는 FE-V3에서 라디오 타일로 바뀌었다(DV-21). select가 새로 생기면 이 수를 맞추고 공통 모양을 쓰게 한다.
-    expect(total).toBe(2);
-    expect(offenders).toEqual([]);
-  });
-
-  it("필터용 selectCompactClass도 같은 화살표 모양에 높이만 44px다(DV-17)", () => {
-    const { container } = render(<select className={selectCompactClass} defaultValue="a"><option value="a">가</option></select>);
-    const classes = container.querySelector("select")!.className;
-    expect(classes.split(" ")).toContain("ap_none");
-    expect(classes).toMatch(/bg-i_/);
-    expect(classes.split(" ").filter((c) => c.startsWith("min-h_"))).toEqual(["min-h_touch"]);
-    expect(conflictingClasses(classes)).toEqual([]);
-    expect(conflictingClasses(selectClass)).toEqual([]);
-    expect(selectClass.split(" ").filter((c) => c.startsWith("min-h_"))).toEqual(["min-h_52px"]);
-  });
-
-  it("selectClass는 기본 화살표를 끄고 오른쪽 안쪽 여백을 확보한다", () => {
-    const { container } = render(<select className={selectClass} defaultValue="a"><option value="a">가</option></select>);
-    const classes = container.querySelector("select")!.className;
-    expect(classes.split(" ")).toContain("ap_none"); // Panda는 appearance를 ap로 줄인다
-    expect(classes).toMatch(/pr_12/);
-    expect(classes).toMatch(/pl_4/);
+    expect(total).toBe(0);
   });
 
   it("브랜드 헤더의 접근 가능한 이름은 DDALLANG이고 방울 아이콘은 숨겨진다", () => {

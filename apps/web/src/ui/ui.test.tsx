@@ -8,6 +8,7 @@ import { Badge } from "./badge";
 import { Banner } from "./banner";
 import { Avatar } from "./avatar";
 import { Button } from "./button";
+import { ChoiceChips } from "./choice-chips";
 import { ConfirmDialog } from "./confirm-dialog";
 import { amountFontSize, Money } from "./money";
 import { TextField } from "./text-field";
@@ -125,6 +126,59 @@ describe("기본 컴포넌트", () => {
   it("안전 정수가 아닌 금액은 렌더링하지 않고 예외를 낸다", () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     expect(() => render(<Money value={1.5} unit="원" />)).toThrow(RangeError);
+  });
+});
+
+describe("칩 고르기(DV-17 1.1.0, FD-18 (8))", () => {
+  function Harness({ errors = [] as string[] }) {
+    const [value, setValue] = useState("");
+    return (
+      <ChoiceChips
+        legend="지급자"
+        options={[
+          { value: "p-1", label: "가온" },
+          { value: "p-2", label: "나래" },
+          { value: "p-3", label: "Abcdefghijkl" },
+        ]}
+        value={value}
+        onChange={setValue}
+        errors={errors}
+      />
+    );
+  }
+
+  it("legend 이름의 group 안 네이티브 라디오이고 처음에는 아무것도 고르지 않았다", async () => {
+    const { container } = render(<Harness />);
+    const group = screen.getByRole("group", { name: "지급자" });
+    const radios = within(group).getAllByRole("radio");
+    expect(radios.map((r) => r.closest("label")?.textContent)).toEqual(["가온", "나래", "Abcdefghijkl"]);
+    expect(radios.every((r) => !(r as HTMLInputElement).checked)).toBe(true);
+    expect(group).not.toHaveAttribute("aria-describedby");
+    // 칩 묶음은 줄을 바꿔 감싼다(가로 스크롤 없음).
+    expect(radios[0]!.closest("div")!.className).toMatch(/flex-wrap_wrap/);
+    await expectNoA11yViolations(container);
+  });
+
+  it("고르면 그 칩만 선택되고 화살표 키로 선택을 옮긴다", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    await user.click(screen.getByRole("radio", { name: "가온" }));
+    expect(screen.getByRole("radio", { name: "가온" })).toBeChecked();
+    await user.keyboard("{ArrowRight}");
+    expect(screen.getByRole("radio", { name: "나래" })).toBeChecked();
+    expect(screen.getByRole("radio", { name: "가온" })).not.toBeChecked();
+  });
+
+  it("오류는 묶음의 라디오 모두에 aria-invalid, fieldset 설명은 항상 있는 aria-live 문단이다", async () => {
+    const { container, rerender } = render(<Harness />);
+    const live = container.querySelector("[aria-live='polite']")!;
+    expect(live).toBeInTheDocument(); // 오류 전에도 영역이 있다
+    rerender(<Harness errors={["필수 항목입니다."]} />);
+    const group = screen.getByRole("group", { name: "지급자" });
+    expect(group).toHaveAccessibleDescription("필수 항목입니다.");
+    for (const radio of within(group).getAllByRole("radio")) expect(radio).toHaveAttribute("aria-invalid", "true");
+    expect(document.getElementById(group.getAttribute("aria-describedby")!)).toBe(live);
+    await expectNoA11yViolations(container);
   });
 });
 

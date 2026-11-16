@@ -1,0 +1,133 @@
+// 측정용 정적 렌더링(저장소 밖). 시드 상태로 방 화면을 그려 HTML로 저장한다.
+import { act } from "@testing-library/react";
+import { writeFileSync } from "node:fs";
+import { createStore } from "jotai";
+import type { ReactNode } from "react";
+import { expect, it, vi } from "vitest";
+import { renderApp } from "@/test/render";
+import * as fixtures from "@/test/fixtures";
+import { INVITE_CODE, seedRoom } from "@/test/room-seed";
+import { roomBasePath } from "@/features/room/room-header";
+import { RecordPage, RoomPage, SettlementPage, StatusPage } from "@/features/room/room-pages";
+import { RoomShell } from "@/features/room/room-shell";
+import { applySnapshotAtom, setConnectionAtom, startEpochAtom } from "@/features/room/state";
+import { connectionPhaseAtom } from "@/features/realtime/state";
+import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { http, HttpResponse } from "msw";
+import { apiUrl, errorResponse } from "@/test/handlers";
+import { server } from "@/test/msw-server";
+import { installFakeStorage } from "@/test/fake-storage";
+import { installFakeLocks } from "@/test/fake-locks";
+import { InviteScreen } from "@/features/room/invite-screen";
+import { CreateRoomForm } from "@/features/room/create-room-form";
+import { BrandHeader, cardClass } from "@/ui/brand-header";
+
+const OUT = "/private/tmp/claude-501/-Users-hsjeong-orca-workspaces-ddallang-design/83dce767-75b4-4806-b124-b2feb56a142e/scratchpad/v5render/out";
+const nav = vi.hoisted(() => ({ pathname: null as string | null }));
+vi.mock("next/navigation", () => ({ usePathname: () => nav.pathname, useRouter: () => ({ replace: () => {}, push: () => {} }) }));
+const BASE = roomBasePath(INVITE_CODE);
+
+function save(name: string, path: string, page: ReactNode, setup: (store: ReturnType<typeof createStore>) => void) {
+  nav.pathname = BASE + path;
+  const store = createStore();
+  setup(store);
+  if (!name.includes("offline")) store.set(connectionPhaseAtom, "connected");
+  const { container, unmount } = renderApp(<RoomShell inviteCode={INVITE_CODE}>{page}</RoomShell>, store);
+  writeFileSync(`${OUT}/${name}.html`, container.innerHTML);
+  unmount();
+}
+
+const UNIT = "가나다라마바사아자차카타";
+const NAMES = ["Abcdefghijkl", "Mnopqrstuvwx", "가나다라마바사아자차카타"];
+function maxSnapshot(store: ReturnType<typeof createStore>) {
+  seedRoom(store);
+  const epoch = store.set(startEpochAtom);
+  const participants = fixtures.participants.map((p, i) => ({ ...p, nickname: NAMES[i]! }));
+  store.set(applySnapshotAtom, {
+    epoch,
+    room: { ...fixtures.room, name: "아주아주긴방이름입니다열두자", unit: UNIT, status: "IN_PROGRESS" },
+    me: fixtures.hostMember,
+    participants,
+    balances: [
+      { participantId: "p-1", nickname: NAMES[0]!, status: "ACTIVE", order: 1, balance: 999_999_999_999 },
+      { participantId: "p-3", nickname: NAMES[2]!, status: "INACTIVE", order: 3, balance: 0 },
+      { participantId: "p-2", nickname: NAMES[1]!, status: "ACTIVE", order: 2, balance: -999_999_999_999 },
+    ],
+    transactions: [
+      { ...fixtures.transactions[0]!, amount: 999_999_999_999, reason: "가".repeat(50), round: "123456789012" },
+      { ...fixtures.transactions[1]!, amount: 999_999_999_999 },
+    ],
+    nextCursor: "c",
+    transactionFilter: null,
+    settlement: { kind: "EXPECTED", items: [{ payerId: "p-2", payerNickname: NAMES[1]!, payeeId: "p-1", payeeNickname: NAMES[0]!, amount: 999_999_999_999 }] },
+  });
+}
+
+async function saveAsync(name: string, ui: ReactNode, act2: () => Promise<void>) {
+  const { container, unmount } = renderApp(ui);
+  await act2();
+  // 라디오·체크 상태는 속성(property)이라 innerHTML에 남지 않으므로 속성(attribute)으로 옮긴다.
+  for (const input of Array.from(container.querySelectorAll("input"))) {
+    if (input.checked) input.setAttribute("checked", ""); else input.removeAttribute("checked");
+  }
+  writeFileSync(`${OUT}/${name}.html`, container.innerHTML);
+  unmount();
+}
+
+const home = () => (
+  <main style={{ maxWidth: "28rem", margin: "0 auto", padding: 16 }}>
+    <BrandHeader />
+    <section className={cardClass}>
+      <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>방 만들기</h2>
+      <CreateRoomForm />
+    </section>
+  </main>
+);
+
+it("render-async", async () => {
+  installFakeStorage();
+  installFakeLocks();
+  const CODE = "invite-code-0000000000000000";
+  for (const status of ["IN_PROGRESS", "ENDED"] as const) {
+    server.use(http.get(apiUrl(`/invites/${CODE}`), () => HttpResponse.json({ room: { name: fixtures.room.name, unit: fixtures.room.unit, status }, isMember: false })));
+    await saveAsync(status === "ENDED" ? "invite-ended" : "invite", <InviteScreen inviteCode={CODE}><div /></InviteScreen>, async () => {
+      await screen.findByLabelText("닉네임");
+    });
+  }
+  server.use(http.post(apiUrl("/rooms"), () => errorResponse("VALIDATION_FAILED", { details: [{ field: "unit", code: "INVALID_CHARACTER" }] })));
+  await saveAsync("create-error", home(), async () => {
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("방 이름"), "방");
+    await user.type(screen.getByLabelText("내 닉네임"), "나");
+    await user.click(screen.getByRole("button", { name: "방 만들기" }));
+    await waitFor(() => expect(screen.getByRole("group", { name: "정산 단위" })).toHaveAccessibleDescription(/한글/));
+  });
+  server.use(http.post(apiUrl("/rooms"), () => HttpResponse.error()));
+  await saveAsync("create-locked", home(), async () => {
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("radio", { name: "칩" }));
+    await user.type(screen.getByLabelText("방 이름"), "방");
+    await user.type(screen.getByLabelText("내 닉네임"), "나");
+    await user.click(screen.getByRole("button", { name: "방 만들기" }));
+    await waitFor(() => expect(screen.getByRole("radio", { name: "칩" })).toBeDisabled());
+  });
+});
+
+it("render", () => {
+  save("status", "", <StatusPage />, (s) => seedRoom(s));
+  save("record", "/record", <RecordPage />, (s) => seedRoom(s));
+  save("settlement", "/settlement", <SettlementPage />, (s) => seedRoom(s));
+  save("room", "/room", <RoomPage />, (s) => seedRoom(s));
+  save("ended", "/settlement", <SettlementPage />, (s) => seedRoom(s, { status: "ENDED" }));
+  save("offline", "", <StatusPage />, (s) => { seedRoom(s); act(() => { s.set(setConnectionAtom, "disconnected"); s.set(connectionPhaseAtom, "reconnecting"); }); });
+  save("max-status", "", <StatusPage />, maxSnapshot);
+  save("max-settlement", "/settlement", <SettlementPage />, maxSnapshot);
+  save("max-room", "/room", <RoomPage />, maxSnapshot);
+  save("ended-status", "", <StatusPage />, (s) => seedRoom(s, { status: "ENDED" }));
+  save("max-record", "/record", <RecordPage />, maxSnapshot);
+  const many = Array.from({ length: 10 }, (_, i) => ({ ...fixtures.participants[0]!, id: `m-${i}`, nickname: i % 2 ? `참여자${i}번가나다라마` : `Player${i}abcdef`, order: i + 1 }));
+  save("many-record", "/record", <RecordPage />, (s) => seedRoom(s, { participants: many }));
+  save("many-status", "", <StatusPage />, (s) => seedRoom(s, { participants: many }));
+  save("ended-record", "/record", <RecordPage />, (s) => seedRoom(s, { status: "ENDED" }));
+});

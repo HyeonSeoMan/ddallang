@@ -1,7 +1,7 @@
 "use client";
 
 import { atom, useAtom, useAtomValue } from "jotai";
-import { type FormEvent, useId, useState } from "react";
+import { type FormEvent, useState } from "react";
 import { css } from "styled-system/css";
 import { useCanMutate } from "@/features/room/server-data-gate";
 import { snapshotAtom } from "@/features/room/state";
@@ -9,7 +9,7 @@ import { type ValidationReasonCode } from "@/lib/api";
 import { validateAmount, validateReason, validateRound } from "@/lib/validation/transaction";
 import { useAnnounce } from "@/ui/announcer";
 import { Button } from "@/ui/button";
-import { selectClass } from "@/ui/select-style";
+import { ChoiceChips } from "@/ui/choice-chips";
 import { CheckIcon } from "@/ui/icons";
 import { amountInputClass, TextField } from "@/ui/text-field";
 import { useDismissedServerErrors } from "./dismissed-errors";
@@ -39,49 +39,28 @@ export const draftKey = (roomId: string, memberId: string) => `${roomId}:${membe
 const toErrors = (field: TxField, code: ValidationReasonCode) => [fieldReasonMessage(field, code)];
 
 
-function ParticipantSelect({
+/** 지급자·수취자 칩(FD-18 (8), DV-17). 선택지는 활성 참여자이고 값은 참여자 id, 빈 값이면 아직 고르지 않았다. */
+function ParticipantChips({
   label,
   value,
   onChange,
   options,
   errors,
-  disabled,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   options: Array<{ id: string; nickname: string }>;
   errors: string[] | undefined;
-  disabled: boolean;
 }) {
-  // 같은 화면에 폼이 둘 이상 있어도 id가 겹치지 않게 한다(중복 id는 라벨 연결을 깨뜨린다).
-  const id = useId();
-  const errorId = `${id}-error`;
   return (
-    <div className={css({ display: "flex", flexDirection: "column", gap: "1" })}>
-      <label htmlFor={`${id}-select`} className={css({ fontSize: "sm", fontWeight: "semibold", color: "inkMuted" })}>
-        {label}
-      </label>
-      <select
-        id={`${id}-select`}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        aria-invalid={errors?.length ? true : undefined}
-        aria-describedby={errors?.length ? errorId : undefined}
-        className={selectClass}
-      >
-        <option value="">선택</option>
-        {options.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.nickname}
-          </option>
-        ))}
-      </select>
-      <div id={errorId} aria-live="polite" className={css({ color: "danger", fontSize: "sm", fontWeight: "medium" })}>
-        {errors?.map((message) => <p key={message}>{message}</p>)}
-      </div>
-    </div>
+    <ChoiceChips
+      legend={label}
+      options={options.map((p) => ({ value: p.id, label: p.nickname }))}
+      value={value}
+      onChange={onChange}
+      errors={errors}
+    />
   );
 }
 
@@ -223,13 +202,12 @@ export function TransactionForm() {
           거래를 저장했습니다.
         </p>
       ) : null}
-      <ParticipantSelect
+      <ParticipantChips
         label="지급자"
         value={payerId}
         onChange={(value) => set({ payerId: value })}
         options={active}
         errors={errors.payerId}
-        disabled={false}
       />
       {/* 지급자 → 수취자 방향을 보이는 장식 구분선. 방향은 두 라벨이 전한다. */}
       <div
@@ -246,13 +224,12 @@ export function TransactionForm() {
       >
         →
       </div>
-      <ParticipantSelect
+      <ParticipantChips
         label="수취자"
         value={payeeId}
         onChange={(value) => set({ payeeId: value })}
         options={active}
         errors={errors.payeeId}
-        disabled={false}
       />
       <TextField
         label="금액"

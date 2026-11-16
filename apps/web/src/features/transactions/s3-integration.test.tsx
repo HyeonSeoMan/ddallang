@@ -9,6 +9,7 @@ import { useRoomConnection } from "@/features/realtime/use-room-connection";
 import { ServerDataGate } from "@/features/room/server-data-gate";
 import { connectionAtom, sessionAtom, snapshotAtom } from "@/features/room/state";
 import type { Transaction } from "@/lib/api";
+import { choose, chosenValue } from "@/test/choice";
 import { installFakeStorage } from "@/test/fake-storage";
 import * as fixtures from "@/test/fixtures";
 import { apiUrl } from "@/test/handlers";
@@ -80,7 +81,7 @@ describe("S3 화면 × 갱신 주기 (FE-S3-3)", () => {
 
   it("[AC-VIEW-005-7] 필터를 고르면 필터를 유지한 채 새 순회를 하고, 이후 변경 알림에도 같은 필터로 다시 불러온다", async () => {
     await mountAndWait();
-    await userEvent.selectOptions(screen.getByLabelText("참여자 필터"), "가온");
+    await choose(userEvent, screen, "참여자 필터", "가온");
     await waitFor(() => expect(store.get(snapshotAtom)?.transactionFilter).toBe("p-1"));
     expect(backend.transactionQueries.at(-1)).toEqual({ participantId: "p-1", cursor: null });
     // p-1이 당사자가 아닌 거래(5의 배수)는 빠졌다: 25건 → 20건(전부 첫 페이지에 들어간다)
@@ -92,7 +93,7 @@ describe("S3 화면 × 갱신 주기 (FE-S3-3)", () => {
     await waitFor(() => expect(amounts()[0]).toBe("7,777"));
     expect(backend.transactionQueries.at(-1)).toEqual({ participantId: "p-1", cursor: null }); // 필터 유지
     expect(store.get(participantFilterAtom)).toBe("p-1");
-    expect((screen.getByLabelText("참여자 필터") as HTMLSelectElement).value).toBe("p-1");
+    expect(chosenValue(screen, "참여자 필터")).toBe("p-1");
   });
 
   it("[AC-VIEW-003-4] 갱신 응답이 오기 전에는 기존 목록을 유지하다가 한 번에 교체한다(부분 반영 없음)", async () => {
@@ -111,11 +112,11 @@ describe("S3 화면 × 갱신 주기 (FE-S3-3)", () => {
     await mountAndWait();
     await userEvent.click(screen.getByRole("button", { name: "더 보기" }));
     await waitFor(() => expect(rows()).toHaveLength(25));
-    await userEvent.selectOptions(screen.getByLabelText("참여자 필터"), "다온 (비활성)");
+    await choose(userEvent, screen, "참여자 필터", "다온 (비활성)");
     // 다온(p-3)이 당사자인 거래는 5의 배수 5건뿐이다. 이전 25건과 섞이지 않는다.
     await waitFor(() => expect(rows()).toHaveLength(5));
     expect(amounts().sort()).toEqual(["100", "150", "200", "250", "50"].sort());
-    await userEvent.selectOptions(screen.getByLabelText("참여자 필터"), "전체");
+    await choose(userEvent, screen, "참여자 필터", "전체");
     await waitFor(() => expect(rows()).toHaveLength(20)); // 해제도 새 순회(첫 페이지)
   });
 
@@ -167,7 +168,7 @@ describe("S3 화면 × 갱신 주기 (FE-S3-3)", () => {
     await mountAndWait();
     const balanceRows = () => screen.getAllByRole("listitem").filter((li) => /\+|−|0 원/.test(li.textContent ?? "") && !/→/.test(li.textContent ?? ""));
     const before = balanceRows().map((r) => r.textContent);
-    await userEvent.selectOptions(screen.getByLabelText("참여자 필터"), "나래");
+    await choose(userEvent, screen, "참여자 필터", "나래");
     await waitFor(() => expect(store.get(snapshotAtom)?.transactionFilter).toBe("p-2"));
     expect(balanceRows().map((r) => r.textContent)).toEqual(before);
   });

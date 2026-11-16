@@ -8,6 +8,7 @@ import userEvent from "@testing-library/user-event";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { connectionAtom } from "@/features/room/state";
 import { isKnownErrorCode } from "@/lib/api";
+import { choose } from "@/test/choice";
 import { mockClipboard } from "@/test/clipboard";
 import { installFakeLocks } from "@/test/fake-locks";
 import { installFakeStorage } from "@/test/fake-storage";
@@ -65,16 +66,16 @@ const showsReason = (reason: string) => (el: HTMLElement) =>
   Array.from(el.querySelectorAll("span")).some((s) => s.textContent === `사유: ${reason}`);
 const participantListed = (nickname: string) => (el: HTMLElement) =>
   Array.from(section(el, "참여자")?.querySelectorAll("li") ?? []).some((li) => li.textContent?.includes(nickname));
-/** 거래 입력 구역의 선택지(지급자·수취자)에 있는 참여자 이름. */
+/** 거래 입력 구역의 선택지(지급자·수취자 칩 라디오, FD-18 (8))에 있는 참여자 이름. RK-F22: `<option>` → 라디오 `label`. */
 const selectableNames = (el: HTMLElement) =>
-  Array.from(section(el, "거래 입력")?.querySelectorAll("option") ?? []).map((o) => o.textContent);
+  Array.from(section(el, "거래 입력")?.querySelectorAll("input[type=radio]") ?? []).map((r) => r.closest("label")?.textContent ?? "");
 const isInactiveBadge = (nickname: string) => (el: HTMLElement) =>
   Array.from(section(el, "참여자")?.querySelectorAll("li") ?? []).some(
     (li) => li.textContent?.includes(nickname) && Array.from(li.querySelectorAll("span")).some((x) => x.textContent === "비활성"),
   );
 /** 구역 제목 틀은 남아도 안에 서버 데이터(목록 항목·폼·입력·선택지)가 있으면 그 구역 이름을 돌려준다. */
 const serverDataIn = (el: HTMLElement, headings: string[]) =>
-  headings.filter((h) => (section(el, h)?.querySelectorAll("li, form, input, select, option").length ?? 0) > 0);
+  headings.filter((h) => (section(el, h)?.querySelectorAll("li, form, input, fieldset").length ?? 0) > 0);
 const settlementShows = (items: ServerItem[]) => (el: HTMLElement) => settlementMatches(section(el, "예상 정산"), items);
 const serverSettlement = async (live: LiveRoom) =>
   (await call<{ settlement: { items: ServerItem[] } }>("GET", `/rooms/${live.room.id}/settlement`, live.host.key)).body.settlement.items;
@@ -103,8 +104,8 @@ describe("실서버 연동 점검 (FE-I1)", () => {
     await mustSee(b!, "참여자 등록이 거래 입력 선택지에 반영", (el) => selectableNames(el).includes("참2"));
 
     // 거래 저장 → 다른 접속자의 목록·예상 정산(방 단위 표시)이 바뀐다
-    await user.selectOptions(ui.getByLabelText("지급자"), "참0");
-    await user.selectOptions(ui.getByLabelText("수취자"), "참1");
+    await choose(user, ui, "지급자", "참0");
+    await choose(user, ui, "수취자", "참1");
     await user.type(ui.getByLabelText("금액"), "1234");
     await user.type(ui.getByLabelText("사유 (선택)"), "통합점검");
     await user.click(ui.getByRole("button", { name: "저장" }));
@@ -181,8 +182,8 @@ describe("실서버 연동 점검 (FE-I1)", () => {
     const ui = within(a!.container);
 
     control.dropNextTransactionResponse(live.members[0]!.key);
-    await user.selectOptions(ui.getByLabelText("지급자"), "참0");
-    await user.selectOptions(ui.getByLabelText("수취자"), "참1");
+    await choose(user, ui, "지급자", "참0");
+    await choose(user, ui, "수취자", "참1");
     await user.type(ui.getByLabelText("금액"), "500");
     await user.type(ui.getByLabelText("사유 (선택)"), "응답유실");
     await user.click(ui.getByRole("button", { name: "저장" }));

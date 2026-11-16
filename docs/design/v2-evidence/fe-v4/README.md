@@ -7,6 +7,13 @@
   - 종료된 방의 현황·기록, 끊김(`reconnecting`) 화면.
   - 라디오 `checked`는 DOM 속성이라 HTML 저장 전에 속성(attribute)으로 옮긴다(`render.test.tsx.txt`).
   - 하단 고정 `거래 기록하기`는 컨테이너가 아니라 뷰포트 기준이라 375×812 iframe으로 따로 캡처했다(`fixed-record-button-375.png`).
+- 홈(방 만들기) 화면은 `app/page.tsx`를 그대로 렌더하지 않고 같은 구성(`max-width: 28rem`, 안쪽 16px, `BrandHeader`, 카드 제목 20/700·아래 16px, `CreateRoomForm`)을 인라인 스타일로 옮겨 렌더했다(`page.tsx`는 서버 컴포넌트·Panda 클래스라 시험 렌더에 그대로 쓰지 않았다). 값은 같다.
+- 명령(스크래치 폴더 `$S`, 앱은 `apps/web`):
+  - 렌더: `cp render.test.tsx.txt apps/web/src/zz-v4render.test.tsx && pnpm exec vitest run src/zz-v4render.test.tsx; rm apps/web/src/zz-v4render.test.tsx`(출력 경로는 스크립트의 `OUT`)
+  - CSS: `pnpm panda cssgen --outfile $OUT/app.css`, 글꼴 복사, `python3 wrap.py $OUT`(화면마다 `<이름>-375.html`)
+  - 측정: `chrome --headless=new --allow-file-access-from-files --virtual-time-budget=5000 --window-size=500,900 --dump-dom file://$OUT/<이름>-375.html`(결과는 `<pre id="result">` JSON)
+  - 캡처: 같은 옵션에 `--hide-scrollbars --screenshot=…`, 왼쪽 위 375×812를 잘랐다.
+  - 고정 버튼: `status-375.html`에서 375px 컨테이너를 뺀 사본을 `<iframe style="width:375px;height:812px">`로 감싸 맨 아래로 스크롤해 캡처했다.
 - 배포 DB·실서버에는 요청하지 않았다.
 
 ## 결과

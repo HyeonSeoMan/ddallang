@@ -67,8 +67,9 @@ async function openRoomAs(participantId: string) {
 async function expectAccessLostScreen(next: string) {
   const banner = await screen.findByText(new RegExp(ACCESS_LOST_NOTICE));
   expect(banner).toHaveTextContent(next);
-  // 신원 없음 상태의 초대 화면(새로 입장 입력)으로 돌아왔고 방 화면은 닫혔다.
-  expect(await screen.findByLabelText("닉네임")).toBeInTheDocument();
+  // 신원 없음 상태의 초대 화면(새로 입장·이어받기 선택)으로 돌아왔고 방 화면은 닫혔다.
+  expect(await screen.findByRole("button", { name: "기존 참여자 이어받기" })).toBeInTheDocument();
+  if (next === ACCESS_LOST_NEXT_IN_PROGRESS) expect(screen.getByRole("button", { name: "새로 입장하기" })).toBeInTheDocument();
   expect(screen.queryByRole("heading", { name: "누적 손익" })).not.toBeInTheDocument();
 }
 

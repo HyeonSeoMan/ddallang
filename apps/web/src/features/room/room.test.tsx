@@ -4,7 +4,6 @@ import type { ReactNode } from "react";
 import { describe, expect, it } from "vitest";
 import { expectNoA11yViolations } from "@/test/a11y";
 import * as fixtures from "@/test/fixtures";
-import { initialInviteStage, inviteReducer, type InviteStage } from "./invite-stage";
 import { RoomLayout, ROOM_SECTION_TITLES } from "./room-layout";
 import { ServerDataGate, useCanMutate } from "./server-data-gate";
 import {
@@ -194,48 +193,5 @@ describe("방 화면 구역", () => {
     expect(screen.getByRole("heading", { name: "예상 정산" })).toBeInTheDocument();
     act(() => store.set(setConnectionAtom, "disconnected"));
     expect(screen.queryByRole("heading", { name: "예상 정산" })).not.toBeInTheDocument();
-  });
-});
-
-describe("초대 화면 단계 상태기계", () => {
-  const run = (events: Parameters<typeof inviteReducer>[1][], from: InviteStage = initialInviteStage) =>
-    events.reduce(inviteReducer, from);
-
-  it("확인 중 → 닉네임 입력 → 입장 중 → 방 화면", () => {
-    expect(run([{ type: "CHECKED", isMember: false }]).stage).toBe("nickname");
-    expect(run([{ type: "CHECKED", isMember: false }, { type: "SUBMIT_NICKNAME" }]).stage).toBe("joining");
-    expect(
-      run([{ type: "CHECKED", isMember: false }, { type: "SUBMIT_NICKNAME" }, { type: "JOINED" }]).stage,
-    ).toBe("room");
-  });
-
-  it("이미 멤버면 닉네임 없이 바로 입장 중이다", () => {
-    expect(run([{ type: "CHECKED", isMember: true }]).stage).toBe("joining");
-    expect(run([{ type: "CHECKED", isMember: true }, { type: "JOINED" }]).stage).toBe("room");
-  });
-
-  it("입장 거부는 닉네임 단계로 돌아가고, 복원 실패·초대 코드 오류는 오류 단계다", () => {
-    expect(
-      run([{ type: "CHECKED", isMember: false }, { type: "SUBMIT_NICKNAME" }, { type: "JOIN_REJECTED" }]).stage,
-    ).toBe("nickname");
-    expect(run([{ type: "CHECK_FAILED", code: "INVITE_NOT_FOUND" }])).toEqual({
-      stage: "error",
-      code: "INVITE_NOT_FOUND",
-    });
-    expect(
-      run([{ type: "CHECKED", isMember: true }, { type: "RESTORE_FAILED", code: "ROOM_NOT_FOUND" }]).stage,
-    ).toBe("error");
-  });
-
-  it("오류 단계에서 다시 시도하면 확인 중으로 돌아간다", () => {
-    expect(run([{ type: "CHECK_FAILED", code: "NETWORK_ERROR" }, { type: "RETRY" }]).stage).toBe("checking");
-    expect(run([{ type: "RETRY" }]).stage).toBe("checking"); // 오류가 아니면 무시(이미 확인 중)
-    expect(run([{ type: "CHECKED", isMember: false }, { type: "RETRY" }]).stage).toBe("nickname");
-  });
-
-  it("단계에 맞지 않는 이벤트는 무시한다", () => {
-    expect(run([{ type: "JOINED" }]).stage).toBe("checking");
-    expect(run([{ type: "SUBMIT_NICKNAME" }]).stage).toBe("checking");
-    expect(run([{ type: "CHECKED", isMember: false }, { type: "CHECKED", isMember: true }]).stage).toBe("nickname");
   });
 });

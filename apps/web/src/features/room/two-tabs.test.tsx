@@ -50,10 +50,11 @@ describe("같은 브라우저 두 탭의 첫 입장 (FE-S1-6)", () => {
     // 탭 A·B: 같은 localStorage·같은 Web Locks를 공유하고 각자 별도 앱 상태(store)를 가진다.
     const tabA = renderApp(<InviteScreen inviteCode={CODE}><AllPages /></InviteScreen>);
     const tabB = renderApp(<InviteScreen inviteCode={CODE}><AllPages /></InviteScreen>);
-    await waitFor(() => expect(screen.getAllByLabelText("닉네임")).toHaveLength(2));
+    const user = userEvent.setup();
+    await waitFor(() => expect(screen.getAllByRole("button", { name: "새로 입장하기" })).toHaveLength(2));
+    for (const button of screen.getAllByRole("button", { name: "새로 입장하기" })) await user.click(button);
     const nicknameInputs = screen.getAllByLabelText("닉네임");
 
-    const user = userEvent.setup();
     await user.type(nicknameInputs[0]!, "손님");
     await user.type(nicknameInputs[1]!, "손님");
     const buttons = screen.getAllByRole("button", { name: "입장" });
@@ -92,7 +93,8 @@ describe("같은 브라우저 두 탭의 첫 입장 (FE-S1-6)", () => {
     );
     renderApp(<InviteScreen inviteCode={CODE}><AllPages /></InviteScreen>);
     const user = userEvent.setup();
-    await user.type(await screen.findByLabelText("닉네임"), "손님");
+    await user.click(await screen.findByRole("button", { name: "새로 입장하기" }));
+    await user.type(screen.getByLabelText("닉네임"), "손님");
     await user.click(screen.getByRole("button", { name: "입장" }));
     expect(await screen.findByText(/이 브라우저에서는 입장할 수 없습니다/)).toBeInTheDocument();
     expect(storage.keys()).toEqual([]);

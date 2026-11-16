@@ -6,6 +6,7 @@ import { expectNoA11yViolations } from "@/test/a11y";
 import { AnnouncerProvider, useAnnounce } from "./announcer";
 import { Badge } from "./badge";
 import { Banner } from "./banner";
+import { Avatar } from "./avatar";
 import { Button } from "./button";
 import { ConfirmDialog } from "./confirm-dialog";
 import { amountFontSize, Money } from "./money";
@@ -124,6 +125,28 @@ describe("기본 컴포넌트", () => {
   it("안전 정수가 아닌 금액은 렌더링하지 않고 예외를 낸다", () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     expect(() => render(<Money value={1.5} unit="원" />)).toThrow(RangeError);
+  });
+});
+
+describe("아바타(DV-11)", () => {
+  it("장식이라 숨겨지고 첫 글자를 글자 내용 밖(content)으로 그리며 위치 % 6으로 색을 고른다", () => {
+    const { container } = render(
+      <>
+        <Avatar name="가온" index={0} />
+        <Avatar name="Abc" index={6} />
+        <Avatar name="나래" index={-1} />
+        <Avatar name="다온" index={2} inactive />
+      </>,
+    );
+    const avatars = Array.from(container.querySelectorAll<HTMLElement>("[data-initial]"));
+    expect(avatars.map((a) => a.getAttribute("aria-hidden"))).toEqual(["true", "true", "true", "true"]);
+    expect(avatars.map((a) => a.getAttribute("data-initial"))).toEqual(["가", "A", "나", "다"]);
+    expect(avatars.map((a) => a.textContent)).toEqual(["", "", "", ""]);
+    // 0과 6은 같은 색, 위치를 모르면(-1) 범위 안의 색, 비활성은 인라인 색 없이 회색 클래스.
+    expect(avatars[0]!.style.backgroundColor).toBe(avatars[1]!.style.backgroundColor);
+    expect(avatars[2]!.style.backgroundColor).not.toBe("");
+    expect(avatars[3]!.style.backgroundColor).toBe("");
+    expect(avatars[3]!.className).toMatch(/bg-c_paperSubtle/);
   });
 });
 

@@ -10,7 +10,7 @@ import { validateAmount, validateReason, validateRound } from "@/lib/validation/
 import { useAnnounce } from "@/ui/announcer";
 import { Button } from "@/ui/button";
 import { ConfirmDialog } from "@/ui/confirm-dialog";
-import { TextField } from "@/ui/text-field";
+import { amountInputClass, TextField } from "@/ui/text-field";
 import { useDismissedServerErrors } from "./dismissed-errors";
 import { type FieldErrors, fieldReasonMessage } from "./messages";
 import { MutationNotice } from "./mutation-notice";
@@ -198,10 +198,10 @@ export function TransactionActions({
             void save();
           }}
           noValidate
-          className={css({ display: "flex", flexDirection: "column", gap: "2" })}
+          className={css({ display: "flex", flexDirection: "column", gap: "3", mt: "2", pt: "3", borderTopWidth: "1px", borderTopColor: "divider" })}
           aria-label={`${label} 수정`}
         >
-          <TextField label="금액" inputMode="numeric" autoComplete="off" value={draft.amount} onChange={(e) => {
+          <TextField label="금액" inputMode="numeric" autoComplete="off" suffix={room.unit} className={amountInputClass} value={draft.amount} onChange={(e) => {
               setDraft({ amount: e.target.value });
               clearError("amount");
             }} errors={shownErrors.amount} />
@@ -214,17 +214,17 @@ export function TransactionActions({
               clearError("round");
             }} errors={shownErrors.round} />
           <MutationNotice state={update.state} onRetry={() => void save()} onConfirmNew={() => void save({ confirmNewAttempt: true })} disabled={updating} />
-          <div className={css({ display: "flex", gap: "2" })}>
+          <div className={css({ display: "flex", gap: "2", "& > button": { flex: "1" } })}>
             <Button type="submit" disabled={updating}>
               {updating ? "저장 중…" : "저장"}
             </Button>
-            <Button variant="secondary" onClick={cancelEdit} disabled={updating}>
+            <Button variant="secondaryBlock" onClick={cancelEdit} disabled={updating}>
               취소
             </Button>
           </div>
         </form>
       ) : (
-        <div className={css({ display: "flex", gap: "2" })}>
+        <div className={css({ display: "flex", gap: "1.5" })}>
           <Button variant="secondary" onClick={startEdit} disabled={updating} aria-label={`${label} 수정`}>
             수정
           </Button>

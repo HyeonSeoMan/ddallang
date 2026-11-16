@@ -20,7 +20,7 @@ import {
   PeopleIcon,
   StarIcon,
 } from "./icons";
-import { selectClass } from "./select-style";
+import { selectClass, selectCompactClass } from "./select-style";
 import { TextField } from "./text-field";
 import { colors, FONT_STACK, radii, shadows } from "./tokens";
 
@@ -259,13 +259,25 @@ describe("브라우저 QA 후속 수정(FD-18)", () => {
       // `<select`부터 `</select>`까지를 요소 하나로 보고 요소마다 className을 확인한다(파일에 문자열이 있기만 한 경우를 막는다).
       for (const match of text.matchAll(/<select\b[\s\S]*?<\/select>/g)) {
         total += 1;
-        if (!match[0].includes("className={selectClass}")) offenders.push(`${file}: ${match[0].slice(0, 60)}`);
+        // 폼 선택 상자는 selectClass(52px), 거래 내역 필터는 selectCompactClass(44px, DV-17). 둘 다 같은 화살표 모양이다.
+        if (!/className=\{select(Compact)?Class\}/.test(match[0])) offenders.push(`${file}: ${match[0].slice(0, 60)}`);
       }
     }
     // 요소 3개: 거래 입력의 ParticipantSelect(지급자·수취자가 공유하는 요소 1개), 거래 내역 필터, 방 만들기 단위.
     // select가 새로 생기면 이 수를 맞추고 selectClass를 쓰게 한다.
     expect(total).toBe(3);
     expect(offenders).toEqual([]);
+  });
+
+  it("필터용 selectCompactClass도 같은 화살표 모양에 높이만 44px다(DV-17)", () => {
+    const { container } = render(<select className={selectCompactClass} defaultValue="a"><option value="a">가</option></select>);
+    const classes = container.querySelector("select")!.className;
+    expect(classes.split(" ")).toContain("ap_none");
+    expect(classes).toMatch(/bg-i_/);
+    expect(classes.split(" ").filter((c) => c.startsWith("min-h_"))).toEqual(["min-h_touch"]);
+    expect(conflictingClasses(classes)).toEqual([]);
+    expect(conflictingClasses(selectClass)).toEqual([]);
+    expect(selectClass.split(" ").filter((c) => c.startsWith("min-h_"))).toEqual(["min-h_52px"]);
   });
 
   it("selectClass는 기본 화살표를 끄고 오른쪽 안쪽 여백을 확보한다", () => {

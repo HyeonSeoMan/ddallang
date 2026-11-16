@@ -78,10 +78,17 @@ describe("헤더 탭", () => {
     mount(<RoomHeader inviteCode={INVITE_CODE} />);
     const wrapper = screen.getByTestId("room-header-sticky");
     expect(wrapper).toContainElement(screen.getByRole("banner"));
-    // 헤더(banner) 자체가 아니라 래퍼가 고정과 배경을 맡는다.
+    // 헤더(banner) 자체가 아니라 래퍼가 고정과 배경을 맡는다. 디자인 v2: 래퍼가 화면 폭 전체를 흰 단색으로 칠하고
+    // (그라데이션 없음, 방향 문서 §5.1) 아래에 장식 구분선을 둔다(RK-F20).
     expect(wrapper.className).toMatch(/pos_sticky/);
     expect(wrapper.className).toMatch(/top_0/);
-    expect(wrapper.className).toMatch(/bg-g(radient)?_|linear-gradient/);
+    expect(wrapper.className).toMatch(/bg-c_paper/);
+    expect(wrapper.className).toMatch(/bd-b-c_divider/);
+  });
+
+  it("헤더 탭은 글자만 있고(아이콘 없음) 로고도 없다(DV-9·DV-16)", () => {
+    mount(<RoomHeader inviteCode={INVITE_CODE} />);
+    expect(screen.getByTestId("room-header-sticky").querySelector("svg")).toBeNull();
   });
 
   it("접근성 위반이 없다", async () => {
@@ -107,6 +114,11 @@ describe("페이지별 구성(손익과 거래 내역은 한 화면, AC-VIEW-001
     mount(<SettlementPage />);
     expect(headings()).toEqual(["예상 정산"]);
     expect(screen.getByRole("button", { name: "게임 종료" })).toBeInTheDocument();
+    // 게임 종료는 정산 카드 밖(구역 안, 카드 아래)에 있다(방향 문서 §5.4).
+    const section = document.querySelector<HTMLElement>('[data-section="settlement"]')!;
+    const button = screen.getByRole("button", { name: "게임 종료" });
+    expect(section).toContainElement(button);
+    expect(button.closest("[class*='bg-c_paper']")).toBeNull();
   });
 
   it("정산: 종료된 방은 최종 정산이고 종료 컨트롤이 없다", () => {

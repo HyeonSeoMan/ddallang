@@ -68,6 +68,18 @@ describe("거래 수정·삭제 컨트롤 (FE-S2-3)", () => {
       await expectNoA11yViolations(container);
     });
 
+    it("수정·삭제는 회색 알약이고(삭제는 빨강 글자) 수정 폼의 금액 입력은 24/700·바깥 단위다(방향 문서 §4)", async () => {
+      const user = userEvent.setup();
+      const { container } = mount(own);
+      expect(screen.getByRole("button", { name: "거래 100 원 삭제" }).className).toMatch(/c_danger/);
+      await user.click(screen.getByRole("button", { name: "거래 100 원 수정" }));
+      const amount = screen.getByLabelText("금액");
+      expect(amount.className).toMatch(/fs_amountInput/);
+      expect(amount.nextElementSibling).toHaveAttribute("aria-hidden", "true");
+      expect(amount.nextElementSibling).toHaveTextContent(fixtures.room.unit);
+      await expectNoA11yViolations(container);
+    });
+
     it("방장에게는 타인의 거래에도 보인다", () => {
       mount(others, { me: fixtures.hostMember });
       expect(screen.getByRole("button", { name: /수정/ })).toBeInTheDocument();

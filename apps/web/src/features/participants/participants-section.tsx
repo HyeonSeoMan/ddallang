@@ -3,7 +3,7 @@
 import { useAtom, useAtomValue } from "jotai";
 import { useRef } from "react";
 import { useState } from "react";
-import { css } from "styled-system/css";
+import { css, cx } from "styled-system/css";
 import {
   ApiError,
   bearerHeader,
@@ -18,11 +18,15 @@ import { reasonMessage } from "@/features/room/messages";
 import { useCanMutate } from "@/features/room/server-data-gate";
 import { sessionAtom, snapshotAtom } from "@/features/room/state";
 import { useAnnounce } from "@/ui/announcer";
+import { Avatar } from "@/ui/avatar";
 import { Badge } from "@/ui/badge";
 import { Banner } from "@/ui/banner";
 import { Button } from "@/ui/button";
+import { listClass, rowAmountClass, rowBodyClass, rowClass, rowFullClass, rowTitleClass } from "@/ui/list-row";
 import { TextField } from "@/ui/text-field";
 import { participantDraftsAtom } from "./state";
+
+const rowErrorClass = css({ color: "danger", fontSize: "sm", fontWeight: "medium" });
 
 /** 닉네임 비교 키: NFC로 정규화하고 `A-Z`만 소문자로 바꾼다(S1 §3.2). */
 export function nicknameKey(nickname: string): string {
@@ -207,27 +211,25 @@ export function ParticipantsSection() {
   return (
     <div className={css({ display: "flex", flexDirection: "column", gap: "3" })}>
       {participants.length === 0 ? <p>등록된 참여자가 없습니다.</p> : null}
-      <ul className={css({ display: "flex", flexDirection: "column", gap: "2" })}>
-        {participants.map((p) => {
+      <ul className={listClass}>
+        {participants.map((p, index) => {
           const next: ParticipantStatus = p.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
           // 다른 접속자의 변경·재조회로 이미 목표 상태가 되었다면 결과 불명 안내와 재시도를 걷는다.
           const unknownTarget = unknownToggles[p.id];
           const isUnknown = unknownTarget !== undefined && p.status !== unknownTarget;
+          const showUnknown = isUnknown && rowNotice?.id !== p.id;
+          const showNotice = rowNotice?.id === p.id && !(unknownTarget !== undefined && p.status === unknownTarget);
           return (
-            <li key={p.id} className={css({ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "2" })}>
-              <span>{p.nickname}</span>
-              {p.status === "INACTIVE" ? <Badge tone="neutral">비활성</Badge> : null}
-              {canControl ? (
-                isUnknown ? (
-                  <Button
-                    variant="secondary"
-                    disabled={togglingId !== null}
-                    onClick={() => void retryStatus(p, unknownTarget)}
-                    aria-label={`${p.nickname} 상태 변경 다시 시도`}
-                  >
-                    다시 시도
-                  </Button>
-                ) : (
+            <li key={p.id} className={rowClass}>
+              <Avatar name={p.nickname} index={index} inactive={p.status === "INACTIVE"} />
+              <div className={rowBodyClass}>
+                <div className={cx(rowTitleClass, p.status === "INACTIVE" ? css({ color: "inkMuted" }) : undefined)}>
+                  <span>{p.nickname}</span>
+                  {p.status === "INACTIVE" ? <Badge tone="neutral">비활성</Badge> : null}
+                </div>
+              </div>
+              {canControl && !isUnknown ? (
+                <span className={rowAmountClass}>
                   <Button
                     variant="secondary"
                     disabled={togglingId !== null}
@@ -236,17 +238,32 @@ export function ParticipantsSection() {
                   >
                     {next === "INACTIVE" ? "비활성화" : "재활성화"}
                   </Button>
-                )
-              ) : null}
-              {isUnknown && rowNotice?.id !== p.id ? (
-                <span role="alert" className={css({ color: "errorText" })}>
-                  결과를 확인하지 못했습니다.
                 </span>
               ) : null}
-              {rowNotice?.id === p.id && !(unknownTarget !== undefined && p.status === unknownTarget) ? (
-                <span role="alert" className={css({ color: "errorText" })}>
-                  {rowNotice.message}
-                </span>
+              {/* 행의 오류 문구와 `다시 시도`는 행 내용 아래 카드 폭으로 펼친다(방향 문서 §5.5). */}
+              {showUnknown || showNotice || (canControl && isUnknown) ? (
+                <div className={cx(rowFullClass, css({ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "2", pb: "2" }))}>
+                  {showUnknown ? (
+                    <span role="alert" className={rowErrorClass}>
+                      결과를 확인하지 못했습니다.
+                    </span>
+                  ) : null}
+                  {showNotice ? (
+                    <span role="alert" className={rowErrorClass}>
+                      {rowNotice?.message}
+                    </span>
+                  ) : null}
+                  {canControl && isUnknown ? (
+                    <Button
+                      variant="secondary"
+                      disabled={togglingId !== null}
+                      onClick={() => void retryStatus(p, unknownTarget)}
+                      aria-label={`${p.nickname} 상태 변경 다시 시도`}
+                    >
+                      다시 시도
+                    </Button>
+                  ) : null}
+                </div>
               ) : null}
             </li>
           );
@@ -254,7 +271,11 @@ export function ParticipantsSection() {
       </ul>
 
       {canControl ? (
-        <form onSubmit={(e) => void onRegister(e)} noValidate className={css({ display: "flex", flexDirection: "column", gap: "2" })}>
+        <form
+          onSubmit={(e) => void onRegister(e)}
+          noValidate
+          className={css({ display: "flex", flexDirection: "column", gap: "3", pt: "4", borderTopWidth: "1px", borderTopColor: "divider" })}
+        >
           <TextField
             label="참여자 닉네임"
             value={draft}

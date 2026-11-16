@@ -53,14 +53,9 @@ export function SettlementPage() {
     <RoomSections
       only={["settlement"]}
       titles={titles}
-      slots={{
-        settlement: (
-          <>
-            <SettlementSection />
-            <EndGame />
-          </>
-        ),
-      }}
+      slots={{ settlement: <SettlementSection /> }}
+      // `게임 종료`는 정산 카드 밖, 구분선으로 떨어뜨린 위험 버튼이다(방향 문서 §5.4, 시안).
+      after={{ settlement: <EndGame /> }}
     />
   );
 }

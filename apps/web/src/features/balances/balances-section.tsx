@@ -1,9 +1,11 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { css } from "styled-system/css";
+import { css, cx } from "styled-system/css";
 import { snapshotAtom } from "@/features/room/state";
+import { Avatar } from "@/ui/avatar";
 import { Badge } from "@/ui/badge";
+import { listClass, rowAmountClass, rowBodyClass, rowClass, rowTitleClass } from "@/ui/list-row";
 import { Money } from "@/ui/money";
 
 /**
@@ -13,24 +15,27 @@ import { Money } from "@/ui/money";
 export function BalancesSection() {
   const snapshot = useAtomValue(snapshotAtom);
   if (!snapshot) return null;
-  const { balances, room } = snapshot;
+  const { balances, participants, room } = snapshot;
 
   if (balances.length === 0) return <p>참여자가 없습니다.</p>;
   return (
-    <ul className={css({ display: "flex", flexDirection: "column" })}>
-      {balances.map((b) => (
-        <li
-          key={b.participantId}
-          className={css({ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "2", py: "3", borderTopWidth: "1px", borderColor: "divider", _first: { borderTopWidth: "0" } })}
-        >
-          <span className={css({ fontWeight: "semibold" })}>
-            {b.nickname} {b.status === "INACTIVE" ? <Badge tone="neutral">비활성</Badge> : null}
-          </span>
-          <span className={css({ fontSize: "xl" })}>
-            <Money value={b.balance} unit={room.unit} signed />
-          </span>
-        </li>
-      ))}
+    <ul className={listClass}>
+      {balances.map((b) => {
+        const inactive = b.status === "INACTIVE";
+        return (
+          <li key={b.participantId} className={rowClass}>
+            <Avatar name={b.nickname} index={participants.findIndex((p) => p.id === b.participantId)} inactive={inactive} />
+            <span className={rowBodyClass}>
+              <span className={cx(rowTitleClass, inactive ? css({ color: "inkMuted" }) : undefined)}>
+                {b.nickname} {inactive ? <Badge tone="neutral">비활성</Badge> : null}
+              </span>
+            </span>
+            <span className={rowAmountClass}>
+              <Money value={b.balance} unit={room.unit} signed />
+            </span>
+          </li>
+        );
+      })}
     </ul>
   );
 }

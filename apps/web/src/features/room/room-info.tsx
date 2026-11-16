@@ -2,10 +2,11 @@
 
 import { useAtomValue } from "jotai";
 import { useId } from "react";
-import { css } from "styled-system/css";
+import { css, cx } from "styled-system/css";
 import { useCopyFeedback } from "@/lib/use-copy-feedback";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
+import { fieldFrameClass } from "@/ui/text-field";
 import { snapshotAtom } from "./state";
 
 export function inviteLink(inviteCode: string): string {
@@ -34,18 +35,18 @@ export function RoomInfo() {
   }
 
   return (
-    <div className={css({ display: "flex", flexDirection: "column", gap: "2" })}>
-      <p className={css({ fontSize: "lg", fontWeight: "bold" })}>{room.name}</p>
+    <div className={css({ display: "flex", flexDirection: "column", gap: "2.5", alignItems: "flex-start" })}>
+      <p className={css({ fontSize: "xl", fontWeight: "bold", overflowWrap: "anywhere" })}>{room.name}</p>
       <p>정산 단위: {room.unit}</p>
       <div>
-        <Badge tone={ended ? "neutral" : "success"}>{ended ? "게임 종료" : "진행 중"}</Badge>
+        <Badge tone={ended ? "neutral" : "info"}>{ended ? "게임 종료" : "진행 중"}</Badge>
       </div>
-      <p>
+      <p className={css({ overflowWrap: "anywhere" })}>
         내 닉네임: {me.nickname} {me.isHost ? <Badge tone="info">방장</Badge> : null}
       </p>
 
-      <div className={css({ display: "flex", flexDirection: "column", gap: "1" })}>
-        <label htmlFor={linkId} className={css({ fontWeight: "semibold" })}>
+      <div className={css({ display: "flex", flexDirection: "column", gap: "1.5", alignSelf: "stretch", mt: "2" })}>
+        <label htmlFor={linkId} className={css({ fontSize: "sm", fontWeight: "semibold", color: "inkMuted" })}>
           초대 링크
         </label>
         <input
@@ -53,20 +54,12 @@ export function RoomInfo() {
           readOnly
           value={link}
           onFocus={(event) => event.currentTarget.select()}
-          className={css({
-            minH: "touch",
-            px: "4",
-            borderWidth: "2px",
-            borderColor: "line",
-            borderRadius: "md",
-            bg: "paper",
-            color: "ink",
-          })}
+          className={cx(fieldFrameClass, css({ minH: "52px", px: "4", minW: "0", textOverflow: "ellipsis" }))}
         />
-        <Button variant="secondary" onClick={() => void onCopy()}>
+        <Button variant="secondary" className={css({ alignSelf: "flex-start" })} onClick={() => void onCopy()}>
           초대 링크 복사
         </Button>
-        <p aria-live="polite" className={css({ color: "inkMuted", fontSize: "sm" })}>
+        <p aria-live="polite" className={css({ color: "inkMuted", fontSize: "sm", fontWeight: "medium" })}>
           {status}
         </p>
       </div>

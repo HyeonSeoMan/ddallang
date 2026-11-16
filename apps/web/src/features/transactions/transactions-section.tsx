@@ -2,7 +2,7 @@
 
 import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import { type ReactNode, useId, useState } from "react";
-import { css } from "styled-system/css";
+import { css, cx } from "styled-system/css";
 import { ApiError, bearerHeader, getApiClient, type RoomMember, type Room, type Transaction } from "@/lib/api";
 import { formatDateTime, formatMoney } from "@/lib/format";
 import { getStoredKey } from "@/lib/identity";
@@ -10,10 +10,22 @@ import { participantFilterAtom, requestRefreshAtom } from "@/features/realtime/s
 import { type RoomSnapshot, sessionAtom, snapshotAtom } from "@/features/room/state";
 import { Banner } from "@/ui/banner";
 import { Button } from "@/ui/button";
-import { selectClass } from "@/ui/select-style";
+import { selectCompactClass } from "@/ui/select-style";
+import { CoinIcon } from "@/ui/icons";
+import { listClass, rowAmountClass, rowBodyClass, rowFullClass, rowMetaClass, rowTitleClass, rowTopClass } from "@/ui/list-row";
 import { Money } from "@/ui/money";
 
 const ALL = "";
+
+const coinCircleClass = css({
+  w: "40px",
+  h: "40px",
+  flex: "none",
+  borderRadius: "full",
+  bgColor: "paperSubtle",
+  display: "grid",
+  placeItems: "center",
+});
 const LOAD_MORE_ERROR = "더 불러오지 못했습니다. 잠시 뒤 다시 시도해 주세요.";
 
 export interface TransactionRowContext {
@@ -113,44 +125,65 @@ export function TransactionsSection({
 
   return (
     <div className={css({ display: "flex", flexDirection: "column", gap: "3" })} aria-busy={switching}>
-      <div className={css({ display: "flex", flexDirection: "column", gap: "1" })}>
-        <label htmlFor={filterId} className={css({ fontWeight: "semibold" })}>
+      {/* 필터 한 줄(DV-17): 라벨과 선택 상자, 좁으면 선택 상자가 다음 줄로 내려간다. */}
+      <div className={css({ display: "flex", flexWrap: "wrap", alignItems: "center", columnGap: "3", rowGap: "1" })}>
+        <label htmlFor={filterId} className={css({ fontSize: "sm", fontWeight: "medium", color: "inkMuted" })}>
           참여자 필터
         </label>
-        <select
-          id={filterId}
-          value={filter ?? ALL}
-          onChange={(e) => onFilterChange(e.target.value)}
-          className={selectClass}
-        >
-          <option value={ALL}>전체</option>
-          {participants.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.nickname}
-              {p.status === "INACTIVE" ? " (비활성)" : ""}
-            </option>
-          ))}
-        </select>
-        {switching ? <p aria-live="polite" className={css({ color: "inkMuted", fontSize: "sm" })}>필터를 적용하는 중…</p> : null}
+        <div className={css({ flex: "1 1 160px", minW: "160px" })}>
+          <select
+            id={filterId}
+            value={filter ?? ALL}
+            onChange={(e) => onFilterChange(e.target.value)}
+            className={selectCompactClass}
+          >
+            <option value={ALL}>전체</option>
+            {participants.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.nickname}
+                {p.status === "INACTIVE" ? " (비활성)" : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+        {switching ? (
+          <p aria-live="polite" className={css({ flexBasis: "100%", color: "inkMuted", fontSize: "sm" })}>
+            필터를 적용하는 중…
+          </p>
+        ) : null}
       </div>
 
       {items.length === 0 ? (
         <p>{snapshot.transactionFilter ? "이 참여자의 거래가 없습니다." : "거래가 없습니다."}</p>
       ) : (
-        <ul className={css({ display: "flex", flexDirection: "column", gap: "3" })}>
+        <ul className={listClass}>
           {items.map((t) => (
-            <li key={t.id} className={css({ display: "flex", flexDirection: "column", gap: "1", borderBottomWidth: "1px", borderColor: "divider", pb: "2" })}>
-              <div className={css({ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: "2" })}>
-                <span>
-                  {nameOf(t.payerId)} → {nameOf(t.payeeId)}
+            <li key={t.id} className={rowTopClass}>
+              {/* 회색 원 안 코인(DV-14). 장식이다. */}
+              <span aria-hidden="true" className={coinCircleClass}>
+                <CoinIcon size={24} />
+              </span>
+              <span className={rowBodyClass}>
+                {/* 이름 줄 오른쪽에 금액. 이름 칸과 금액이 한 줄에 들지 않으면 금액이 다음 줄 오른쪽으로 내려간다. */}
+                <span className={css({ display: "flex", flexWrap: "wrap", alignItems: "center", columnGap: "3", rowGap: "1", minH: "40px" })}>
+                  <span className={cx(rowTitleClass, css({ flex: "1 1 120px", minW: "120px" }))}>
+                    {nameOf(t.payerId)} → {nameOf(t.payeeId)}
+                  </span>
+                  <span className={rowAmountClass}>
+                    <Money value={t.amount} unit={room.unit} />
+                  </span>
                 </span>
-                <Money value={t.amount} unit={room.unit} />
-              </div>
-              {/* 사유·라운드는 항상 일반 텍스트로 이스케이프해 보인다(React 텍스트 노드). */}
-              {t.reason ? <span>사유: {t.reason}</span> : null}
-              {t.round ? <span>라운드: {t.round}</span> : null}
-              <span className={css({ color: "inkMuted", fontSize: "sm" })}>{formatDateTime(t.createdAt)}</span>
-              {renderActions?.(t, { me, room, summary: `${nameOf(t.payerId)} → ${nameOf(t.payeeId)} ${formatMoney(t.amount, room.unit)}` })}
+                {/* 메타는 한 줄에 하나씩. 사유·라운드는 항상 일반 텍스트로 이스케이프해 보인다(React 텍스트 노드). */}
+                {t.reason ? <span className={rowMetaClass}>사유: {t.reason}</span> : null}
+                {t.round ? <span className={rowMetaClass}>라운드: {t.round}</span> : null}
+                <span className={rowMetaClass}>{formatDateTime(t.createdAt)}</span>
+              </span>
+              {renderActions ? (
+                // 수정·삭제 알약은 메타 아래(본문 열에 맞춰 들여 쓰고), 수정 폼이 열리면 카드 폭 전체로 펼친다.
+                <div className={cx(rowFullClass, css({ pl: "52px", "&:has(form)": { pl: "0" }, _empty: { display: "none" } }))}>
+                  {renderActions(t, { me, room, summary: `${nameOf(t.payerId)} → ${nameOf(t.payeeId)} ${formatMoney(t.amount, room.unit)}` })}
+                </div>
+              ) : null}
             </li>
           ))}
         </ul>

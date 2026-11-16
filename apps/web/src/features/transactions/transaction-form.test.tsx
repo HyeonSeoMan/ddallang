@@ -68,6 +68,20 @@ async function fill(user: ReturnType<typeof userEvent.setup>, v: { payer?: strin
 const save = () => screen.getByRole("button", { name: /^저장/ });
 
 describe("거래 입력 폼 (FE-S2-2)", () => {
+  it("금액 입력은 24/700 오른쪽 정렬이고 방의 단위가 입력란 바깥에 장식으로 붙는다(방향 문서 §4)", async () => {
+    const { container } = mount();
+    const amount = screen.getByLabelText("금액");
+    expect(amount).toHaveAccessibleName("금액");
+    expect(amount.className).toMatch(/fs_amountInput/);
+    expect(amount.className).toMatch(/ta_right/);
+    const unit = amount.nextElementSibling as HTMLElement;
+    expect(unit).toHaveAttribute("aria-hidden", "true");
+    expect(unit).toHaveTextContent(fixtures.room.unit);
+    // 저장 버튼은 폼 안 전폭 주 버튼(DV-19)이다.
+    expect(screen.getByRole("button", { name: "저장" }).className).toMatch(/w_full/);
+    await expectNoA11yViolations(container);
+  });
+
   it("[AC-PART-002-3] 지급자·수취자 선택지에는 활성 참여자만 있고 비활성은 없다", async () => {
     const { container } = mount();
     for (const label of ["지급자", "수취자"]) {

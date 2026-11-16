@@ -14,3 +14,7 @@ styled-system-studio
 .DS_Store
 npm-debug.log*
 pnpm-debug.log*
+
+# 디자인 참고 이미지: 저작권이 원저작자에게 있어 커밋하지 않는다(docs/design/research/*/README.md 참고)
+docs/design/research/*/images/
+docs/design/research/*/board.html

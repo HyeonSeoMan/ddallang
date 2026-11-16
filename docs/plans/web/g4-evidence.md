@@ -639,7 +639,7 @@ Task별 표는 `docs/design/review-v2.md`의 FE-V1·FE-V2·FE-V3 "바꾼 시험 
 - 브랜치: `HyeonSeoMan/fe-m1-m3` → 그 위의 `HyeonSeoMan/fe-m4-m9`(하나의 PR로 묶는다). 커밋은 Task 순서다(`814dd24` M1, `904c129` M2, `6c85fa0` M3, `6594254` M4, `72d99ef` M5, `7c9bac8` M6, `bee9629` M7, 검수 반영 `a6a498f`·`bee9629`·`a254b13`).
 - **이 절은 사용자 승인을 대신하지 않는다.** 실서버 확인(FE-M8)과 실제 Chrome 점검(FE-M9)은 아래에 결과가 적힐 때까지 **하지 않은 것**이다.
 
-### 16.1 게이트 (`a254b13`, `apps/web`)
+### 16.1 게이트 (`232c567`, `apps/web`)
 
 | 명령 | 결과 |
 | --- | --- |
@@ -647,7 +647,7 @@ Task별 표는 `docs/design/review-v2.md`의 FE-V1·FE-V2·FE-V3 "바꾼 시험 
 | `pnpm lint` | 통과 |
 | `pnpm test` ×2 | 849개 통과, 두 번 모두 exit 0, 미처리 오류 0 |
 | `pnpm check:ac` | "모든 AC(91개)에 태그 시험이 있습니다" |
-| `pnpm build` · `pnpm smoke` | 통과(`bee9629` 시점. `a254b13`은 시험·화면 안내만 바뀌었고 다시 돌리지 않았다) |
+| `pnpm build` · `pnpm smoke` | 통과(`232c567`에서 다시 실행, smoke 10경로 OK) |
 | `pnpm test:latency` · `pnpm test:integration` | **실행 전**. v2 백엔드(BE-M8)가 필요하다(FE-M8) |
 
 ### 16.2 바꾸거나 지운 1.x 시험과 이유 (RK-F26)
@@ -687,6 +687,6 @@ Codex 5시간 한도가 소진되어 첫 묶음은 인계 규칙으로 Claude가
 ### 16.4 하지 못한 점검 (작성 중, 숨기지 않는다)
 
 - **FE-M8 실서버**: `pnpm test:latency`(S5 §6.7 v0.3.0 표: 이어받기 3행, 참여자 생성 입장·직접 추가 분리, 접근 상실 유실 수렴)와 `pnpm test:integration`(v0.3.0 흐름) 미실행. 측정·연동 코드는 `a254b13`에서 v0.3.0으로 고쳤고 typecheck만 통과했다. AC-VIEW-005-8·005-9·005-3·ROOM-006-11·SET-008-2의 R 확인이 남았다.
-- **FE-M9 실제 Chrome**: 새 상태(선택·이어받기 확인·대기·결과·접근 상실·방장 요청 구역·비활성 본인) 미점검.
+- **FE-M9 실제 Chrome(모의 서버·시드)**: 새 상태 14개를 Chrome 157 헤드리스 375px로 렌더해 확인했다(넘침 0, plan §7 문구·배치 대조). 증거는 `docs/design/v2-evidence/fe-m9/`에 있다. **실서버에 연결된 화면은 아직 보지 않았다**(FE-M8 뒤에 한다). 하위 상태(취소 중·요청 중·방장 처리 결과 안내)는 컴포넌트 시험으로만 확인했다.
 - 실기기·Safari·Firefox·VoiceOver는 1.x와 같이 미점검.
 

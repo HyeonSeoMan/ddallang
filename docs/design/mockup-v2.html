@@ -140,7 +140,8 @@
   .unit-set { border: 0; padding: 0; margin: 0 0 18px; min-width: 0; }
   .unit-set legend { padding: 0; margin-bottom: 8px; font-size: 14px; font-weight: 500; color: var(--ink-muted); }
   .unit-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-  .unit-tile { position: relative; min-height: 76px; border: 1px solid var(--line); border-radius: var(--r-tile); background: var(--paper); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; font-size: 14px; font-weight: 600; color: var(--ink); cursor: pointer; text-align: center; padding: 8px 4px; }
+  .unit-tile { word-break: keep-all; position: relative; min-height: 76px; border: 1px solid var(--line); border-radius: var(--r-tile); background: var(--paper); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; font-size: 14px; font-weight: 600; color: var(--ink); cursor: pointer; text-align: center; padding: 8px 4px; }
+  @media (max-width: 340px) { .unit-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   .unit-tile input { position: absolute; opacity: 0; width: 1px; height: 1px; }
   .unit-tile:has(input:checked) { border: 2px solid var(--primary); background: var(--primary-soft); color: var(--brand-text); padding: 7px 3px; }
   .unit-tile:has(input:focus-visible) { outline: 2px solid var(--primary); outline-offset: 2px; }
@@ -519,7 +520,8 @@
                 <label class="unit-tile"><input type="radio" name="unit"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-chip"/></svg><span>칩</span></label>
                 <label class="unit-tile"><input type="radio" name="unit"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-write"/></svg><span>직접 입력</span></label>
               </div></fieldset>
-            <div class="field"><label>내 닉네임</label><input class="input" aria-label="내 닉네임"></div>
+            <div class="field" style="margin-bottom:8px"><label>내 닉네임</label><input class="input" aria-label="내 닉네임"></div>
+            <p class="status-text" style="margin:0 2px 16px">이 방에는 이 브라우저에 저장된 정보로 다시 들어옵니다. 브라우저 저장소를 지우면 내 기록과 방장 권한을 되찾을 수 없습니다.</p>
             <button class="btn btn-primary" type="button">방 만들기</button>
           </section>
         </div>

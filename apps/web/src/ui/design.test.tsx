@@ -1,4 +1,4 @@
-// FE-D1 완료 기준(FD-18): 글꼴 자체 호스팅·외부 요청 없음, 아이콘 접근성, 새 버튼 변형, 토큰 값.
+// FE-D1·FE-V1 완료 기준(FD-18): 글꼴 자체 호스팅·외부 요청 없음, 아이콘 접근성, 버튼 변형, 토큰 값.
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { render, screen } from "@testing-library/react";
@@ -6,7 +6,20 @@ import { describe, expect, it } from "vitest";
 import { expectNoA11yViolations } from "@/test/a11y";
 import { BrandHeader } from "./brand-header";
 import { Button } from "./button";
-import { BagIcon, BellIcon, BookIcon, CoinIcon, PeopleIcon } from "./icons";
+import {
+  BagIcon,
+  BellIcon,
+  BookIcon,
+  CheckIcon,
+  ChipIcon,
+  CoinIcon,
+  HouseIcon,
+  InfoIcon,
+  OfflineIcon,
+  PencilIcon,
+  PeopleIcon,
+  StarIcon,
+} from "./icons";
 import { selectClass } from "./select-style";
 import { colors, FONT_STACK, radii, shadows } from "./tokens";
 
@@ -52,12 +65,20 @@ describe("글꼴 자체 호스팅(FD-18, RK-F16)", () => {
 });
 
 describe("아이콘(FD-18)", () => {
+  // 면 아이콘 12종(FD-18 1.3.0 (3)).
   const icons = [
+    ["동전 종", BellIcon],
     ["코인", CoinIcon],
-    ["방울", BellIcon],
+    ["장부", BookIcon],
+    ["연필", PencilIcon],
     ["주머니", BagIcon],
-    ["노트", BookIcon],
-    ["사람", PeopleIcon],
+    ["집", HouseIcon],
+    ["얼굴 둘", PeopleIcon],
+    ["완료", CheckIcon],
+    ["안내", InfoIcon],
+    ["끊김", OfflineIcon],
+    ["별", StarIcon],
+    ["칩", ChipIcon],
   ] as const;
 
   it.each(icons)("%s 아이콘은 장식이라 보조기기에 숨겨지고 초점을 받지 않는다", (_name, Icon) => {
@@ -68,6 +89,22 @@ describe("아이콘(FD-18)", () => {
     expect(svg).toHaveAttribute("focusable", "false");
     expect(svg).toHaveAttribute("width", "40");
     expect(container.querySelector("title, text, image, use")).toBeNull();
+    // 그림자 없음(FD-18 1.3.0).
+    expect(svg?.getAttribute("class") ?? "").not.toMatch(/drop-shadow|filter/);
+  });
+
+  it("마스크를 쓰는 아이콘을 한 화면에 여러 번 그려도 마스크 id가 겹치지 않는다", () => {
+    const { container } = render(
+      <>
+        <PeopleIcon />
+        <PeopleIcon />
+        <OfflineIcon />
+      </>,
+    );
+    const ids = Array.from(container.querySelectorAll("mask")).map((mask) => mask.id);
+    expect(ids).toHaveLength(3);
+    expect(new Set(ids).size).toBe(3);
+    for (const id of ids) expect(container.querySelector(`[mask="url(#${id})"]`)).not.toBeNull();
   });
 
   it("크기를 바꿀 수 있고 아이콘 곁의 텍스트가 접근 가능한 이름이 된다", async () => {
@@ -84,16 +121,19 @@ describe("아이콘(FD-18)", () => {
 });
 
 describe("버튼 변형과 토큰(FD-18)", () => {
-  it("accent 변형도 type=button이고 비활성이면 클릭되지 않는다", () => {
-    render(
-      <Button variant="accent" disabled>
-        기록하기
-      </Button>,
-    );
-    const button = screen.getByRole("button", { name: "기록하기" });
-    expect(button).toHaveAttribute("type", "button");
-    expect(button).toBeDisabled();
-  });
+  it.each(["primary", "secondary", "secondaryBlock", "dangerText", "danger", "dangerSolid"] as const)(
+    "%s 변형도 type=button이고 비활성이면 클릭되지 않는다",
+    (variant) => {
+      render(
+        <Button variant={variant} disabled>
+          기록하기
+        </Button>,
+      );
+      const button = screen.getByRole("button", { name: "기록하기" });
+      expect(button).toHaveAttribute("type", "button");
+      expect(button).toBeDisabled();
+    },
+  );
 
   it("large 크기는 기본 터치 목표보다 큰 높이 클래스를 쓰고 기본 높이 클래스와 겹치지 않는다", () => {
     render(
@@ -110,17 +150,14 @@ describe("버튼 변형과 토큰(FD-18)", () => {
     expect(minH(large)[0]).not.toBe(minH(small)[0]);
   });
 
-  it("모서리와 그림자 토큰은 시안의 단계를 따른다", () => {
-    expect(radii.card).toBe("24px");
-    expect(radii.control).toBe("16px");
-    expect(Object.keys(shadows)).toEqual(
-      expect.arrayContaining(["card", "float", "button", "buttonAccent", "buttonPressed", "chip"]),
-    );
+  it("모서리와 그림자 토큰은 확정본의 단계를 따른다(카드 20·컨트롤 12·타일 14, 그림자는 대화상자만)", () => {
+    expect(radii).toEqual({ card: "20px", control: "12px", tile: "14px", chip: "999px" });
+    expect(Object.keys(shadows)).toEqual(["float"]);
   });
 
-  it("포인트색은 초록(주요 행동)과 노랑(보조 강조)이다", () => {
-    expect(colors.primary).toBe("#12804f");
-    expect(colors.accent).toBe("#ffc93c");
+  it("주 색은 초록이고 노랑은 아이콘 전용 `coin`으로만 남는다", () => {
+    expect(colors.primary).toBe("#00875a");
+    expect(colors.coin).toBe("#ffc93c");
   });
 });
 

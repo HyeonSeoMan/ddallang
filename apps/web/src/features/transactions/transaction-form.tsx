@@ -205,7 +205,7 @@ export function TransactionForm() {
         <p
           aria-hidden="true"
           data-testid="saved-notice"
-          className={css({ p: "4", borderRadius: "md", bg: "successBg", color: "successText", fontWeight: "semibold", boxShadow: "chip" })}
+          className={css({ p: "4", borderRadius: "md", bg: "successBg", color: "successText", fontWeight: "semibold" })}
         >
           거래를 저장했습니다.
         </p>
@@ -255,7 +255,7 @@ export function TransactionForm() {
         onConfirmNew={() => void submit({ confirmNewAttempt: true })}
         disabled={pending}
       />
-      <Button type="submit" variant="accent" disabled={pending}>
+      <Button type="submit" variant="primary" disabled={pending}>
         {pending ? "저장 중…" : "저장"}
       </Button>
     </form>

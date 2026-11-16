@@ -16,11 +16,11 @@ export default defineConfig({
       tokens: {
         colors: toTokens(colors),
         sizes: { touch: { value: `${TOUCH_TARGET_PX}px` } },
-        // 기존 코드가 쓰는 `md`·`lg`를 컨트롤·카드 모서리로 바꿔 한 번에 시안 모양을 따르게 한다.
+        // 기존 코드가 쓰는 `md`·`lg`를 컨트롤·카드 모서리로 바꿔 한 번에 확정본 모양을 따르게 한다.
         radii: { ...toTokens(radii), md: { value: radii.control }, lg: { value: radii.card } },
         shadows: toTokens(shadows),
         fonts: { body: { value: FONT_STACK } },
-        fontSizes: { amount: { value: fontSizes.amount } },
+        fontSizes: toTokens({ amountList: fontSizes.amountList, amountInput: fontSizes.amountInput }),
       },
     },
   },

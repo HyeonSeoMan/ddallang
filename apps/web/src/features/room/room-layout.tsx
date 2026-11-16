@@ -53,7 +53,7 @@ export function RoomSection({
     <section
       aria-labelledby={headingId}
       data-section={id}
-      className={css({ mt: "4", p: "5", bg: "paper", borderRadius: "lg", boxShadow: "card" })}
+      className={css({ mt: "4", p: "5", bg: "paper", borderRadius: "lg" })}
       data-compact={compact ? "true" : undefined}
     >
       <h2

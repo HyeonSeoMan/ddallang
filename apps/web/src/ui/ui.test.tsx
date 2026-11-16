@@ -8,7 +8,7 @@ import { Badge } from "./badge";
 import { Banner } from "./banner";
 import { Button } from "./button";
 import { ConfirmDialog } from "./confirm-dialog";
-import { Money } from "./money";
+import { amountFontSize, Money } from "./money";
 import { TextField } from "./text-field";
 
 describe("기본 컴포넌트", () => {
@@ -57,6 +57,31 @@ describe("기본 컴포넌트", () => {
     );
     expect(screen.getByText("1,250,000 원")).toBeInTheDocument();
     expect(screen.getByText("−300 칩")).toBeInTheDocument();
+  });
+
+  // FD-18 (2) 금액 폭 맞춤: N(부호·공백·단위 포함 코드 포인트)이 18 이하 18px, 19~24 15px, 25 이상 13px.
+  it.each([
+    ["+999,999,999,999 원", 18, "18px"],
+    ["+999,999,999,999 점수", 19, "15px"],
+    ["−999,999,999,999 가나다라마바사", 24, "15px"],
+    ["−999,999,999,999 가나다라마바사아", 25, "13px"],
+    ["+999,999,999,999 가나다라마바사아자차카타", 29, "13px"],
+  ] as const)("금액 %s(N = %i)은 %s로 보인다", (text, length, size) => {
+    expect([...text].length).toBe(length);
+    expect(amountFontSize(text)).toBe(size);
+  });
+
+  it("Money는 부호·단위를 포함한 글자 수로 크기를 고르고 손실은 검정 글자다", () => {
+    render(
+      <>
+        <Money value={-999_999_999_999} unit="가나다라마바사아자차카타" signed />
+        <Money value={4000} unit="원" signed />
+      </>,
+    );
+    const long = screen.getByText("−999,999,999,999 가나다라마바사아자차카타");
+    expect(long.className).toMatch(/fs_13px/);
+    expect(long.className).toMatch(/c_loss/);
+    expect(screen.getByText("+4,000 원").className).toMatch(/fs_amountList/);
   });
 
   it("안전 정수가 아닌 금액은 렌더링하지 않고 예외를 낸다", () => {

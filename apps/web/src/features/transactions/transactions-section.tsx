@@ -158,7 +158,7 @@ export function TransactionsSection({
 
       {notice ? <Banner tone="warning">{notice}</Banner> : null}
       {nextCursor ? (
-        <Button variant="secondary" onClick={() => void loadMore()} disabled={loading}>
+        <Button variant="secondaryBlock" onClick={() => void loadMore()} disabled={loading}>
           {loading ? "불러오는 중…" : "더 보기"}
         </Button>
       ) : null}

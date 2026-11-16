@@ -7,7 +7,7 @@
 <link rel="icon" href="favicon-v2/a-green-32.svg" type="image/svg+xml" sizes="any">
 <!--
   딸랑 디자인 시안 v2 (뱅크샐러드 조합안). 근거: docs/design/direction-v2-banksalad.md (DV-1~DV-21).
-  방향 문서 1.0.0과 함께 최종 UI 확정안(사용자 위임에 따른 Claude 결정, 2026-11-16, 1단계 검수 통과 조건). 방향 문서와 다르면 방향 문서가 우선한다. 구현 코드는 새로 쓴다.
+  방향 문서 1.0.0과 함께 최종 UI 확정본(사용자 위임에 따른 Claude 확정, 2026-11-16, 1단계 검수 통과). 방향 문서와 다르면 방향 문서가 우선한다. 구현 코드는 새로 쓴다.
   문구는 현재 앱(apps/web)과 Spec 문구를 그대로 쓴다. 예시 데이터만 지어낸 것이다.
   외부 글꼴·스크립트를 불러오지 않는다(FD-18 (2)와 같은 이유). Pretendard가 설치된 기기에서는 Pretendard로 보인다.
 -->
@@ -80,8 +80,8 @@
   .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
   .item { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; min-height: 64px; }
   .item .amt, .transfer .amt { margin-left: auto; }
-  .item .body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-  .item .title { font-size: 16px; font-weight: 400; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .item .body { flex: 1 1 120px; min-width: 120px; display: flex; flex-direction: column; gap: 2px; }
+  .item .title { overflow-wrap: anywhere; font-size: 16px; font-weight: 400; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   .item .meta { font-size: 14px; font-weight: 500; color: var(--ink-muted); }
   .item .actions { display: flex; gap: 6px; margin-top: 6px; }
   .amt { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; letter-spacing: -.2px; }
@@ -163,7 +163,7 @@
   /* 정산 */
   .transfer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; min-height: 56px; border-bottom: 1px solid var(--divider); }
   .transfer:last-child { border-bottom: 0; }
-  .transfer .who { font-size: 16px; display: flex; align-items: center; gap: 8px; }
+  .transfer .who { flex: 1 1 160px; min-width: 160px; flex-wrap: wrap; overflow-wrap: anywhere; font-size: 16px; display: flex; align-items: center; gap: 8px; }
   .transfer .arrow { color: var(--ink-muted); }
   .sep { height: 1px; background: var(--divider); margin: 20px 0; }
 
@@ -298,7 +298,7 @@
 <div class="page">
   <section class="intro">
     <h1>딸랑 디자인 시안 v2 — 뱅크샐러드 조합안</h1>
-    <p>근거: <code>docs/design/direction-v2-banksalad.md</code>(DV-1~DV-21). 최종 UI 확정안입니다(사용자 위임, 2026-11-16, 1단계 검수 통과 조건). 방향 문서와 다르면 방향 문서가 우선합니다.</p>
+    <p>근거: <code>docs/design/direction-v2-banksalad.md</code>(DV-1~DV-21). 최종 UI 확정본입니다(사용자 위임, 2026-11-16, 1단계 검수 통과). 방향 문서와 다르면 방향 문서가 우선합니다.</p>
     <p>문구는 현재 앱과 Spec 문구를 그대로 썼고, 사람 이름·금액은 예시입니다. 구역 순서와 4개 페이지 구성(FD-12)은 바꾸지 않았습니다.</p>
   </section>
 
@@ -589,10 +589,11 @@
           <li class="item"><span class="avatar a3">이</span><span class="body"><span class="title">이영희</span></span><span class="amt loss s15">−999,999,999,999 가나다라마</span></li>
           <li class="item"><span class="avatar a5">박</span><span class="body"><span class="title">가나다라마바사아자차카타</span></span><span class="amt gain">+999 가나다라마바사아자차카타</span></li>
           <li class="item"><span class="avatar a6">정</span><span class="body"><span class="title">가나다라마바사아자차카타</span></span><span class="amt loss s15">−99,999,999 가나다라마바사아자차카타</span></li>
+          <li class="item"><span class="avatar a1">W</span><span class="body"><span class="title">WWWWWWWWWWWW</span></span><span class="amt gain">+999 가나다라마바사아자차카타</span></li>
           <li class="item"><span class="avatar a4">최</span><span class="body"><span class="title">가나다라마바사아자차카타</span></span><span class="amt gain s13">+999,999,999,999 가나다라마바사아자차카타</span></li>
         </ul>
       </section>
-      <figcaption class="cap"><b>최대 경우</b> · 단계마다 한글 단위가 가장 긴 경우: N = 17(18px), N = 24(15px), 마지막 행 N = 29(13px). 줄바꿈·잘림·가로 스크롤이 없어야 한다.</figcaption>
+      <figcaption class="cap"><b>최대 경우</b> · 단계마다 한글 단위가 가장 긴 경우: N = 17(18px), N = 24(15px), 마지막 행 N = 29(13px). 12자 영문 이름(`WWWWWWWWWWWW`) 행: 이름 칸 최소 120px라 금액이 다음 줄로 내려간다. 줄바꿈·잘림·가로 스크롤이 없어야 한다.</figcaption>
     </figure>
   </div>
 

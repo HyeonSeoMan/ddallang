@@ -8,6 +8,7 @@ import userEvent from "@testing-library/user-event";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { connectionAtom } from "@/features/room/state";
 import { isKnownErrorCode } from "@/lib/api";
+import { choose } from "@/test/choice";
 import { mockClipboard } from "@/test/clipboard";
 import { installFakeLocks } from "@/test/fake-locks";
 import { installFakeStorage } from "@/test/fake-storage";
@@ -103,8 +104,8 @@ describe("실서버 연동 점검 (FE-I1)", () => {
     await mustSee(b!, "참여자 등록이 거래 입력 선택지에 반영", (el) => selectableNames(el).includes("참2"));
 
     // 거래 저장 → 다른 접속자의 목록·예상 정산(방 단위 표시)이 바뀐다
-    await user.selectOptions(ui.getByLabelText("지급자"), "참0");
-    await user.selectOptions(ui.getByLabelText("수취자"), "참1");
+    await choose(user, ui, "지급자", "참0");
+    await choose(user, ui, "수취자", "참1");
     await user.type(ui.getByLabelText("금액"), "1234");
     await user.type(ui.getByLabelText("사유 (선택)"), "통합점검");
     await user.click(ui.getByRole("button", { name: "저장" }));
@@ -181,8 +182,8 @@ describe("실서버 연동 점검 (FE-I1)", () => {
     const ui = within(a!.container);
 
     control.dropNextTransactionResponse(live.members[0]!.key);
-    await user.selectOptions(ui.getByLabelText("지급자"), "참0");
-    await user.selectOptions(ui.getByLabelText("수취자"), "참1");
+    await choose(user, ui, "지급자", "참0");
+    await choose(user, ui, "수취자", "참1");
     await user.type(ui.getByLabelText("금액"), "500");
     await user.type(ui.getByLabelText("사유 (선택)"), "응답유실");
     await user.click(ui.getByRole("button", { name: "저장" }));

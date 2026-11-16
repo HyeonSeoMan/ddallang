@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { createStore } from "jotai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { InviteScreen } from "@/features/room/invite-screen";
+import { choiceNames, choose } from "@/test/choice";
 import { AllPages } from "@/test/all-pages";
 import { connectionAtom, sessionAtom, snapshotAtom } from "@/features/room/state";
 import { UNKNOWN_AFTER_RECOVERY, UNKNOWN_RESULT } from "@/features/transactions/messages";
@@ -70,8 +71,8 @@ async function mountBoth(): Promise<{ a: Client; b: Client }> {
 }
 
 async function saveTransaction(c: Client, user: ReturnType<typeof userEvent.setup>, payer: string, payee: string, amount: string, reason?: string) {
-  await user.selectOptions(c.ui.getByLabelText("지급자"), payer);
-  await user.selectOptions(c.ui.getByLabelText("수취자"), payee);
+  await choose(user, c.ui, "지급자", payer);
+  await choose(user, c.ui, "수취자", payee);
   await user.type(c.ui.getByLabelText("금액"), amount);
   if (reason) await user.type(c.ui.getByLabelText("사유 (선택)"), reason);
   await user.click(c.ui.getByRole("button", { name: /^저장/ }));
@@ -135,7 +136,7 @@ describe("두 접속자 통합 (FE-S5-5, 가짜 서버·스트림)", () => {
     await user.type(a.ui.getByLabelText("참여자 닉네임"), "마루");
     await user.click(a.ui.getByRole("button", { name: "참여자 등록" }));
     await waitFor(() => expect(b.ui.getAllByText("마루").length).toBeGreaterThan(0), { timeout: 4000 });
-    const payeeOptions = () => Array.from((b.ui.getByLabelText("수취자") as HTMLSelectElement).options).map((o) => o.text);
+    const payeeOptions = () => choiceNames(b.ui, "수취자");
     expect(payeeOptions()).toContain("마루"); // 새 참여자는 선택지에 들어온다
 
     await user.click(a.ui.getByRole("button", { name: "나래 비활성화" }));
@@ -187,8 +188,8 @@ describe("두 접속자 통합 (FE-S5-5, 가짜 서버·스트림)", () => {
   it("[AC-SYS-002-2] 끊김 중에 작성하던 거래는 복구 때 자동 제출되지 않는다", async () => {
     const { b } = await mountBoth();
     const user = userEvent.setup();
-    await user.selectOptions(b.ui.getByLabelText("지급자"), "가온");
-    await user.selectOptions(b.ui.getByLabelText("수취자"), "나래");
+    await choose(user, b.ui, "지급자", "가온");
+    await choose(user, b.ui, "수취자", "나래");
     await user.type(b.ui.getByLabelText("금액"), "4444");
     act(() => backend.streams[1]!.error());
     await waitFor(() => expect(b.store.get(connectionAtom)).toBe("disconnected"), { timeout: 4000 });

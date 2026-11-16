@@ -74,7 +74,11 @@ const unitTileClass = css({
   "&:has(input:disabled)": { bgColor: "disabledBg", color: "disabledText", cursor: "not-allowed" },
   "&:has(input:disabled:checked)": { borderColor: "inkMuted", boxShadow: "inset 0 0 0 1px {colors.inkMuted}" },
   // 고대비 모드는 그림자·바탕색을 지우므로 선택 타일을 굵은 바깥 선으로도 구분한다.
-  "@media (forced-colors: active)": { "&:has(input:checked)": { outline: "3px solid CanvasText", outlineOffset: "-3px" } },
+  // 선택 타일에 포커스가 오면 선택 표시 대신 바깥 포커스 링을 보인다(더 구체적인 선택자라 이긴다).
+  "@media (forced-colors: active)": {
+    "&:has(input:checked)": { outline: "3px solid CanvasText", outlineOffset: "-3px" },
+    "&:has(input:checked:focus-visible)": { outline: "3px solid Highlight", outlineOffset: "2px" },
+  },
 });
 
 type Field = "name" | "unit" | "nickname";

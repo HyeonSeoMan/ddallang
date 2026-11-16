@@ -26,7 +26,11 @@ const chipClass = css({
   "&:has(input:checked[aria-invalid=true])": { boxShadow: "inset 0 0 0 2px {colors.danger}, inset 0 0 0 4px {colors.paper}" },
   "&:has(input:focus-visible)": { outline: "2px solid", outlineColor: "primary", outlineOffset: "2px" },
   // 고대비 모드는 바탕색을 지우므로 선택 칩을 굵은 바깥 선으로도 구분한다.
-  "@media (forced-colors: active)": { "&:has(input:checked)": { outline: "3px solid CanvasText", outlineOffset: "-3px" } },
+  // 선택 칩에 포커스가 오면(라디오 묶음은 늘 그렇다) 선택 표시 대신 바깥 포커스 링을 보인다(더 구체적인 선택자라 이긴다).
+  "@media (forced-colors: active)": {
+    "&:has(input:checked)": { outline: "3px solid CanvasText", outlineOffset: "-3px" },
+    "&:has(input:checked:focus-visible)": { outline: "3px solid Highlight", outlineOffset: "2px" },
+  },
 });
 
 /**

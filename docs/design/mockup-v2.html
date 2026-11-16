@@ -7,7 +7,7 @@
 <link rel="icon" href="favicon-v2/a-green-32.svg" type="image/svg+xml" sizes="any">
 <!--
   딸랑 디자인 시안 v2 (뱅크샐러드 조합안). 근거: docs/design/direction-v2-banksalad.md (DV-1~DV-20).
-  방향 문서 1.0.0의 최종 UI 확정본(사용자 위임에 따른 Claude 확정, 2026-11-16). 값은 참고이고 구현 코드는 새로 쓴다.
+  방향 문서 1.0.0과 함께 최종 UI 확정안(사용자 위임에 따른 Claude 결정, 2026-11-16, 1단계 검수 통과 조건). 방향 문서와 다르면 방향 문서가 우선한다. 구현 코드는 새로 쓴다.
   문구는 현재 앱(apps/web)과 Spec 문구를 그대로 쓴다. 예시 데이터만 지어낸 것이다.
   외부 글꼴·스크립트를 불러오지 않는다(FD-18 (2)와 같은 이유). Pretendard가 설치된 기기에서는 Pretendard로 보인다.
 -->
@@ -86,7 +86,6 @@
   .amt { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; letter-spacing: -.2px; }
   .amt.gain { color: var(--gain); }
   .amt.loss { color: var(--loss); }
-  .amt .unit { font-size: 15px; font-weight: 600; margin-left: 2px; }
   .avatar { width: 40px; height: 40px; flex: none; border-radius: 50%; display: grid; place-items: center; font-size: 16px; font-weight: 700; color: var(--ink); }
   .a1 { background: #DDF3E8; } .a2 { background: #E1ECFF; } .a3 { background: #FFE8D6; }
   .a4 { background: #F1E4FF; } .a5 { background: #FFE1E6; } .a6 { background: #E5E8EB; }
@@ -99,8 +98,7 @@
   .btn-primary { width: 100%; height: 52px; border-radius: var(--r-control); background: var(--primary); color: #fff; font-size: 16px; font-weight: 700; }
   .btn-primary:active { background: var(--primary-pressed); }
   .btn-pill { min-height: 36px; padding: 0 14px; border-radius: 999px; background: var(--paper-subtle); color: var(--ink); font-size: 14px; font-weight: 600; position: relative; }
-  .btn-pill::after { content: ""; position: absolute; inset: -4px 0; } /* 터치 영역 44px */
-  .btn-pill.sm { min-height: 32px; padding: 0 12px; font-size: 13px; }
+  .btn-pill::after { content: ""; position: absolute; inset: -4px 0; } /* 보이는 36px + 위아래 4px = 터치 영역 44px */
   .btn-pill.danger-text { color: var(--danger); }
   .btn-wide { width: 100%; min-height: 48px; border-radius: var(--r-control); background: var(--paper-subtle); color: var(--ink); font-size: 15px; font-weight: 600; }
   .btn-danger-line { width: 100%; height: 52px; border-radius: var(--r-control); background: var(--paper); color: var(--danger); border: 1px solid var(--danger); font-size: 16px; font-weight: 700; }
@@ -112,11 +110,14 @@
   .badge { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
   .badge.info { background: var(--info-bg); color: var(--info-text); }
   .badge.neutral { background: var(--paper-subtle); color: var(--ink-muted); }
-  .badge.brand { background: var(--paper); color: var(--brand-text); }
+  .badge.on-band { background: var(--paper); color: var(--ink-muted); }
+  .status-text { margin: -4px 2px 8px; font-size: 14px; font-weight: 500; color: var(--ink-muted); }
   .band { display: flex; align-items: center; gap: 10px; border-radius: var(--r-tile); padding: 12px 14px; font-size: 14px; font-weight: 600; margin-bottom: 12px; }
   .band.soft { background: var(--primary-soft); color: var(--brand-text); }
   .band.info { background: var(--info-bg); color: var(--info-text); }
   .band .grow { flex: 1; }
+  .band.warn { background: #FFF4E5; color: #8A4B00; align-items: flex-start; }
+  .band .detail { font-weight: 400; }
 
   /* 입력 */
   .field { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
@@ -124,11 +125,12 @@
   .input { height: 52px; border-radius: var(--r-control); border: 1px solid var(--line); background: var(--paper); padding: 0 14px; font: 400 16px var(--font); color: var(--ink); width: 100%; }
   .input.focus { border: 2px solid var(--primary); padding: 0 13px; }
   .amount-input { display: flex; align-items: baseline; justify-content: flex-end; gap: 6px; height: 64px; border-radius: var(--r-control); border: 2px solid var(--primary); padding: 0 16px; }
+  .amount-input.empty { border: 1px solid var(--line); padding: 0 17px; }
   .amount-input .num { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; align-self: center; }
   .amount-input .u { font-size: 16px; font-weight: 600; color: var(--ink-muted); align-self: center; }
   .select { height: 52px; border-radius: var(--r-control); border: 1px solid var(--line); background: var(--paper); padding: 0 40px 0 14px; font: 400 16px var(--font); color: var(--ink); display: flex; align-items: center; position: relative; }
   .select::after { content: ""; position: absolute; right: 16px; top: 50%; width: 8px; height: 8px; border-right: 2px solid var(--ink-muted); border-bottom: 2px solid var(--ink-muted); transform: translateY(-70%) rotate(45deg); }
-  .select.pill { height: 44px; border: 0; border-radius: 999px; background: var(--paper-subtle); font-weight: 600; font-size: 14px; padding: 0 36px 0 16px; }
+  .select.compact { height: 44px; min-width: 120px; }
   .filter-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
   .filter-row label { font-size: 14px; font-weight: 500; color: var(--ink-muted); }
   .swap { display: flex; align-items: center; gap: 8px; margin: -6px 0 12px; color: var(--ink-muted); font-size: 13px; }
@@ -138,6 +140,8 @@
   .kv { display: flex; flex-direction: column; gap: 14px; }
   .kv .k { font-size: 14px; font-weight: 500; color: var(--ink-muted); }
   .kv .v { font-size: 16px; font-weight: 600; margin-top: 2px; display: flex; gap: 6px; align-items: center; }
+  .kv .room-name { font-size: 20px; font-weight: 700; letter-spacing: -.3px; }
+  .kv .plain { font-size: 16px; display: flex; gap: 6px; align-items: center; }
   .tile { background: var(--paper-subtle); border-radius: var(--r-tile); padding: 10px 10px 10px 14px; display: flex; align-items: center; gap: 8px; }
   .tile .link { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; color: var(--ink); }
 
@@ -149,22 +153,18 @@
   .sep { height: 1px; background: var(--divider); margin: 20px 0; }
 
   /* 끊김 가림 */
-  .masked { position: relative; }
-  .masked .veil { position: absolute; inset: 0; background: rgba(255,255,255,.72); border-radius: var(--r-card); display: grid; place-items: center; text-align: center; font-size: 14px; color: var(--ink-muted); padding: 20px; }
-  .skeleton { height: 16px; border-radius: 8px; background: var(--paper-subtle); margin: 10px 0; }
 
   /* 대화상자 */
   .dim { position: absolute; inset: 0; background: rgba(15, 18, 22, .45); display: flex; align-items: flex-end; padding: 16px; z-index: 5; }
   .dialog { width: 100%; background: var(--paper); border-radius: var(--r-card); padding: 24px 20px 20px; box-shadow: var(--shadow-float); }
   .dialog h3 { margin: 0 0 8px; font-size: 20px; }
-  .dialog p { margin: 0 0 20px; font-size: 15px; color: var(--ink-muted); line-height: 1.5; }
+  .dialog p { margin: 0 0 20px; font-size: 16px; color: var(--ink-muted); line-height: 1.5; }
   .dialog .row2 { display: flex; gap: 8px; }
 
   /* 시작 화면 */
   .center { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 24px 16px 40px; }
   .logo { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 24px; }
   .logo .word { font-size: 22px; font-weight: 800; letter-spacing: -.4px; }
-  .toast { position: absolute; left: 16px; right: 16px; bottom: 92px; background: var(--ink); color: #fff; border-radius: var(--r-tile); padding: 14px 16px; font-size: 14px; font-weight: 600; box-shadow: var(--shadow-float); }
 
   .ic { width: 28px; height: 28px; flex: none; }
   .ic-sm { width: 20px; height: 20px; flex: none; }
@@ -273,7 +273,7 @@
 <div class="page">
   <section class="intro">
     <h1>딸랑 디자인 시안 v2 — 뱅크샐러드 조합안</h1>
-    <p>근거: <code>docs/design/direction-v2-banksalad.md</code>(DV-1~DV-20). 최종 UI 확정본입니다(사용자 위임, 2026-11-16). 구현 화면은 이 시안을 따릅니다.</p>
+    <p>근거: <code>docs/design/direction-v2-banksalad.md</code>(DV-1~DV-20). 최종 UI 확정안입니다(사용자 위임, 2026-11-16). 방향 문서와 다르면 방향 문서가 우선합니다.</p>
     <p>문구는 현재 앱과 Spec 문구를 그대로 썼고, 사람 이름·금액은 예시입니다. 구역 순서와 4개 페이지 구성(FD-12)은 바꾸지 않았습니다.</p>
   </section>
 
@@ -296,22 +296,22 @@
           <div class="sec-head"><h3 class="sec-title"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-coin"/></svg>누적 손익</h3></div>
           <section class="card">
             <ul class="list">
-              <li class="item"><span class="avatar a1">김</span><span class="body"><span class="title">김철수</span></span><span class="amt gain">+12,000<span class="unit">원</span></span></li>
-              <li class="item"><span class="avatar a2">박</span><span class="body"><span class="title">박민수</span></span><span class="amt gain">+3,000<span class="unit">원</span></span></li>
-              <li class="item"><span class="avatar a3">이</span><span class="body"><span class="title">이영희</span></span><span class="amt loss">−8,000<span class="unit">원</span></span></li>
-              <li class="item"><span class="avatar a4">최</span><span class="body"><span class="title">최준호</span></span><span class="amt loss">−7,000<span class="unit">원</span></span></li>
-              <li class="item inactive"><span class="avatar">정</span><span class="body"><span class="title">정다은 <span class="badge neutral">비활성</span></span></span><span class="amt">0<span class="unit">원</span></span></li>
+              <li class="item"><span class="avatar a1">김</span><span class="body"><span class="title">김철수</span></span><span class="amt gain">+12,000 원</span></li>
+              <li class="item"><span class="avatar a2">박</span><span class="body"><span class="title">박민수</span></span><span class="amt gain">+3,000 원</span></li>
+              <li class="item"><span class="avatar a3">이</span><span class="body"><span class="title">이영희</span></span><span class="amt loss">−8,000 원</span></li>
+              <li class="item"><span class="avatar a4">최</span><span class="body"><span class="title">최준호</span></span><span class="amt loss">−7,000 원</span></li>
+              <li class="item inactive"><span class="avatar">정</span><span class="body"><span class="title">정다은 <span class="badge neutral">비활성</span></span></span><span class="amt">0 원</span></li>
             </ul>
           </section>
           <div class="sec-head"><h3 class="sec-title"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-ledger"/></svg>거래 내역</h3></div>
           <section class="card">
-            <div class="filter-row"><label>참여자 필터</label><span class="select pill">전체</span></div>
+            <div class="filter-row"><label>참여자 필터</label><span class="select compact">전체</span></div>
             <ul class="list">
               <li class="item"><span class="icon-tile"><svg class="ic-md" aria-hidden="true" focusable="false"><use href="#i-coin"/></svg></span><span class="body"><span class="title">최준호 → 김철수</span><span class="meta">사유: 광박 · 라운드: 7 · 11/16 21:40</span>
-                <span class="actions"><button class="btn btn-pill sm" type="button">수정</button><button class="btn btn-pill sm danger-text" type="button">삭제</button></span></span><span class="amt">4,000<span class="unit">원</span></span></li>
-              <li class="item"><span class="icon-tile"><svg class="ic-md" aria-hidden="true" focusable="false"><use href="#i-coin"/></svg></span><span class="body"><span class="title">이영희 → 박민수</span><span class="meta">라운드: 6 · 11/16 21:22</span></span><span class="amt">3,000<span class="unit">원</span></span></li>
-              <li class="item"><span class="icon-tile"><svg class="ic-md" aria-hidden="true" focusable="false"><use href="#i-coin"/></svg></span><span class="body"><span class="title">이영희 → 김철수</span><span class="meta">사유: 3판 연속 피박 · 11/16 21:05</span></span><span class="amt">5,000<span class="unit">원</span></span></li>
-              <li class="item"><span class="icon-tile"><svg class="ic-md" aria-hidden="true" focusable="false"><use href="#i-coin"/></svg></span><span class="body"><span class="title">최준호 → 김철수</span><span class="meta">11/16 20:48</span></span><span class="amt">3,000<span class="unit">원</span></span></li>
+                <span class="actions"><button class="btn btn-pill" type="button">수정</button><button class="btn btn-pill danger-text" type="button">삭제</button></span></span><span class="amt">4,000 원</span></li>
+              <li class="item"><span class="icon-tile"><svg class="ic-md" aria-hidden="true" focusable="false"><use href="#i-coin"/></svg></span><span class="body"><span class="title">이영희 → 박민수</span><span class="meta">라운드: 6 · 11/16 21:22</span></span><span class="amt">3,000 원</span></li>
+              <li class="item"><span class="icon-tile"><svg class="ic-md" aria-hidden="true" focusable="false"><use href="#i-coin"/></svg></span><span class="body"><span class="title">이영희 → 김철수</span><span class="meta">사유: 3판 연속 피박 · 11/16 21:05</span></span><span class="amt">5,000 원</span></li>
+              <li class="item"><span class="icon-tile"><svg class="ic-md" aria-hidden="true" focusable="false"><use href="#i-coin"/></svg></span><span class="body"><span class="title">최준호 → 김철수</span><span class="meta">11/16 20:48</span></span><span class="amt">3,000 원</span></li>
             </ul>
             <button class="btn btn-wide" type="button" style="margin-top:8px">더 보기</button>
           </section>
@@ -330,20 +330,20 @@
           <nav class="tabs" aria-label="방 페이지"><span class="tab">현황</span><span class="tab" aria-current="page">기록</span><span class="tab">정산</span><span class="tab">방</span></nav>
         </div>
         <div class="scroll">
-          <div class="band soft"><svg class="ic-sm" aria-hidden="true" focusable="false"><use href="#i-check"/></svg><span class="grow">거래를 저장했습니다.</span></div>
           <div class="sec-head"><h3 class="sec-title"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-write"/></svg>거래 입력</h3></div>
           <section class="card">
-            <div class="field"><label>지급자</label><span class="select">이영희</span></div>
+            <div class="band soft"><svg class="ic-sm" aria-hidden="true" focusable="false"><use href="#i-check"/></svg><span class="grow">거래를 저장했습니다.</span></div>
+            <div class="field"><label>지급자</label><span class="select">선택</span></div>
             <div class="swap">→</div>
-            <div class="field"><label>수취자</label><span class="select">김철수</span></div>
-            <div class="field"><label>금액</label><div class="amount-input"><span class="num">5,000</span><span class="u">원</span></div></div>
-            <div class="field"><label>사유 (선택)</label><input class="input" value="3판 연속 피박" aria-label="사유 (선택)"></div>
+            <div class="field"><label>수취자</label><span class="select">선택</span></div>
+            <div class="field"><label>금액</label><div class="amount-input empty"><span class="u">원</span></div></div>
+            <div class="field"><label>사유 (선택)</label><input class="input" aria-label="사유 (선택)"></div>
             <div class="field" style="margin-bottom:4px"><label>라운드 (선택)</label><input class="input" placeholder="" aria-label="라운드 (선택)"></div>
             <button class="btn btn-primary" type="button" style="margin-top:14px">저장</button>
           </section>
         </div>
       </div>
-      <figcaption class="cap"><b>기록</b> · 입력 항목과 선택 상자는 지금과 같고 모양만 바꿈(DV-17). 저장 버튼은 폼 안 카드 아래 전폭. 저장 뒤 머물며 연한 초록 띠로 안내(U-10).</figcaption>
+      <figcaption class="cap"><b>기록</b> · 입력 항목과 선택 상자는 지금과 같고 모양만 바꿈(DV-17). 저장 버튼은 폼 안 카드 아래 전폭. 저장 직후 모습: 폼은 비워지고 카드 맨 위 초록 띠로 안내(U-10).</figcaption>
     </figure>
 
     <!-- 정산 -->
@@ -358,9 +358,9 @@
           <div class="sec-head"><h3 class="sec-title"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-bag"/></svg>예상 정산</h3><span class="badge info">진행 중</span></div>
           <section class="card">
             <div class="band info" style="margin-bottom:8px"><svg class="ic-sm" aria-hidden="true" focusable="false"><use href="#i-info"/></svg>거래가 바뀌면 달라질 수 있습니다.</div>
-            <div class="transfer"><span class="who"><span class="avatar a3">이</span>이영희 <span class="arrow">→</span> 김철수</span><span class="amt">8,000<span class="unit">원</span></span></div>
-            <div class="transfer"><span class="who"><span class="avatar a4">최</span>최준호 <span class="arrow">→</span> 김철수</span><span class="amt">4,000<span class="unit">원</span></span></div>
-            <div class="transfer"><span class="who"><span class="avatar a4">최</span>최준호 <span class="arrow">→</span> 박민수</span><span class="amt">3,000<span class="unit">원</span></span></div>
+            <div class="transfer"><span class="who">이영희 <span class="arrow">→</span> 김철수</span><span class="amt">8,000 원</span></div>
+            <div class="transfer"><span class="who">최준호 <span class="arrow">→</span> 김철수</span><span class="amt">4,000 원</span></div>
+            <div class="transfer"><span class="who">최준호 <span class="arrow">→</span> 박민수</span><span class="amt">3,000 원</span></div>
           </section>
           <div class="sep"></div>
           <button class="btn btn-danger-line" type="button">게임 종료</button>
@@ -382,22 +382,22 @@
           <div class="sec-head"><h3 class="sec-title"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-house"/></svg>방 정보</h3></div>
           <section class="card">
             <div class="kv">
-              <div><div class="k">방 이름</div><div class="v">토요일 고스톱</div></div>
-              <div><div class="k">정산 단위</div><div class="v">원</div></div>
-              <div><div class="k">진행 상태</div><div class="v"><span class="badge info">진행 중</span></div></div>
-              <div><div class="k">내 닉네임</div><div class="v">김철수 <span class="badge neutral">방장</span></div></div>
-              <div><div class="k">초대 링크</div>
-                <div class="tile" style="margin-top:6px"><span class="link">https://ddallang.app/invite/7Kq2Xw9pLm</span><button class="btn btn-pill" type="button" style="background:#fff">초대 링크 복사</button></div></div>
+              <div class="room-name">토요일 고스톱</div>
+              <div class="plain">정산 단위: 원</div>
+              <div><span class="badge info">진행 중</span></div>
+              <div class="plain">내 닉네임: 김철수 <span class="badge info">방장</span></div>
+              <div class="field" style="margin:4px 0 0"><label>초대 링크</label><input class="input" readonly value="https://ddallang.app/invite/7Kq2Xw9pLm" aria-label="초대 링크">
+                <button class="btn btn-pill" type="button" style="align-self:flex-start">초대 링크 복사</button></div>
             </div>
           </section>
           <div class="sec-head"><h3 class="sec-title"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-people"/></svg>참여자</h3></div>
           <section class="card">
             <ul class="list">
-              <li class="item"><span class="avatar a1">김</span><span class="body"><span class="title">김철수</span></span><button class="btn btn-pill sm" type="button">비활성화</button></li>
-              <li class="item"><span class="avatar a2">박</span><span class="body"><span class="title">박민수</span></span><button class="btn btn-pill sm" type="button">비활성화</button></li>
-              <li class="item"><span class="avatar a3">이</span><span class="body"><span class="title">이영희</span></span><button class="btn btn-pill sm" type="button">비활성화</button></li>
-              <li class="item"><span class="avatar a4">최</span><span class="body"><span class="title">최준호</span></span><button class="btn btn-pill sm" type="button">비활성화</button></li>
-              <li class="item inactive"><span class="avatar">정</span><span class="body"><span class="title">정다은 <span class="badge neutral">비활성</span></span></span><button class="btn btn-pill sm" type="button">재활성화</button></li>
+              <li class="item"><span class="avatar a1">김</span><span class="body"><span class="title">김철수</span></span><button class="btn btn-pill" type="button">비활성화</button></li>
+              <li class="item"><span class="avatar a2">박</span><span class="body"><span class="title">박민수</span></span><button class="btn btn-pill" type="button">비활성화</button></li>
+              <li class="item"><span class="avatar a3">이</span><span class="body"><span class="title">이영희</span></span><button class="btn btn-pill" type="button">비활성화</button></li>
+              <li class="item"><span class="avatar a4">최</span><span class="body"><span class="title">최준호</span></span><button class="btn btn-pill" type="button">비활성화</button></li>
+              <li class="item inactive"><span class="avatar">정</span><span class="body"><span class="title">정다은 <span class="badge neutral">비활성</span></span></span><button class="btn btn-pill" type="button">재활성화</button></li>
             </ul>
             <div class="sep" style="margin:12px 0 16px"></div>
             <div class="field" style="margin-bottom:10px"><label>참여자 닉네임</label><input class="input" aria-label="참여자 닉네임"></div>
@@ -405,7 +405,7 @@
           </section>
         </div>
       </div>
-      <figcaption class="cap"><b>방</b> · 라벨(회색) → 값(검정) 쌍. 초대 링크는 회색 타일 안에 말줄임 + 회색 알약 복사(DV-12). 방장 컨트롤은 행 오른쪽 알약.</figcaption>
+      <figcaption class="cap"><b>방</b> · 방 정보 문구는 지금 앱 그대로. 초대 링크는 지금처럼 라벨 붙은 읽기 전용 입력란(포커스하면 전체 선택) + 회색 알약 복사(DV-12). 방장 컨트롤은 행 오른쪽 알약.</figcaption>
     </figure>
   </div>
 
@@ -423,15 +423,15 @@
         <div class="scroll">
           <div class="sec-head"><h3 class="sec-title"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-bag"/></svg>최종 정산</h3></div>
           <section class="card">
-            <div class="band soft"><span class="badge brand">게임 종료</span><span class="grow"></span><button class="btn btn-pill" type="button" style="background:#fff">정산 복사</button></div>
-            <div class="transfer"><span class="who"><span class="avatar a3">이</span>이영희 <span class="arrow">→</span> 김철수</span><span class="amt">8,000<span class="unit">원</span></span></div>
-            <div class="transfer"><span class="who"><span class="avatar a4">최</span>최준호 <span class="arrow">→</span> 김철수</span><span class="amt">4,000<span class="unit">원</span></span></div>
-            <div class="transfer"><span class="who"><span class="avatar a4">최</span>최준호 <span class="arrow">→</span> 박민수</span><span class="amt">3,000<span class="unit">원</span></span></div>
+            <div class="band soft"><span class="badge on-band">게임 종료</span><span class="grow"></span><button class="btn btn-pill" type="button" style="background:#fff">정산 복사</button></div>
+            <p class="status-text">정산 내용을 복사했습니다.</p>
+            <div class="transfer"><span class="who">이영희 <span class="arrow">→</span> 김철수</span><span class="amt">8,000 원</span></div>
+            <div class="transfer"><span class="who">최준호 <span class="arrow">→</span> 김철수</span><span class="amt">4,000 원</span></div>
+            <div class="transfer"><span class="who">최준호 <span class="arrow">→</span> 박민수</span><span class="amt">3,000 원</span></div>
           </section>
         </div>
-        <div class="toast" role="status">정산 내용을 복사했습니다.</div>
       </div>
-      <figcaption class="cap"><b>종료된 방</b> · <code>기록</code> 탭이 없고 정산에서 시작(FD-12). 최종 정산 위에 연한 초록 띠. 모든 항목을 같은 행으로 보이고 특정 항목을 크게 강조하지 않음(DV-18).</figcaption>
+      <figcaption class="cap"><b>종료된 방</b> · <code>기록</code> 탭이 없고 정산에서 시작(FD-12). 최종 정산 위에 연한 초록 띠, 복사 결과는 버튼 아래 상태 문단(토스트 없음). 모든 항목을 같은 행으로 보이고 특정 항목을 크게 강조하지 않음(DV-18).</figcaption>
     </figure>
 
     <!-- 끊김 -->
@@ -443,20 +443,12 @@
           <nav class="tabs" aria-label="방 페이지"><span class="tab" aria-current="page">현황</span><span class="tab">기록</span><span class="tab">정산</span><span class="tab">방</span></nav>
         </div>
         <div class="scroll">
-          <div class="band info"><svg class="ic-sm" aria-hidden="true" focusable="false"><use href="#i-offline"/></svg><span class="grow">연결 끊김 · 다시 연결 중</span></div>
+          <div class="band warn"><svg class="ic-sm" aria-hidden="true" focusable="false"><use href="#i-offline"/></svg><span class="grow"><b>연결 끊김 · 다시 연결 중</b><br><span class="detail">연결이 끊겨 최신 정보를 표시할 수 없습니다. 연결되면 자동으로 다시 표시됩니다.</span></span></div>
           <div class="sec-head"><h3 class="sec-title"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-coin"/></svg>누적 손익</h3></div>
-          <section class="card masked">
-            <div class="skeleton" style="width:80%"></div><div class="skeleton" style="width:60%"></div><div class="skeleton" style="width:72%"></div><div class="skeleton" style="width:50%"></div>
-            <div class="veil">연결되면 방 정보가 표시됩니다.</div>
-          </section>
           <div class="sec-head"><h3 class="sec-title"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-ledger"/></svg>거래 내역</h3></div>
-          <section class="card masked">
-            <div class="skeleton" style="width:90%"></div><div class="skeleton" style="width:70%"></div><div class="skeleton" style="width:84%"></div>
-            <div class="veil"></div>
-          </section>
         </div>
       </div>
-      <figcaption class="cap"><b>끊김</b> · 헤더는 <code>DDALLANG</code>만, 오래된 숫자는 가림(FD-12, S5). 배너 문구는 지금 문구 그대로. <code>거래 기록하기</code>는 숨김.</figcaption>
+      <figcaption class="cap"><b>끊김</b> · 헤더는 <code>DDALLANG</code>만. 배너는 지금 문구 그대로(제목 + 상세, 경고 톤). 구역은 바탕 위 제목만 남고 카드·스켈레톤 없음(S5 §6.5). <code>거래 기록하기</code>는 숨김.</figcaption>
     </figure>
 
     <!-- 확인 대화상자 -->
@@ -470,14 +462,14 @@
         <div class="scroll">
           <div class="sec-head"><h3 class="sec-title"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-bag"/></svg>예상 정산</h3><span class="badge info">진행 중</span></div>
           <section class="card">
-            <div class="transfer"><span class="who"><span class="avatar a3">이</span>이영희 <span class="arrow">→</span> 김철수</span><span class="amt">8,000<span class="unit">원</span></span></div>
-            <div class="transfer"><span class="who"><span class="avatar a4">최</span>최준호 <span class="arrow">→</span> 김철수</span><span class="amt">4,000<span class="unit">원</span></span></div>
+            <div class="transfer"><span class="who">이영희 <span class="arrow">→</span> 김철수</span><span class="amt">8,000 원</span></div>
+            <div class="transfer"><span class="who">최준호 <span class="arrow">→</span> 김철수</span><span class="amt">4,000 원</span></div>
           </section>
         </div>
         <div class="dim">
           <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dlg-t">
             <h3 id="dlg-t">게임을 종료할까요?</h3>
-            <p>(대화상자 본문은 지금 문구를 그대로 씁니다.)</p>
+            <p>종료하면 되돌릴 수 없습니다. 이후 거래와 참여자를 바꿀 수 없고, 최종 정산이 표시됩니다.</p>
             <div class="row2"><button class="btn btn-cancel" type="button" autofocus>취소</button><button class="btn btn-danger" type="button">게임 종료</button></div>
           </div>
         </div>

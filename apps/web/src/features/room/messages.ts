@@ -75,6 +75,8 @@ export function inviteNoticeContent(notice: InviteNotice): { tone: "info" | "war
       return { tone: "warning", text: "요청이 취소되지 않았습니다. 아직 방장의 승인을 기다리는 중입니다." };
     case "cancel-unconfirmed":
       return { tone: "warning", text: `${RESULT_UNCONFIRMED} 요청 상태를 계속 확인합니다.` };
+    case "no-candidates":
+      return { tone: "info", text: "이어받을 수 있는 참여자가 없습니다." };
     case "server":
       return { tone: "error", text: notice.message };
   }

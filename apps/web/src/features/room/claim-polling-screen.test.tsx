@@ -1,17 +1,18 @@
 // 요청자 화면의 결과 수신(FE-M4): 대기 화면이 주기 조회로 결과를 받아 방 화면·결과 안내로 바뀐다(모의 서버).
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { delay, http } from "msw";
 import { beforeEach, describe, expect, it } from "vitest";
 import { AllPages } from "@/test/all-pages";
 import { installFakeLocks } from "@/test/fake-locks";
 import { installFakeStorage } from "@/test/fake-storage";
 import * as fixtures from "@/test/fixtures";
-import { apiUrl } from "@/test/handlers";
+import { apiUrl, errorResponse } from "@/test/handlers";
 import { server } from "@/test/msw-server";
 import { renderApp } from "@/test/render";
 import { createFakeBackend, type FakeBackend } from "@/test/stateful-server";
 import { InviteScreen } from "./invite-screen";
-import { claimConfirmTitle, WAITING_TITLE } from "./messages";
+import { ACCESS_LOST_NOTICE, claimConfirmTitle, WAITING_TITLE } from "./messages";
 
 const CODE = fixtures.INVITE_CODE;
 const HOST = "h".repeat(43);
@@ -72,5 +73,39 @@ describe("요청자 화면의 결과 수신 (FE-M4, S5 §6.8)", () => {
     expect((await asHost(`/rooms/${fixtures.room.id}/claims/${claimId}/reject`)).status).toBe(200);
     expect(await screen.findByText("방장이 이어받기 요청을 거절했습니다.", undefined, { timeout: 4000 })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "새로 입장하기" })).toBeInTheDocument();
+  });
+
+  it("대기 ↔ 취소 중 사이를 오가도 같은 요청의 주기 조회가 끊기지 않는다(검수 F4)", async () => {
+    const claimId = await waitForApproval();
+    // 취소 응답을 붙잡아 둔다: 그 동안에도 주기 조회는 계속된다.
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    server.use(
+      http.post(apiUrl(`/invites/${CODE}/claims/${claimId}/cancel`), async () => {
+        await gate;
+        return errorResponse("CLAIM_ALREADY_RESOLVED");
+      }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "요청 취소" }));
+    const before = polls.length;
+    await new Promise((resolve) => setTimeout(resolve, 2300));
+    expect(polls.length).toBeGreaterThan(before); // 취소 중에도 조회한다
+    release();
+    // 확인 조회(PENDING) 뒤 대기로 돌아와서도 이어진다.
+    expect(await screen.findByText(/요청이 취소되지 않았습니다/)).toBeInTheDocument();
+    const afterCancel = polls.length;
+    await new Promise((resolve) => setTimeout(resolve, 2300));
+    expect(polls.length).toBeGreaterThan(afterCancel);
+  });
+
+  it("주기 조회가 401 IDENTITY_REVOKED를 받으면 접근 상실 처리기로 간다(FD-23, FD-21)", async () => {
+    await waitForApproval();
+    server.use(
+      http.get(apiUrl(`/invites/${CODE}/claims/:id`), async () => {
+        await delay(10);
+        return errorResponse("IDENTITY_REVOKED");
+      }),
+    );
+    expect(await screen.findByText(new RegExp(ACCESS_LOST_NOTICE), undefined, { timeout: 4000 })).toBeInTheDocument();
   });
 });

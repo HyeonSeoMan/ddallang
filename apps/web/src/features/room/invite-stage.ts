@@ -41,6 +41,8 @@ export type InviteNotice =
   | { kind: "cancel-not-done" }
   /** 취소 결과와 현재 상태를 모두 확인하지 못했다(주기 조회가 이어서 확인한다). */
   | { kind: "cancel-unconfirmed" }
+  /** 후보를 다시 불러왔지만 이어받을 수 있는 참여자가 없다. */
+  | { kind: "no-candidates" }
   /** 서버 `message`를 그대로 보인다. `claimable`이면 이어받기 안내를 덧붙인다(AC-ROOM-002-6, 008-8). */
   | { kind: "server"; message: string; claimable?: boolean };
 
@@ -78,8 +80,11 @@ export type InviteEvent =
   | { type: "CLAIM_REJECTED"; code: string; message: string }
   /** 이어받기 요청의 응답을 받지 못했다(`NetworkError`). 같은 키로 자동 재전송하지 않고 초대 조회를 다시 한다. */
   | { type: "CLAIM_LOST" }
-  /** 내 요청의 현재 상태(주기 조회 또는 취소 뒤 확인). */
-  | { type: "CLAIM_STATUS"; claim: MyClaim }
+  /**
+   * 내 요청의 현재 상태. `poll`은 주기 조회, `check`는 취소 뒤 확인 조회다. 취소 확인 중에 도착한 주기 조회의
+   * PENDING은 취소 전에 보낸 조회일 수 있어 확인 결과로 쓰지 않는다.
+   */
+  | { type: "CLAIM_STATUS"; claim: MyClaim; source: "poll" | "check" }
   /** 취소 뒤 확인 조회까지 실패했다. */
   | { type: "CLAIM_STATUS_FAILED" }
   | { type: "CANCEL" }
@@ -142,8 +147,11 @@ function afterLookup(state: InviteState, check: Extract<InviteStage, { stage: "c
         notice = resultNotice(claim);
         shownClaimId = claim.id;
       }
-      const goCandidates = check.returnTo === "candidates" && lookup.claimableNicknames.length > 0;
-      return { ...base, notice, shownClaimId, view: { stage: goCandidates ? "candidates" : "choose" } };
+      if (check.returnTo === "candidates") {
+        if (lookup.claimableNicknames.length > 0) return { ...base, notice, shownClaimId, view: { stage: "candidates" } };
+        return { ...base, notice: { kind: "no-candidates" }, shownClaimId, view: { stage: "choose" } };
+      }
+      return { ...base, notice, shownClaimId, view: { stage: "choose" } };
     }
   }
 }
@@ -154,10 +162,12 @@ function finishClaim(state: InviteState, claim: MyClaim, notice: InviteNotice): 
 }
 
 /** 주기 조회·확인 조회가 알려 준 내 요청의 상태로 전이한다(S5 §6.8, S1 §6.5). */
-function onClaimStatus(state: InviteState, claim: MyClaim): InviteState {
+function onClaimStatus(state: InviteState, claim: MyClaim, source: "poll" | "check"): InviteState {
   const view = state.view;
   if (view.stage !== "waiting" && view.stage !== "canceling" && view.stage !== "cancel-checking") return state;
   if (view.claim.id !== claim.id) return state;
+  // 취소 확인 중의 PENDING은 확인 조회 결과만 쓴다(늦게 온 주기 조회는 취소 전 상태일 수 있다).
+  if (view.stage === "cancel-checking" && source === "poll" && claim.status === "PENDING") return state;
   const afterCancel = view.stage === "cancel-checking";
   switch (claim.status) {
     case "PENDING":
@@ -246,7 +256,7 @@ export function inviteReducer(state: InviteState, event: InviteEvent): InviteSta
         ? { ...state, view: { stage: "checking", recheck: { previousClaimId: state.lastClaimId } } }
         : state;
     case "CLAIM_STATUS":
-      return onClaimStatus(state, event.claim);
+      return onClaimStatus(state, event.claim, event.source);
     case "CLAIM_STATUS_FAILED":
       return view.stage === "cancel-checking"
         ? { ...state, notice: { kind: "cancel-unconfirmed" }, view: { stage: "waiting", claim: view.claim } }

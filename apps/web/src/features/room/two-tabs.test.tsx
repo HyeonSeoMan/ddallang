@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -98,5 +98,46 @@ describe("같은 브라우저 두 탭의 첫 입장 (FE-S1-6)", () => {
     await user.click(screen.getByRole("button", { name: "입장" }));
     expect(await screen.findByText(/이 브라우저에서는 입장할 수 없습니다/)).toBeInTheDocument();
     expect(storage.keys()).toEqual([]);
+  });
+});
+
+describe("같은 브라우저 두 탭의 이어받기 요청 (FE-M7)", () => {
+  it("[AC-ROOM-006-11] 두 탭이 동시에 첫 이어받기 요청을 해도 키는 하나이고 둘 다 대기 화면이 된다(요청은 하나만 PENDING)", async () => {
+    const backend = createFakeBackend();
+    server.use(...backend.handlers);
+    const authorizations: string[] = [];
+    server.events.on("request:start", ({ request }) => {
+      if (request.method === "POST" && request.url.endsWith(`/invites/${CODE}/claims`)) {
+        authorizations.push(request.headers.get("Authorization") ?? "");
+      }
+    });
+    const tabA = renderApp(<InviteScreen inviteCode={CODE}><AllPages /></InviteScreen>);
+    const tabB = renderApp(<InviteScreen inviteCode={CODE}><AllPages /></InviteScreen>);
+    const user = userEvent.setup();
+    await waitFor(() => expect(screen.getAllByRole("button", { name: "기존 참여자 이어받기" })).toHaveLength(2));
+    const lockName = `ddallang-identity:${CODE}`;
+    const release = manager.hold();
+    // 한 문서에서 두 탭을 흉내 내므로 확인 대화상자를 하나씩 연다(두 대화상자가 동시에 포커스를 가두지 않게).
+    // 탭 A가 잠금 대기(요청 중, 버튼 비활성)에 들어간 뒤 탭 B도 요청한다.
+    for (const container of [tabA.container, tabB.container]) {
+      await user.click(within(container).getByRole("button", { name: "기존 참여자 이어받기" }));
+      await user.click(within(container).getByRole("button", { name: "나래" }));
+      const dialogs = screen.getAllByRole("dialog");
+      await user.click(within(dialogs[dialogs.length - 1]!).getByRole("button", { name: "요청" }));
+    }
+    await waitFor(() => expect(manager.pending(lockName)).toBe(2));
+    expect(storage.keys()).toEqual([]); // 아직 어느 탭도 키를 만들지 않았다
+    release();
+
+    await waitFor(() => expect(authorizations).toHaveLength(2));
+    expect(new Set(authorizations).size).toBe(1); // 같은 키 하나로 요청한다
+    expect(storage.keys()).toEqual([`ddallang:identity:${CODE}`]);
+    expect(manager.maxConcurrent.get(lockName)).toBe(1);
+    // 서버는 같은 키의 두 번째 요청을 CLAIM_PENDING으로 거부하고, 그 탭은 다시 조회해 같은 요청으로 대기한다.
+    await waitFor(() => expect(screen.getAllByRole("heading", { name: "방장의 승인을 기다리는 중" })).toHaveLength(2));
+    expect(backend.claims.filter((c) => c.status === "PENDING")).toHaveLength(1);
+    server.events.removeAllListeners("request:start");
+    tabA.unmount();
+    tabB.unmount();
   });
 });

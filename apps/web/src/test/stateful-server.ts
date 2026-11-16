@@ -361,6 +361,8 @@ export function createFakeBackend(): FakeBackend {
     http.post(apiUrl(`${invite}/claims`), async ({ request }) => {
       const key = keyOf(request);
       if (key === null) return errorResponse("UNAUTHENTICATED");
+      // 본문을 먼저 읽고 키 상태 검사와 요청 생성을 await 없이 한 번에 한다(같은 키의 동시 요청은 하나만 PENDING, S1 §7 4).
+      const body = (await request.json().catch(() => ({}))) as { nickname?: unknown };
       switch (identityOf(key)) {
         case "PARTICIPANT":
           return errorResponse("ALREADY_PARTICIPANT");
@@ -371,7 +373,6 @@ export function createFakeBackend(): FakeBackend {
         case "NONE":
           break;
       }
-      const body = (await request.json().catch(() => ({}))) as { nickname?: unknown };
       if (typeof body.nickname !== "string" || body.nickname === "") {
         return errorResponse("VALIDATION_FAILED", { details: [{ field: "nickname", code: "REQUIRED" }] });
       }

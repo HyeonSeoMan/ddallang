@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { createStore } from "jotai";
 import { http } from "msw";
 import { beforeEach, describe, expect, it } from "vitest";
-import { snapshotAtom } from "@/features/room/state";
+import { dataVisibleAtom, snapshotAtom } from "@/features/room/state";
 import { AllPages } from "@/test/all-pages";
 import { installFakeLocks } from "@/test/fake-locks";
 import { type FakeStorage, installFakeStorage } from "@/test/fake-storage";
@@ -60,7 +60,8 @@ async function openRoomAs(participantId: string) {
     </InviteScreen>,
     store,
   );
-  expect(await screen.findByRole("heading", { name: "누적 손익" })).toBeInTheDocument();
+  // 구역 제목은 연결 전에도 보이므로 스트림이 열리고 첫 스냅샷이 반영될 때까지 기다린다.
+  await waitFor(() => expect(store.get(dataVisibleAtom)).toBe(true));
   return { ...view, store };
 }
 

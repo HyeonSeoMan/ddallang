@@ -208,7 +208,7 @@ export function InviteScreen({ inviteCode, children }: { inviteCode: string; chi
           path: `${invitePath}/claims/${encodeURIComponent(view.claim.id)}`,
           headers: key ? bearerHeader(key) : undefined,
         });
-        if (!cancelled) dispatch({ type: "CLAIM_STATUS", claim: data.claim });
+        if (!cancelled) dispatch({ type: "CLAIM_STATUS", claim: data.claim, source: "check" });
       } catch (error) {
         if (!cancelled && !isRevoked(error)) dispatch({ type: "CLAIM_STATUS_FAILED" });
       }
@@ -236,7 +236,7 @@ export function InviteScreen({ inviteCode, children }: { inviteCode: string; chi
         });
         return data.claim;
       },
-      onClaim: (claim) => dispatch({ type: "CLAIM_STATUS", claim }),
+      onClaim: (claim) => dispatch({ type: "CLAIM_STATUS", claim, source: "poll" }),
       env: browserEnv(),
     });
     poller.start();

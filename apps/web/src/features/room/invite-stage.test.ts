@@ -113,7 +113,10 @@ describe("초대 화면 상태기계 (FD-22)", () => {
       const reloading = run([{ type: "CHOOSE_CLAIM" }], rejected);
       expect(reloading.view).toEqual({ stage: "checking", returnTo: "candidates" });
       expect(stageOf(run([checked({ claimableNicknames: ["다온"] })], reloading))).toBe("candidates");
-      expect(stageOf(run([checked({ claimableNicknames: [] })], reloading))).toBe("choose");
+      expect(run([checked({ claimableNicknames: [] })], reloading)).toMatchObject({
+        view: { stage: "choose" },
+        notice: { kind: "no-candidates" }, // 다시 불러와도 후보가 없으면 이유를 알린다(검수 F3)
+      });
     });
 
     it("다른 거부(검증·네트워크)는 이어받기 안내 없이 닉네임 단계로 돌아간다", () => {
@@ -238,20 +241,28 @@ describe("초대 화면 상태기계 (FD-22)", () => {
         expect(checking.view).toEqual({ stage: "cancel-checking", claim: claim() });
       });
 
+      it("취소 확인 중에 온 주기 조회의 PENDING은 확인 결과로 쓰지 않는다(검수 F1)", () => {
+        expect(run([{ type: "CLAIM_STATUS", source: "poll", claim: claim() }], checking)).toEqual(checking);
+        // 주기 조회라도 끝난 결과는 반영한다.
+        expect(stageOf(run([{ type: "CLAIM_STATUS", source: "poll", claim: claim({ status: "APPROVED" }) }], checking))).toBe(
+          "restoring",
+        );
+      });
+
       it("PENDING이면 대기를 유지하고 취소되지 않았다고 안내한다", () => {
-        expect(run([{ type: "CLAIM_STATUS", claim: claim() }], checking)).toMatchObject({
+        expect(run([{ type: "CLAIM_STATUS", source: "check", claim: claim() }], checking)).toMatchObject({
           view: { stage: "waiting" },
           notice: { kind: "cancel-not-done" },
         });
       });
 
       it("APPROVED면 입장 요청으로 복원한다", () => {
-        expect(stageOf(run([{ type: "CLAIM_STATUS", claim: claim({ status: "APPROVED" }) }], checking))).toBe("restoring");
+        expect(stageOf(run([{ type: "CLAIM_STATUS", source: "check", claim: claim({ status: "APPROVED" }) }], checking))).toBe("restoring");
       });
 
       it("REJECTED면 사유를 안내하고 선택으로", () => {
         const state = run(
-          [{ type: "CLAIM_STATUS", claim: claim({ status: "REJECTED", rejectReason: "TARGET_CLAIMED" }) }],
+          [{ type: "CLAIM_STATUS", source: "check", claim: claim({ status: "REJECTED", rejectReason: "TARGET_CLAIMED" }) }],
           checking,
         );
         expect(state).toMatchObject({
@@ -261,7 +272,7 @@ describe("초대 화면 상태기계 (FD-22)", () => {
       });
 
       it("CANCELED면 이번 취소의 결과라고 단정하지 않는 안내로 선택", () => {
-        expect(run([{ type: "CLAIM_STATUS", claim: claim({ status: "CANCELED" }) }], checking)).toMatchObject({
+        expect(run([{ type: "CLAIM_STATUS", source: "check", claim: claim({ status: "CANCELED" }) }], checking)).toMatchObject({
           view: { stage: "choose" },
           notice: { kind: "claim-canceled-state" },
         });
@@ -284,21 +295,21 @@ describe("초대 화면 상태기계 (FD-22)", () => {
     });
 
     it("대기 중 상태 조회(주기 조회): 승인 → 복원, 거절 → 사유 안내, 다른 요청 ID는 무시", () => {
-      expect(stageOf(run([{ type: "CLAIM_STATUS", claim: claim({ status: "APPROVED" }) }], waiting))).toBe("restoring");
+      expect(stageOf(run([{ type: "CLAIM_STATUS", source: "poll", claim: claim({ status: "APPROVED" }) }], waiting))).toBe("restoring");
       expect(
-        run([{ type: "CLAIM_STATUS", claim: claim({ status: "REJECTED", rejectReason: "HOST_REJECTED" }) }], waiting).notice,
+        run([{ type: "CLAIM_STATUS", source: "poll", claim: claim({ status: "REJECTED", rejectReason: "HOST_REJECTED" }) }], waiting).notice,
       ).toEqual({ kind: "claim-result", status: "REJECTED", reason: "HOST_REJECTED" });
-      expect(run([{ type: "CLAIM_STATUS", claim: claim({ id: "other", status: "APPROVED" }) }], waiting)).toEqual(waiting);
-      expect(run([{ type: "CLAIM_STATUS", claim: claim() }], waiting).view).toEqual(waiting.view);
+      expect(run([{ type: "CLAIM_STATUS", source: "poll", claim: claim({ id: "other", status: "APPROVED" }) }], waiting)).toEqual(waiting);
+      expect(run([{ type: "CLAIM_STATUS", source: "poll", claim: claim() }], waiting).view).toEqual(waiting.view);
     });
 
     it("취소 요청 중에 온 PENDING은 취소 응답을 기다린다", () => {
       const canceling = run([{ type: "CANCEL" }], waiting);
-      expect(run([{ type: "CLAIM_STATUS", claim: claim() }], canceling)).toEqual(canceling);
+      expect(run([{ type: "CLAIM_STATUS", source: "poll", claim: claim() }], canceling)).toEqual(canceling);
     });
 
     it("승인된 요청의 복원이 끝나면 방 화면", () => {
-      expect(stageOf(run([{ type: "CLAIM_STATUS", claim: claim({ status: "APPROVED" }) }, { type: "JOINED" }], waiting))).toBe(
+      expect(stageOf(run([{ type: "CLAIM_STATUS", source: "poll", claim: claim({ status: "APPROVED" }) }, { type: "JOINED" }], waiting))).toBe(
         "room",
       );
     });

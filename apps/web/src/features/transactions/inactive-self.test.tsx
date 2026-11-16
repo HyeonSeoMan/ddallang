@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { ParticipantsSection } from "@/features/participants/participants-section";
 import { InviteScreen } from "@/features/room/invite-screen";
 import { RecordPage, SettlementPage, StatusPage } from "@/features/room/room-pages";
-import { canMutateAtom, dataVisibleAtom, readOnlySelfAtom } from "@/features/room/state";
+import { canMutateAtom, dataVisibleAtom, readOnlySelfAtom, setConnectionAtom } from "@/features/room/state";
 import { expectNoA11yViolations } from "@/test/a11y";
 import { AllPages } from "@/test/all-pages";
 import { choiceNames, choose } from "@/test/choice";
@@ -182,6 +182,34 @@ describe("조회 전용 본인 (FD-26, FE-C6)", () => {
     await waitFor(() => expect(screen.queryByText("비활성 참여자는 거래를 기록할 수 없습니다")).not.toBeInTheDocument());
     expect(screen.getByLabelText("금액")).toHaveValue("500");
     view.unmount();
+  });
+
+  it("끊긴 사이 재활성화돼도 재연결 뒤 비활성 거부 안내를 지운다(검수 P1)", async () => {
+    await primeServerClock(KEY);
+    server.use(
+      http.post(apiUrl(`/rooms/${fixtures.room.id}/transactions`), () =>
+        errorResponse("REQUESTER_INACTIVE", { message: "비활성 참여자는 거래를 기록할 수 없습니다" }),
+      ),
+    );
+    seedRoom(store, { me: fixtures.guestParticipant });
+    renderApp(<main><RecordPage /></main>, store);
+    const user = userEvent.setup();
+    await choose(user, screen, "지급자", "가온");
+    await choose(user, screen, "수취자", "나래");
+    await user.type(screen.getByLabelText("금액"), "500");
+    await user.click(screen.getByRole("button", { name: "저장" }));
+    expect(await screen.findByText("비활성 참여자는 거래를 기록할 수 없습니다")).toBeInTheDocument();
+    act(() => {
+      seedRoom(store, { me: inactiveMe, participants: withMeInactive }); // 갱신: 조회 전용
+    });
+    act(() => {
+      store.set(setConnectionAtom, "disconnected"); // 끊김
+    });
+    act(() => {
+      seedRoom(store, { me: fixtures.guestParticipant }); // 재연결: 그 사이 재활성화됨
+    });
+    await waitFor(() => expect(screen.queryByText("비활성 참여자는 거래를 기록할 수 없습니다")).not.toBeInTheDocument());
+    expect(screen.getByLabelText("금액")).toHaveValue("500");
   });
 
   it("[AC-VIEW-005-3] 방장이 나를 비활성화하면 변경 알림 뒤 갱신으로 내 거래 컨트롤이 잠기고, 재활성화하면 돌아온다(모의)", async () => {

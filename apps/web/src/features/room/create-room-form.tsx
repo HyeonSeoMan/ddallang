@@ -11,7 +11,7 @@ import {
   getApiClient,
   NetworkError,
   type Room,
-  type RoomMember,
+  type Participant,
 } from "@/lib/api";
 import {
   beginCreateAttempt,
@@ -98,7 +98,7 @@ interface Sent {
 interface Created {
   attemptId: string;
   room: Room;
-  me: RoomMember;
+  me: Participant;
 }
 
 const STORAGE_FAILURE_MESSAGES = {
@@ -138,7 +138,7 @@ export function CreateRoomForm() {
 
   const mutation = useMutation({
     mutationFn: ({ attempt, body }: Sent) =>
-      getApiClient().request<{ room: Room; me: RoomMember }>({
+      getApiClient().request<{ room: Room; me: Participant }>({
         method: "POST",
         path: "/rooms",
         body,

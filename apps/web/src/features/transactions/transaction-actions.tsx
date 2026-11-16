@@ -4,7 +4,7 @@ import { useAtom } from "jotai";
 import { useState } from "react";
 import { css } from "styled-system/css";
 import { useCanMutate } from "@/features/room/server-data-gate";
-import type { Room, RoomMember, Transaction } from "@/lib/api";
+import type { Room, Participant, Transaction } from "@/lib/api";
 import { formatMoney } from "@/lib/format";
 import { validateAmount, validateReason, validateRound } from "@/lib/validation/transaction";
 import { useAnnounce } from "@/ui/announcer";
@@ -22,7 +22,7 @@ const DELETE_TITLE = "거래를 삭제할까요?";
 const DELETE_BODY = "삭제한 거래는 누적 손익과 정산에서 빠지며 되돌릴 수 없습니다.";
 
 /** 작성자 또는 방장에게만 수정·삭제를 보인다. 노출과 무관하게 서버가 권한을 최종 판정한다(S2 §3.1). */
-export function canEditTransaction(transaction: Transaction, me: RoomMember): boolean {
+export function canEditTransaction(transaction: Transaction, me: Participant): boolean {
   return transaction.authorId === me.id || me.isHost;
 }
 
@@ -37,14 +37,14 @@ export function TransactionActions({
   summary,
 }: {
   transaction: Transaction;
-  me: RoomMember;
+  me: Participant;
   room: Room;
   /** 접근 가능한 이름에 쓸 거래 요약(예: `가온 → 나래 100 원`). 같은 금액의 거래 행을 구분한다. 없으면 금액만 쓴다. */
   summary?: string;
 }) {
   const canMutate = useCanMutate();
   const announce = useAnnounce();
-  // 작업 범위는 요청자(RoomMember)별로 분리한다(S2 §5.1: 키의 효력 범위는 방+요청자).
+  // 작업 범위는 요청자 참여자별로 분리한다(S2 §5.1: 키의 효력 범위는 방+요청자).
   const update = useRoomMutation(mutationScope("update", transaction.id, me.id));
   const remove = useRoomMutation(mutationScope("delete", transaction.id, me.id));
   const serverErrors: FieldErrors = update.state?.kind === "rejected" ? update.state.fieldErrors : {};

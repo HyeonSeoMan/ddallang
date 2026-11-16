@@ -33,7 +33,7 @@ const EMPTY: Draft = { payerId: "", payeeId: "", amount: "", reason: "", round: 
  */
 export const transactionDraftsAtom = atom<Record<string, Draft>>({});
 
-/** 초안의 키: 방과 요청자(RoomMember)별로 분리한다(S2 §5.1). 다른 방·신원으로 바뀌어도 초안이 이어지지 않는다. */
+/** 초안의 키: 방과 요청자 참여자별로 분리한다(S2 §5.1). 다른 방·신원으로 바뀌어도 초안이 이어지지 않는다. */
 export const draftKey = (roomId: string, memberId: string) => `${roomId}:${memberId}`;
 
 const toErrors = (field: TxField, code: ValidationReasonCode) => [fieldReasonMessage(field, code)];
@@ -85,7 +85,7 @@ export function TransactionForm() {
       const prev = all[key] ?? EMPTY;
       return { ...all, [key]: typeof update === "function" ? update(prev) : update };
     });
-  // 작업 범위는 요청자(RoomMember)별로 분리한다(S2 §5.1).
+  // 작업 범위는 요청자 참여자별로 분리한다(S2 §5.1).
   const scope = mutationScope("create", roomId, snapshot?.me.id ?? "");
   const mutation = useRoomMutation(scope);
   const serverErrors: FieldErrors = mutation.state?.kind === "rejected" ? mutation.state.fieldErrors : {};

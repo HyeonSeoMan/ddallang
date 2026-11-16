@@ -72,10 +72,10 @@ describe("S2 비제공 UI 점검 (FE-S2-4)", () => {
   it("[AC-TXN-009-4] 정정 거래·당사자 변경·변경 이력 UI가 없다(수정 폼은 금액·사유·라운드뿐)", () => {
     installFakeStorage();
     const store = createStore();
-    seedRoom(store, { me: fixtures.hostMember });
+    seedRoom(store, { me: fixtures.hostParticipant });
     renderApp(
       <main>
-        <TransactionActions transaction={fixtures.transactions[0]!} me={fixtures.hostMember} room={fixtures.room} />
+        <TransactionActions transaction={fixtures.transactions[0]!} me={fixtures.hostParticipant} room={fixtures.room} />
       </main>,
       store,
     );

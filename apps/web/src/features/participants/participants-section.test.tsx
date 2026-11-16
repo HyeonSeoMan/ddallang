@@ -88,7 +88,7 @@ describe("참여자 영역", () => {
     host.unmount();
 
     store = createStore();
-    renderSection({ me: fixtures.guestMember });
+    renderSection({ me: fixtures.guestParticipant });
     expect(screen.queryByLabelText("참여자 닉네임")).not.toBeInTheDocument();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
     expect(screen.getAllByRole("listitem")).toHaveLength(3); // 목록은 보인다
@@ -318,7 +318,7 @@ describe("참여자 영역", () => {
     view.unmount();
     // 같은 앱 상태에서 다른 방 화면으로 들어간다.
     seedRoom(store);
-    store.set(sessionAtom, { inviteCode: "other-code", roomId: "room-2", me: fixtures.hostMember });
+    store.set(sessionAtom, { inviteCode: "other-code", roomId: "room-2", me: fixtures.hostParticipant });
     const snapshot = store.get(snapshotAtom)!;
     store.set(applySnapshotAtom, { ...snapshot, room: { ...snapshot.room, id: "room-2" } });
     renderApp(<ParticipantsSection />, store);

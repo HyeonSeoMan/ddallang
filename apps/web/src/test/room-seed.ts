@@ -6,13 +6,13 @@ import {
   setConnectionAtom,
   startEpochAtom,
 } from "@/features/room/state";
-import type { Participant, RoomMember } from "@/lib/api";
+import type { Participant } from "@/lib/api";
 import * as fixtures from "./fixtures";
 
 export const INVITE_CODE = fixtures.INVITE_CODE;
 
 export interface SeedOptions {
-  me?: RoomMember;
+  me?: Participant;
   status?: "IN_PROGRESS" | "ENDED";
   participants?: Participant[];
 }
@@ -21,7 +21,7 @@ export function makeSnapshot(epoch: number, options: SeedOptions = {}): RoomSnap
   return {
     epoch,
     room: { ...fixtures.room, status: options.status ?? "IN_PROGRESS" },
-    me: options.me ?? fixtures.hostMember,
+    me: options.me ?? fixtures.hostParticipant,
     participants: options.participants ?? fixtures.participants,
     balances: fixtures.balances,
     transactions: fixtures.transactions,
@@ -33,7 +33,7 @@ export function makeSnapshot(epoch: number, options: SeedOptions = {}): RoomSnap
 
 /** 방 화면이 연결되어 스냅샷이 반영된 상태를 만든다(스트림 없이 상태만 심는다). */
 export function seedRoom(store: ReturnType<typeof createStore>, options: SeedOptions = {}) {
-  const me = options.me ?? fixtures.hostMember;
+  const me = options.me ?? fixtures.hostParticipant;
   store.set(sessionAtom, { inviteCode: INVITE_CODE, roomId: fixtures.room.id, me });
   store.set(setConnectionAtom, "connected");
   const epoch = store.set(startEpochAtom);

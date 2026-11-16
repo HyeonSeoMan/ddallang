@@ -387,7 +387,7 @@ describe("실서버 연동 점검 (FE-I1)", () => {
     await createTransaction(live, "모양");
     const get = async (path: string, key = live.host.key) => (await call("GET", path, key)).body;
     const checks: Array<[string, unknown, unknown]> = [
-      ["GET /rooms/{id}", await get(`/rooms/${live.room.id}`), { room: fixtures.room, me: fixtures.hostMember }],
+      ["GET /rooms/{id}", await get(`/rooms/${live.room.id}`), { room: fixtures.room, me: fixtures.hostParticipant }],
       ["GET /rooms/{id}/participants", await get(`/rooms/${live.room.id}/participants`), { participants: fixtures.participants }],
       ["GET /rooms/{id}/balances", await get(`/rooms/${live.room.id}/balances`), { balances: fixtures.balances }],
       ["GET /rooms/{id}/transactions", await get(`/rooms/${live.room.id}/transactions`), { transactions: fixtures.transactions, nextCursor: null }],

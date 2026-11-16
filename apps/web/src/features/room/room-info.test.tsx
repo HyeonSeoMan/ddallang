@@ -21,15 +21,15 @@ describe("방 정보 영역", () => {
     expect(screen.getByText(fixtures.room.name)).toBeInTheDocument();
     expect(screen.getByText("정산 단위: 원")).toBeInTheDocument();
     expect(screen.getByText("진행 중")).toBeInTheDocument();
-    expect(screen.getByText(/내 닉네임: 방장/)).toBeInTheDocument();
+    expect(screen.getByText(/내 닉네임: 가온/)).toBeInTheDocument();
     expect(screen.getByText("방장", { selector: "span" })).toBeInTheDocument(); // 방장 배지
     await expectNoA11yViolations(container);
   });
 
   it("방장이 아니면 방장 배지가 없고, 종료된 방은 게임 종료로 표시한다", () => {
-    seedRoom(store, { me: fixtures.guestMember, status: "ENDED" });
+    seedRoom(store, { me: fixtures.guestParticipant, status: "ENDED" });
     renderApp(<RoomInfo />, store);
-    expect(screen.getByText(/내 닉네임: 손님/)).toBeInTheDocument();
+    expect(screen.getByText(/내 닉네임: 나래/)).toBeInTheDocument();
     expect(screen.queryByText("방장", { selector: "span" })).not.toBeInTheDocument();
     expect(screen.getByText("게임 종료")).toBeInTheDocument();
   });

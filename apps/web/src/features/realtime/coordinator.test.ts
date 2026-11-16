@@ -9,7 +9,7 @@ function snapshot(epoch = 1, label = "x"): RoomSnapshot {
   return {
     epoch,
     room: { ...fixtures.room, name: label },
-    me: fixtures.hostMember,
+    me: fixtures.hostParticipant,
     participants: fixtures.participants,
     balances: fixtures.balances,
     transactions: fixtures.transactions,

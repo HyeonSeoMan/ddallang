@@ -93,10 +93,10 @@ describe("S1 비제공 UI 점검", () => {
   });
 
   it("방장 이전·강제 퇴장·링크 재발급은 방 화면 전체에서 찾을 수 없다", async () => {
+    server.use(...createFakeBackend().handlers);
     server.use(
-      ...createFakeBackend().handlers,
       http.get(apiUrl(`/invites/${fixtures.INVITE_CODE}`), () =>
-        HttpResponse.json({ room: { name: "방", unit: "원", status: "IN_PROGRESS" }, isMember: false }),
+        HttpResponse.json({ room: { name: "방", unit: "원", status: "IN_PROGRESS" }, identity: "NONE", claim: null, claimableNicknames: [] }),
       ),
     );
     const store = createStore();

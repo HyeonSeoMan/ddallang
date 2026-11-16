@@ -1,7 +1,7 @@
 // 실서버 시나리오 도우미(FE-S5-6): 측정 대상이 아닌 준비 단계(방·참여자·거래 채우기)와 변경을 보내는 구동기.
 // 앱 코드(`@/lib/api`)는 쓰지 않고 `fetch`로 직접 보낸다: 준비·구동 요청은 화면이 아니라 "다른 사용자의 변경"이다.
 import { randomBytes } from "node:crypto";
-import type { Participant, Room, RoomMember } from "@/lib/api";
+import type { Participant, Room } from "@/lib/api";
 
 export const baseUrl = () => {
   const value = process.env.LATENCY_API_BASE_URL;
@@ -49,7 +49,7 @@ async function ok<T>(label: string, pending: Promise<Called<T>>): Promise<T> {
 
 export interface Member {
   key: string;
-  me: RoomMember;
+  me: Participant;
 }
 
 export interface LiveRoom {
@@ -63,7 +63,7 @@ export interface LiveRoom {
 /** 방장 + 접속자 9명이 입장하고 참여자가 `participants`명 등록된 방(S5 §6.7 측정 조건의 접속자 10명). */
 export async function createLiveRoom(participantCount: number, unit = "원"): Promise<LiveRoom> {
   const hostKey = newKey();
-  const created = await ok<{ room: Room; me: RoomMember }>(
+  const created = await ok<{ room: Room; me: Participant }>(
     "방 생성",
     call("POST", "/rooms", hostKey, { name: "지연 측정", unit, nickname: "방장" }),
   );
@@ -71,7 +71,7 @@ export async function createLiveRoom(participantCount: number, unit = "원"): Pr
   const members = [host];
   for (let n = 1; n < 10; n++) {
     const key = newKey();
-    const joined = await ok<{ me: RoomMember }>(
+    const joined = await ok<{ me: Participant }>(
       `입장 ${n}`,
       call("POST", `/invites/${created.room.inviteCode}/members`, key, { nickname: `접속${n}` }),
     );

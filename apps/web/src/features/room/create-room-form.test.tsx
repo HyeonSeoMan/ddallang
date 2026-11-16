@@ -26,7 +26,7 @@ let requests: Captured[];
 
 function createdResponse() {
   return HttpResponse.json(
-    { room: { ...fixtures.room, inviteCode: "created-code" }, me: fixtures.hostMember },
+    { room: { ...fixtures.room, inviteCode: "created-code" }, me: fixtures.hostParticipant },
     { status: 201 },
   );
 }
@@ -144,6 +144,16 @@ describe("방 생성 화면", () => {
     expect(storage.keys()).toEqual(["ddallang:identity:created-code"]);
     expect(storage.getItem("ddallang:identity:created-code")).toBe(key);
     expect(store.get(sessionAtom)).toMatchObject({ inviteCode: "created-code", roomId: "room-1" });
+  });
+
+  it("[AC-ROOM-001-1] 생성자는 201의 me(첫 참여자, 방장)로 방 화면에 들어간다(S1 v0.3.0 §4.1)", async () => {
+    useCreateHandler();
+    const { store } = renderApp(<CreateRoomForm />);
+    await fillAndSubmit();
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/invite/created-code"));
+    // 요청자는 참여자 그 자체다: 참여자 필드 전체와 `isHost = true`, `order = 1`.
+    expect(store.get(sessionAtom)?.me).toEqual(fixtures.hostParticipant);
+    expect(store.get(sessionAtom)?.me).toMatchObject({ isHost: true, order: 1, status: "ACTIVE" });
   });
 
   it("서버가 422로 거부하면 사유를 필드에 표시하고 입력을 유지하며 대기 항목을 지운다", async () => {

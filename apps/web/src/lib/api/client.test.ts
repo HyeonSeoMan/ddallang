@@ -80,6 +80,23 @@ describe("API 클라이언트", () => {
     expect(isKnownErrorCode(apiError.code)).toBe(true);
   });
 
+  it("오류 코드는 v0.3.0 합집합이다: 새 코드 8개를 더하고 MEMBER_LIMIT_EXCEEDED를 뺐다(S1 §3.4, S2 §3.6)", () => {
+    const added = [
+      "IDENTITY_REVOKED",
+      "REQUESTER_INACTIVE",
+      "CLAIM_NOT_FOUND",
+      "HOST_CANNOT_BE_DEACTIVATED",
+      "ALREADY_PARTICIPANT",
+      "CLAIM_PENDING",
+      "CLAIM_ALREADY_RESOLVED",
+      "CLAIM_REQUESTER_LINKED",
+    ];
+    for (const code of added) expect(ERROR_CODES).toContain(code);
+    expect(ERROR_CODES).not.toContain("MEMBER_LIMIT_EXCEEDED");
+    expect(isKnownErrorCode("MEMBER_LIMIT_EXCEEDED")).toBe(false);
+    expect(new Set(ERROR_CODES).size).toBe(ERROR_CODES.length);
+  });
+
   it("검증 사유 코드 목록이 Spec의 11개와 같다", () => {
     expect(VALIDATION_REASON_CODES).toHaveLength(11);
   });

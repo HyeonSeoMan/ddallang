@@ -464,11 +464,11 @@ describe("거래 입력 폼 (FE-S2-2)", () => {
       await screen.findByText(UNKNOWN_RESULT);
       first.unmount();
 
-      // 같은 방에 다른 신원(다른 RoomMember·다른 신원 키)으로 들어온다.
+      // 같은 방에 다른 신원(다른 참여자·다른 신원 키)으로 들어온다.
       const OTHER_KEY = "z".repeat(43);
       installFakeStorage().setItem(`ddallang:identity:${INVITE_CODE}`, OTHER_KEY);
       await primeServerClock(OTHER_KEY);
-      seedRoom(store, { me: fixtures.guestMember });
+      seedRoom(store, { me: fixtures.guestParticipant });
       renderApp(<main><TransactionForm /></main>, store);
       expect(screen.queryByText(UNKNOWN_RESULT)).not.toBeInTheDocument(); // 이전 신원의 상태가 보이지 않는다
       await fill(user, { payer: "가온", payee: "나래", amount: "10" });

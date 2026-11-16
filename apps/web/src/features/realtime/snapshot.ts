@@ -6,7 +6,6 @@ import {
   bearerHeader,
   type Participant,
   type Room,
-  type RoomMember,
   type Settlement,
   type Transaction,
 } from "@/lib/api";
@@ -46,7 +45,7 @@ export async function fetchRoomSnapshot(
     api.request<T>({ method: "GET", path: `${base}${path}`, query, headers, signal: inner.signal });
 
   let responses: [
-    ApiResponse<{ room: Room; me: RoomMember }>,
+    ApiResponse<{ room: Room; me: Participant }>,
     ApiResponse<{ participants: Participant[] }>,
     ApiResponse<{ balances: Balance[] }>,
     ApiResponse<{ transactions: Transaction[]; nextCursor: string | null }>,
@@ -54,7 +53,7 @@ export async function fetchRoomSnapshot(
   ];
   try {
     responses = await Promise.all([
-      getInner<{ room: Room; me: RoomMember }>(""),
+      getInner<{ room: Room; me: Participant }>(""),
       getInner<{ participants: Participant[] }>("/participants"),
       getInner<{ balances: Balance[] }>("/balances"),
       getInner<{ transactions: Transaction[]; nextCursor: string | null }>("/transactions", {
@@ -69,7 +68,7 @@ export async function fetchRoomSnapshot(
     signal?.removeEventListener("abort", forward);
   }
   const [room, participants, balances, transactions, settlement] = responses.map((r) => r.data) as [
-    { room: Room; me: RoomMember },
+    { room: Room; me: Participant },
     { participants: Participant[] },
     { balances: Balance[] },
     { transactions: Transaction[]; nextCursor: string | null },

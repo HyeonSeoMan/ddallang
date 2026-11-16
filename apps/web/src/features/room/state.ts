@@ -4,7 +4,6 @@ import type {
   Balance,
   Participant,
   Room,
-  RoomMember,
   Settlement,
   Transaction,
 } from "@/lib/api";
@@ -13,7 +12,7 @@ import type {
 export interface Session {
   inviteCode: string;
   roomId: string;
-  me: RoomMember;
+  me: Participant;
 }
 
 export type ConnectionState = "connected" | "disconnected";
@@ -22,7 +21,7 @@ export type ConnectionState = "connected" | "disconnected";
 export interface RoomSnapshot {
   epoch: number;
   room: Room;
-  me: RoomMember;
+  me: Participant;
   participants: Participant[];
   balances: Balance[];
   transactions: Transaction[];

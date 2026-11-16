@@ -33,7 +33,7 @@ export const mutationUiAtom = atom<Record<string, MutationUi>>({});
 const managers = new Map<string, MutationManager>();
 
 /**
- * 매니저는 (방, 신원 키)별로 둔다. 키의 효력 범위가 (방, 요청자 RoomMember)이므로(S2 §5.1, AC-TXN-007-7) 같은 방에서
+ * 매니저는 (방, 신원 키)별로 둔다. 키의 효력 범위가 (방, 요청자 참여자)이므로(S2 §5.1, AC-TXN-007-7) 같은 방에서
  * 신원이 바뀌면 이전 신원의 불명 요청 키·최초 시각·진행 상태를 새 신원이 이어받지 않는다. 메모리에만 있다.
  */
 function managerFor(inviteCode: string, roomId: string, identityKey: string): MutationManager {
@@ -68,7 +68,7 @@ export interface RoomMutation {
   clear(): void;
 }
 
-/** 화면 상태의 작업 범위 이름. 요청자(RoomMember)별로 분리한다. */
+/** 화면 상태의 작업 범위 이름. 요청자 참여자별로 분리한다. */
 export function mutationScope(kind: "create" | "update" | "delete" | "end", target: string, memberId: string): string {
   return `${kind}:${target}:${memberId}`;
 }

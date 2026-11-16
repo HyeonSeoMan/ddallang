@@ -49,7 +49,7 @@ describe("useRoomConnection (가짜 서버 통합)", () => {
     expect(snapshot.epoch).toBe(store.get(epochAtom));
     expect(snapshot.room.id).toBe("room-1");
     expect(snapshot.transactions).toHaveLength(2);
-    expect(Object.values(backend.requests)).toEqual([1, 1, 1, 1, 1]); // 5개 전체를 한 번씩
+    expect(backend.requests).toEqual({ room: 1, participants: 1, balances: 1, transactions: 1, settlement: 1, claims: 0 }); // 5개 전체를 한 번씩(대기 목록은 FE-M5)
     await waitFor(() => expect(store.get(connectionPhaseAtom)).toBe("connected"));
   });
 

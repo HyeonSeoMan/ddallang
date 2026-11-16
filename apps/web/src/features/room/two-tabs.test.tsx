@@ -28,19 +28,19 @@ describe("같은 브라우저 두 탭의 첫 입장 (FE-S1-6)", () => {
   it("[AC-ROOM-006-11] 두 탭이 같은 초대 링크로 동시에 첫 입장해도 키는 하나만 만들어지고 같은 키로 요청한다", async () => {
     const authorizations: string[] = [];
     const seenKeys = new Set<string>();
+    server.use(...createFakeBackend().handlers);
     server.use(
-      ...createFakeBackend().handlers,
       http.get(apiUrl(`/invites/${CODE}`), () =>
-        HttpResponse.json({ room: { name: "방", unit: "원", status: "IN_PROGRESS" }, isMember: false }),
+        HttpResponse.json({ room: { name: "방", unit: "원", status: "IN_PROGRESS" }, identity: "NONE", claim: null, claimableNicknames: [] }),
       ),
-      // 서버: 같은 키의 첫 요청은 201, 같은 키의 나머지는 같은 RoomMember를 200으로 복원한다(S1 §4.3).
+      // 서버: 같은 키의 첫 요청은 201, 같은 키의 나머지는 같은 참여자를 200으로 복원한다(S1 §4.3).
       http.post(apiUrl(`/invites/${CODE}/members`), ({ request }) => {
         const authorization = request.headers.get("Authorization")!;
         authorizations.push(authorization);
         const status = seenKeys.has(authorization) ? 200 : 201;
         seenKeys.add(authorization);
         return HttpResponse.json(
-          { room: { id: "room-1", name: "방", unit: "원", status: "IN_PROGRESS" }, me: fixtures.guestMember },
+          { room: { id: "room-1", name: "방", unit: "원", status: "IN_PROGRESS" }, me: fixtures.guestParticipant },
           { status },
         );
       }),
@@ -84,10 +84,10 @@ describe("같은 브라우저 두 탭의 첫 입장 (FE-S1-6)", () => {
 
   it("두 탭이 다른 키를 만들 수 없다: 잠금 없이는(미지원) 입장하지 못한다", async () => {
     installFakeLocks(null);
+    server.use(...createFakeBackend().handlers);
     server.use(
-      ...createFakeBackend().handlers,
       http.get(apiUrl(`/invites/${CODE}`), () =>
-        HttpResponse.json({ room: { name: "방", unit: "원", status: "IN_PROGRESS" }, isMember: false }),
+        HttpResponse.json({ room: { name: "방", unit: "원", status: "IN_PROGRESS" }, identity: "NONE", claim: null, claimableNicknames: [] }),
       ),
     );
     renderApp(<InviteScreen inviteCode={CODE}><AllPages /></InviteScreen>);

@@ -27,7 +27,7 @@ const client = (): ApiClient => createApiClient({ baseUrl: fixtures.TEST_API_BAS
 
 describe("MSW 서버와 처리기", () => {
   it("fixture를 돌려주고 모든 오류 코드의 상태가 정의되어 있다", async () => {
-    server.use(jsonHandler("get", `/rooms/${fixtures.room.id}`, { room: fixtures.room, me: fixtures.hostMember }));
+    server.use(jsonHandler("get", `/rooms/${fixtures.room.id}`, { room: fixtures.room, me: fixtures.hostParticipant }));
     const res = await client().request<{ room: { id: string } }>({ method: "GET", path: "/rooms/room-1" });
     expect(res.data.room.id).toBe("room-1");
     expect(Object.keys(ERROR_STATUS).sort()).toEqual([...ERROR_CODES].sort());
@@ -222,6 +222,45 @@ describe("접근성 검사 도우미", () => {
   });
 });
 
+describe("fixture가 Spec v0.3.0 응답 형태와 같다", () => {
+  const keysOf = (value: object) => Object.keys(value).sort();
+
+  it("Participant는 S1 §2.1의 7개 필드이고 방장은 한 명이다", () => {
+    for (const p of fixtures.participants) {
+      expect(keysOf(p)).toEqual(["createdAt", "id", "isHost", "nickname", "order", "roomId", "status"]);
+    }
+    expect(fixtures.participants.filter((p) => p.isHost)).toEqual([fixtures.hostParticipant]);
+    expect(fixtures.hostParticipant).toMatchObject({ order: 1, status: "ACTIVE" });
+    // 요청자도 참여자다: 거래 작성자는 참여자 ID다(S2 v0.3.0 §2.1).
+    const ids = fixtures.participants.map((p) => p.id);
+    for (const t of fixtures.transactions) expect(ids).toContain(t.authorId);
+  });
+
+  it("MyClaim은 참여자 ID·처리자 ID를 담지 않고 Claim은 담는다(S1 §4, S1-C13)", () => {
+    expect(keysOf(fixtures.pendingMyClaim)).toEqual(["createdAt", "id", "nickname", "rejectReason", "resolvedAt", "status"]);
+    expect(keysOf(fixtures.pendingClaim)).toEqual([
+      "createdAt",
+      "id",
+      "nickname",
+      "participantId",
+      "rejectReason",
+      "resolvedAt",
+      "resolvedById",
+      "status",
+    ]);
+  });
+
+  it("초대 조회는 room·identity·claim·claimableNicknames이고 후보는 신원 없음·접근 상실에서만, 방장 제외(S1 §4.2)", () => {
+    const none = fixtures.inviteLookup();
+    expect(keysOf(none)).toEqual(["claim", "claimableNicknames", "identity", "room"]);
+    expect(keysOf(none.room)).toEqual(["name", "status", "unit"]);
+    expect(none.claimableNicknames).toEqual(["나래", "다온"]);
+    expect(fixtures.inviteLookup({ identity: "REVOKED" }).claimableNicknames).toEqual(["나래", "다온"]);
+    expect(fixtures.inviteLookup({ identity: "PARTICIPANT" }).claimableNicknames).toEqual([]);
+    expect(fixtures.inviteLookup({ identity: "PENDING" }).claimableNicknames).toEqual([]);
+  });
+});
+
 describe("상태 있는 가짜 서버", () => {
   it("조회 응답과 스트림 이벤트의 revision이 맞고, 지연·실패를 제어할 수 있다", async () => {
     const backend = createFakeBackend();
@@ -260,5 +299,103 @@ describe("상태 있는 가짜 서버", () => {
       .request({ method: "GET", path: "/rooms/zzz/balances" })
       .catch((e: unknown) => e)) as ApiError;
     expect(error.code).toBe("ROOM_NOT_FOUND");
+  });
+});
+
+describe("상태 있는 가짜 서버의 신원·이어받기 경로(S1 v0.3.0)", () => {
+  const HOST = "h".repeat(43);
+  const OLD = "o".repeat(43);
+  const NEW = "n".repeat(43);
+  const call = <T>(method: "GET" | "POST", path: string, key: string | null, body?: unknown) =>
+    client()
+      .request<T>({ method, path, body, headers: key ? { Authorization: `Bearer ${key}` } : undefined })
+      .catch((e: unknown) => e as ApiError);
+  const invite = `/invites/${fixtures.INVITE_CODE}`;
+
+  it("입장·이어받기·승인·접근 상실이 키 상태대로 이어진다", async () => {
+    const backend = createFakeBackend();
+    backend.identities.set(HOST, fixtures.hostParticipant.id);
+    backend.identities.set(OLD, fixtures.guestParticipant.id);
+    server.use(...backend.handlers);
+
+    // 이전 브라우저(OLD)의 스트림을 연다.
+    const stream = await fetch(apiUrl("/rooms/room-1/events"), { headers: { Authorization: `Bearer ${OLD}` } });
+    const reader = stream.body!.getReader();
+    const decoder = new TextDecoder();
+    expect(decoder.decode((await reader.read()).value)).toContain("event: ready");
+
+    const lookup = (await call<{ identity: string; claimableNicknames: string[] }>("GET", invite, NEW)) as {
+      data: { identity: string; claimableNicknames: string[] };
+    };
+    expect(lookup.data).toMatchObject({ identity: "NONE", claimableNicknames: ["나래", "다온"] });
+
+    // 방장 참여자는 후보가 아니다.
+    expect(((await call("POST", `${invite}/claims`, NEW, { nickname: "가온" })) as ApiError).code).toBe("PARTICIPANT_NOT_FOUND");
+    const created = (await call<{ claim: { id: string } }>("POST", `${invite}/claims`, NEW, { nickname: "나래" })) as {
+      status: number;
+      data: { claim: { id: string; participantId?: string } };
+    };
+    expect(created.status).toBe(201);
+    expect(created.data.claim).not.toHaveProperty("participantId");
+    expect(((await call("GET", invite, NEW)) as { data: { identity: string } }).data.identity).toBe("PENDING");
+    expect(((await call("POST", `${invite}/members`, NEW, { nickname: "새" })) as ApiError).code).toBe("CLAIM_PENDING");
+    expect(((await call("POST", `${invite}/claims`, NEW, { nickname: "나래" })) as ApiError).code).toBe("CLAIM_PENDING");
+
+    const pending = (await call<{ claims: unknown[] }>("GET", "/rooms/room-1/claims", HOST)) as { data: { claims: unknown[] } };
+    expect(pending.data.claims).toHaveLength(1);
+    // 비방장은 단건 조회·승인을 할 수 없다.
+    expect(((await call("POST", `/rooms/room-1/claims/${created.data.claim.id}/approve`, OLD)) as ApiError).code).toBe("HOST_ONLY");
+
+    const approved = (await call("POST", `/rooms/room-1/claims/${created.data.claim.id}/approve`, HOST)) as {
+      data: { claim: { status: string; resolvedById: string } };
+    };
+    expect(approved.data.claim).toMatchObject({ status: "APPROVED", resolvedById: fixtures.hostParticipant.id });
+
+    // 이전 브라우저의 스트림에만 access.revoked가 가고 닫힌다. 이후 이전 키의 방 요청은 401 IDENTITY_REVOKED.
+    let text = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      text += decoder.decode(value);
+    }
+    expect(text).toContain("event: access.revoked");
+    expect(((await call("GET", "/rooms/room-1", OLD)) as ApiError).code).toBe("IDENTITY_REVOKED");
+    expect(((await call("GET", invite, OLD)) as { data: { identity: string } }).data.identity).toBe("REVOKED");
+
+    // 새 키는 그 참여자로 복원된다.
+    const restored = (await call("POST", `${invite}/members`, NEW, {})) as { status: number; data: { me: { id: string } } };
+    expect(restored.status).toBe(200);
+    expect(restored.data.me.id).toBe(fixtures.guestParticipant.id);
+    expect(((await call("POST", `${invite}/claims`, NEW, { nickname: "다온" })) as ApiError).code).toBe("ALREADY_PARTICIPANT");
+    expect(((await call("POST", `/rooms/room-1/claims/${created.data.claim.id}/approve`, HOST)) as ApiError).code).toBe(
+      "CLAIM_ALREADY_RESOLVED",
+    );
+  });
+
+  it("취소·거절과 같은 대상의 다른 요청 TARGET_CLAIMED", async () => {
+    const backend = createFakeBackend();
+    backend.identities.set(HOST, fixtures.hostParticipant.id);
+    server.use(...backend.handlers);
+    const a = "a".repeat(43);
+    const b = "b".repeat(43);
+    const c = "c".repeat(43);
+    const claimOf = async (key: string) =>
+      ((await call<{ claim: { id: string } }>("POST", `${invite}/claims`, key, { nickname: "다온" })) as {
+        data: { claim: { id: string } };
+      }).data.claim.id;
+    const [ca, cb, cc] = [await claimOf(a), await claimOf(b), await claimOf(c)];
+
+    const canceled = (await call("POST", `${invite}/claims/${ca}/cancel`, a)) as { data: { claim: { status: string } } };
+    expect(canceled.data.claim.status).toBe("CANCELED");
+    expect(((await call("POST", `${invite}/claims/${ca}/cancel`, a)) as ApiError).code).toBe("CLAIM_ALREADY_RESOLVED");
+    // 다른 키는 남의 요청을 볼 수 없다.
+    expect(((await call("GET", `${invite}/claims/${cb}`, a)) as ApiError).code).toBe("CLAIM_NOT_FOUND");
+
+    await call("POST", `/rooms/room-1/claims/${cb}/approve`, HOST);
+    const loser = (await call("GET", `${invite}/claims/${cc}`, c)) as { data: { claim: { status: string; rejectReason: string } } };
+    expect(loser.data.claim).toMatchObject({ status: "REJECTED", rejectReason: "TARGET_CLAIMED" });
+    const lookup = (await call("GET", invite, c)) as { data: { identity: string; claim: { id: string } } };
+    expect(lookup.data).toMatchObject({ identity: "NONE", claim: { id: cc } });
+    expect(backend.claims.find((x) => x.id === cc)).toMatchObject({ resolvedById: fixtures.hostParticipant.id });
   });
 });

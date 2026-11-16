@@ -7,9 +7,10 @@ import {
   ApiError,
   bearerHeader,
   getApiClient,
+  type InviteLookup,
   type InviteRoom,
   NetworkError,
-  type RoomMember,
+  type Participant,
   type RoomSummary,
 } from "@/lib/api";
 import { acquireIdentityKey, getStoredKey } from "@/lib/identity";
@@ -36,7 +37,7 @@ const KEY_FAILURE_MESSAGES = {
 
 interface JoinResult {
   room: RoomSummary;
-  me: RoomMember;
+  me: Participant;
 }
 
 /**
@@ -91,22 +92,24 @@ export function InviteScreen({ inviteCode, children }: { inviteCode: string; chi
     dispatch({ type: "JOINED" });
   }
 
-  // 1) 초대 링크 조회. 저장된 키가 있으면 Authorization을 실어 isMember를 확인한다.
+  // 1) 초대 링크 조회. 저장된 키가 있으면 Authorization을 실어 신원 상태(`identity`)를 확인한다.
   useEffect(() => {
     if (state.stage !== "checking") return;
     let cancelled = false;
     (async () => {
       try {
         const stored = getStoredKey(inviteCode);
-        const { data } = await api.request<{ room: InviteRoom; isMember: boolean }>({
+        const { data } = await api.request<InviteLookup>({
           method: "GET",
           path: `/invites/${encodeURIComponent(inviteCode)}`,
           headers: stored ? bearerHeader(stored) : undefined,
         });
         if (cancelled) return;
         setPreview(data.room);
-        setRestoring(data.isMember);
-        dispatch({ type: "CHECKED", isMember: data.isMember });
+        // FE-M1 최소 대응: 연결됨(`PARTICIPANT`)만 복원한다. 나머지 신원 상태의 분기는 FE-M3(FD-22).
+        const isParticipant = data.identity === "PARTICIPANT";
+        setRestoring(isParticipant);
+        dispatch({ type: "CHECKED", isMember: isParticipant });
       } catch (error) {
         if (cancelled) return;
         dispatch({ type: "CHECK_FAILED", code: errorCode(error) });

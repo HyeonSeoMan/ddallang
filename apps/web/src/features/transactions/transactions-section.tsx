@@ -3,7 +3,7 @@
 import { useAtom, useAtomValue, useSetAtom, useStore } from "jotai";
 import { type ReactNode, useState } from "react";
 import { css, cx } from "styled-system/css";
-import { ApiError, bearerHeader, getApiClient, type RoomMember, type Room, type Transaction } from "@/lib/api";
+import { ApiError, bearerHeader, getApiClient, type Participant, type Room, type Transaction } from "@/lib/api";
 import { formatDateTime, formatMoney } from "@/lib/format";
 import { getStoredKey } from "@/lib/identity";
 import { participantFilterAtom, requestRefreshAtom } from "@/features/realtime/state";
@@ -29,7 +29,7 @@ const coinCircleClass = css({
 const LOAD_MORE_ERROR = "더 불러오지 못했습니다. 잠시 뒤 다시 시도해 주세요.";
 
 export interface TransactionRowContext {
-  me: RoomMember;
+  me: Participant;
   room: Room;
   /** 거래 요약(예: `가온 → 나래 100 원`). 컨트롤의 접근 가능한 이름에 써서 같은 금액의 행을 구분한다. */
   summary: string;

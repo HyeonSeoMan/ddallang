@@ -42,7 +42,9 @@ function inviteHandler(options: { isMember?: boolean; status?: "IN_PROGRESS" | "
     record(request);
     return HttpResponse.json({
       room: { name: fixtures.room.name, unit: fixtures.room.unit, status: options.status ?? "IN_PROGRESS" },
-      isMember: options.isMember ?? false,
+      identity: options.isMember ? "PARTICIPANT" : "NONE",
+      claim: null,
+      claimableNicknames: [],
     });
   });
 }
@@ -58,7 +60,7 @@ function joined(status: number) {
   return HttpResponse.json(
     {
       room: { id: fixtures.room.id, name: fixtures.room.name, unit: fixtures.room.unit, status: "IN_PROGRESS" },
-      me: fixtures.guestMember,
+      me: fixtures.guestParticipant,
     },
     { status },
   );
@@ -154,7 +156,7 @@ describe("초대 링크 화면", () => {
     server.use(
       inviteHandler(),
       joinHandler(() =>
-        errorResponse("MEMBER_LIMIT_EXCEEDED", {
+        errorResponse("PARTICIPANT_LIMIT_EXCEEDED", {
           message: "참여 인원이 가득 찼습니다",
           details: [{ limit: 10 }],
         }),
@@ -230,7 +232,7 @@ describe("초대 링크 화면", () => {
         calls += 1;
         return calls === 1
           ? HttpResponse.error()
-          : HttpResponse.json({ room: { name: "방", unit: "원", status: "IN_PROGRESS" }, isMember: false });
+          : HttpResponse.json({ room: { name: "방", unit: "원", status: "IN_PROGRESS" }, identity: "NONE", claim: null, claimableNicknames: [] });
       }),
     );
     renderApp(<InviteScreen inviteCode={CODE}><AllPages /></InviteScreen>);
@@ -264,7 +266,7 @@ describe("초대 링크 화면", () => {
 
   it("방을 방금 만들어 세션이 있으면 요청 없이 바로 방 화면이다", () => {
     const store = createStore();
-    store.set(sessionAtom, { inviteCode: CODE, roomId: "room-1", me: fixtures.hostMember });
+    store.set(sessionAtom, { inviteCode: CODE, roomId: "room-1", me: fixtures.hostParticipant });
     renderApp(<InviteScreen inviteCode={CODE}><AllPages /></InviteScreen>, store);
     expect(screen.getByRole("heading", { name: "누적 손익" })).toBeInTheDocument();
     expect(seen).toHaveLength(0);

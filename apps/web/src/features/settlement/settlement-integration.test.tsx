@@ -29,7 +29,7 @@ beforeEach(() => {
 });
 
 function mount() {
-  store.set(sessionAtom, { inviteCode: INVITE_CODE, roomId: fixtures.room.id, me: fixtures.hostMember });
+  store.set(sessionAtom, { inviteCode: INVITE_CODE, roomId: fixtures.room.id, me: fixtures.hostParticipant });
   return renderApp(<InviteScreen inviteCode={INVITE_CODE}><AllPages /></InviteScreen>, store);
 }
 

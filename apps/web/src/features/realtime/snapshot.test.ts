@@ -26,7 +26,7 @@ function setup(responder: Responder) {
 
 function ok(path: string, kind: "EXPECTED" | "FINAL" = "EXPECTED", status = "IN_PROGRESS"): Response {
   const bodies: Record<string, unknown> = {
-    "/rooms/room-1": { room: { ...fixtures.room, status }, me: fixtures.hostMember },
+    "/rooms/room-1": { room: { ...fixtures.room, status }, me: fixtures.hostParticipant },
     "/rooms/room-1/participants": { participants: fixtures.participants },
     "/rooms/room-1/balances": { balances: fixtures.balances },
     "/rooms/room-1/transactions": { transactions: fixtures.transactions, nextCursor: "c1" },
@@ -65,7 +65,7 @@ describe("fetchRoomSnapshot", () => {
     expect(result.ok && result.snapshot).toMatchObject({
       epoch: 3,
       room: { id: "room-1" },
-      me: { id: "member-host" },
+      me: { id: "p-1", isHost: true },
       nextCursor: "c1",
       settlement: { kind: "EXPECTED" },
     });

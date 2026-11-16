@@ -22,7 +22,7 @@ function makeSnapshot(epoch: number, status: "IN_PROGRESS" | "ENDED" = "IN_PROGR
   return {
     epoch,
     room: { ...fixtures.room, status },
-    me: fixtures.hostMember,
+    me: fixtures.hostParticipant,
     participants: fixtures.participants,
     balances: fixtures.balances,
     transactions: fixtures.transactions,

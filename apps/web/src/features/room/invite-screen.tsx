@@ -23,7 +23,8 @@ import { Button } from "@/ui/button";
 import { ConfirmDialog } from "@/ui/confirm-dialog";
 import { TextField } from "@/ui/text-field";
 import type { RoomConnection as RoomConnectionHandle } from "@/features/realtime/connection";
-import { useRoomConnection } from "@/features/realtime/use-room-connection";
+import { browserEnv, useRoomConnection } from "@/features/realtime/use-room-connection";
+import { CLAIM_POLL_TIMEOUT_MS, createClaimPoller } from "./claim-polling";
 import { initialInviteState, type InviteState, inviteReducer, roomInviteState } from "./invite-stage";
 import {
   ACCESS_LOST_NEXT_ENDED,
@@ -216,6 +217,31 @@ export function InviteScreen({ inviteCode, children }: { inviteCode: string; chi
       cancelled = true;
     };
   }, [view, inviteCode, invitePath, api]);
+
+  // 4) 요청자 주기 조회(FD-23, S5 §6.8): 대기(취소 중·취소 확인 중 포함) 동안 같은 요청을 2초 간격으로 조회한다.
+  //    단계가 대기 ↔ 취소 사이를 오가도 같은 요청이면 다시 시작하지 않는다(취소 중에도 멈추지 않는다).
+  const pollingClaimId =
+    view.stage === "waiting" || view.stage === "canceling" || view.stage === "cancel-checking" ? view.claim.id : null;
+  useEffect(() => {
+    if (pollingClaimId === null) return;
+    const poller = createClaimPoller({
+      async fetchClaim(signal) {
+        const key = getStoredKey(inviteCode);
+        const { data } = await api.request<{ claim: MyClaim }>({
+          method: "GET",
+          path: `${invitePath}/claims/${encodeURIComponent(pollingClaimId)}`,
+          headers: key ? bearerHeader(key) : undefined,
+          timeoutMs: CLAIM_POLL_TIMEOUT_MS,
+          signal,
+        });
+        return data.claim;
+      },
+      onClaim: (claim) => dispatch({ type: "CLAIM_STATUS", claim }),
+      env: browserEnv(),
+    });
+    poller.start();
+    return () => poller.stop();
+  }, [pollingClaimId, inviteCode, invitePath, api]);
 
   async function onSubmitNickname(event: FormEvent) {
     event.preventDefault();

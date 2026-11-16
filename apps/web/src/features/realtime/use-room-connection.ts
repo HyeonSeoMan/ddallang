@@ -16,7 +16,8 @@ import { runEventStream } from "./event-stream";
 import { fetchRoomSnapshot } from "./snapshot";
 import { connectionPhaseAtom, participantFilterAtom, refreshRequestAtom } from "./state";
 
-function browserEnv(): ConnectionEnv {
+/** 실제 브라우저의 온라인·보임 상태와 이벤트. 요청자 주기 조회(FD-23)도 같은 환경을 쓴다. */
+export function browserEnv(): ConnectionEnv {
   return {
     on(type, listener) {
       const target: Window | Document = type === "visibilitychange" ? document : window;

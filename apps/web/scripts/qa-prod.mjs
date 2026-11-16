@@ -13,7 +13,7 @@ const results = [];
 const check = (name, ok, detail = "") => { results.push({ name, ok }); console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? "  — " + detail : ""}`); };
 
 const HELP = `window.__ev = []; (() => { const f = window.fetch.bind(window); window.fetch = function (u, ...r) { try { if (String(u).includes('/events')) window.__ev.push(String(u)); } catch (e) {} return f(u, ...r); }; })();
-  window.__q = { label: (t) => { const l = [...document.querySelectorAll('label')].find(x => x.textContent.trim() === t); return l ? document.getElementById(l.htmlFor) : null; }, set: (el, v) => { const proto = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })); }, click: (s, t) => { const e = [...document.querySelectorAll(s)].find(x => x.textContent.trim() === t); if (!e) return false; e.click(); return true; }, tab: (t) => { const a = [...document.querySelectorAll('nav[aria-label="방 페이지"] a')].find(x => x.textContent.trim() === t); if (!a) return false; a.click(); return true; }, tabs: () => [...document.querySelectorAll('nav[aria-label="방 페이지"] a')].map(a => a.textContent.trim()), option: (sel, t) => [...sel.options].find(o => o.textContent.trim() === t)?.value };`;
+  window.__q = { label: (t) => { const l = [...document.querySelectorAll('label')].find(x => x.textContent.trim() === t); return l ? document.getElementById(l.htmlFor) : null; }, set: (el, v) => { const proto = el.tagName === 'SELECT' ? HTMLSelectElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, v); el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true })); }, click: (s, t) => { const e = [...document.querySelectorAll(s)].find(x => x.textContent.trim() === t); if (!e) return false; e.click(); return true; }, tab: (t) => { const a = [...document.querySelectorAll('nav[aria-label="방 페이지"] a')].find(x => x.textContent.trim() === t); if (!a) return false; a.click(); return true; }, tabs: () => [...document.querySelectorAll('nav[aria-label="방 페이지"] a')].map(a => a.textContent.trim()), choose: (g, t) => { const f = [...document.querySelectorAll('fieldset')].find(x => x.querySelector('legend')?.textContent.trim() === g); const l = f && [...f.querySelectorAll('label')].find(x => x.textContent.trim() === t); if (!l) return false; l.querySelector('input').click(); return true; } };`;
 
 async function attach(wsUrl) {
   const ws = new WebSocket(wsUrl);
@@ -76,7 +76,7 @@ try {
   const samples = [];
   for (let i = 1; i <= 3; i++) {
     const amt = String(i * 1000);
-    await A.ev(`(() => { const p = __q.label('지급자'), q = __q.label('수취자'); __q.set(p, __q.option(p, '가온')); __q.set(q, __q.option(q, '나래')); __q.set(__q.label('금액'), '${amt}'); return true; })()`);
+    await A.ev(`(() => { __q.choose('지급자', '가온'); __q.choose('수취자', '나래'); __q.set(__q.label('금액'), '${amt}'); return true; })()`);
     const before = await B.ev("document.querySelector('section[data-section=balances]').textContent");
     const tClick = Date.now();
     await A.ev("__q.click('button', '저장')");

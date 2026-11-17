@@ -2,6 +2,7 @@
 import { act, screen, within } from "@testing-library/react";
 import { createStore } from "jotai";
 import { beforeEach, describe, expect, it } from "vitest";
+import { connectionPhaseAtom } from "@/features/realtime/state";
 import { roomBasePath } from "@/features/room/room-header";
 import { ROOM_SECTION_TITLES, RoomLayout } from "@/features/room/room-layout";
 import { setConnectionAtom } from "@/features/room/state";
@@ -55,7 +56,7 @@ describe("고정 거래 기록하기 링크 (U-6, 페이지 분리)", () => {
     expect(document.querySelector('[data-section="balances"]')).not.toHaveAttribute("data-compact");
   });
 
-  it("연결이 끊기면 거래 입력 구역은 다른 구역처럼 제목만 남는다(가려진 이유는 연결 배너가 알린다)", () => {
+  it("연결이 끊기면 거래 입력 구역은 폼 없이 제목과 스켈레톤만 남는다(가려진 이유는 연결 배너가 알린다)", () => {
     mount();
     act(() => store.set(setConnectionAtom, "disconnected"));
     expect(screen.getByRole("heading", { level: 2, name: "거래 입력" })).toBeInTheDocument();
@@ -105,7 +106,7 @@ describe("구역 모양 (FD-12·FD-18)", () => {
     expect(balances.className).not.toMatch(/bg-c_paper/);
   });
 
-  // 2.1.0(U-21, FD-29): 1.x의 "제목만 남고 카드 없음"을 "카드 안 스켈레톤만"으로 바꿨다. 서버 값이 없다는 단언은 유지한다.
+  // 2.1.0(U-21, FD-29): 방향 문서 1.1.0 §5.1(Plan 2.0.0까지)의 "제목만 남고 카드 없음"을 "카드 안 스켈레톤만"으로 바꿨다. 서버 값이 없다는 단언은 유지한다.
   it("끊김 중에는 모든 구역이 제목과 값 없는 스켈레톤 카드만 남는다(방향 문서 1.2.0 §5.1, S5 §6.5)", () => {
     mount();
     act(() => store.set(setConnectionAtom, "disconnected"));
@@ -154,6 +155,19 @@ describe("구역 모양 (FD-12·FD-18)", () => {
     const bar = document.querySelector('[data-skeleton="lines"] > div > div')!;
     expect(bar.className.split(" ")).toContain("anim_pulse");
     expect(bar.className.split(" ").some((name) => /^mo.*reduce.*:anim_none$/i.test(name))).toBe(true);
+  });
+
+  it("접근 불가(401·404, 재시도 없음)이면 스켈레톤과 `aria-busy` 없이 제목만 남는다(Q-C7)", () => {
+    mount();
+    act(() => {
+      store.set(setConnectionAtom, "disconnected");
+      store.set(connectionPhaseAtom, "inaccessible");
+    });
+    expect(document.querySelector("[data-skeleton]")).toBeNull();
+    expect(document.querySelector("section[aria-busy]")).toBeNull();
+    for (const section of document.querySelectorAll<HTMLElement>("section[data-section]")) {
+      expect(Array.from(section.children).map((el) => el.tagName)).toEqual(["H2"]);
+    }
   });
 
   it("연결되어 데이터가 보이면 스켈레톤과 `aria-busy`가 없다(FD-29)", () => {

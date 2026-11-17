@@ -3,6 +3,7 @@
 import { type ReactNode, useId } from "react";
 import { css } from "styled-system/css";
 import { useAtomValue } from "jotai";
+import { connectionPhaseAtom } from "@/features/realtime/state";
 import { BagIcon, BookIcon, CoinIcon, HouseIcon, PencilIcon, PeopleIcon } from "@/ui/icons";
 import { SectionSkeleton, type SkeletonShape } from "@/ui/skeleton";
 import { canMutateAtom, dataVisibleAtom, readOnlySelfAtom } from "./state";
@@ -62,12 +63,15 @@ export function RoomSection({
   const visible = useAtomValue(dataVisibleAtom);
   const canMutate = useAtomValue(canMutateAtom);
   const readOnly = useAtomValue(readOnlySelfAtom);
+  // 401·404로 재시도하지 않는 상태(S5 §6.6)는 기다려도 데이터가 오지 않으므로 스켈레톤을 그리지 않는다(Q-C7).
+  const inaccessible = useAtomValue(connectionPhaseAtom) === "inaccessible";
+  const loading = !visible && !inaccessible;
   const heading = visible ? title : ROOM_SECTION_TITLES[id];
   const SectionIcon = SECTION_ICONS[id];
   // 구역 구조는 바꾸지 않는다(FD-12). 첫 로딩·끊김 중에는 카드 안에 값 없는 스켈레톤을 그린다(FD-29, 가려진 이유는
-  // 연결 배너가 알린다). 데이터가 보이는데 게임이 끝나 거래 입력 폼이 없는 거래 입력 구역은 바탕 위 제목만 남고
-  // 카드가 없다(S2 §9, 방향 문서 §5.1). 조회 전용 본인은 비활성화된 폼이 있으므로 카드를 그린다(FD-26).
-  const compact = visible && id === "entry" && !canMutate && !readOnly;
+  // 연결 배너가 알린다). 접근 불가 상태, 그리고 데이터가 보이는데 게임이 끝나 거래 입력 폼이 없는 거래 입력 구역은
+  // 바탕 위 제목만 남고 카드가 없다(S2 §9, 방향 문서 §5.1). 조회 전용 본인은 비활성화된 폼이 있으므로 카드를 그린다(FD-26).
+  const compact = (!visible && inaccessible) || (visible && id === "entry" && !canMutate && !readOnly);
   return (
     <section
       aria-labelledby={headingId}
@@ -75,7 +79,7 @@ export function RoomSection({
       // 구역 사이 28px, 첫 구역(연결 배너 바로 뒤 포함)은 12px(DV-13, 시안 `.sec-head`).
       className={css({ mt: "7", _firstOfType: { mt: "3" } })}
       data-compact={compact ? "true" : undefined}
-      aria-busy={visible ? undefined : true}
+      aria-busy={loading ? true : undefined}
     >
       <h2
         id={headingId}

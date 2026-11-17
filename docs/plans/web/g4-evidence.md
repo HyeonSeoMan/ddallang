@@ -729,3 +729,41 @@ Codex 5시간 한도가 소진되어 첫 묶음은 인계 규칙으로 Claude가
 - **FE-M9 실제 Chrome(모의 서버·시드)**: 실서버 흐름은 §16.4. 그 밖의 새 상태 14개를 Chrome 157 헤드리스 375px로 렌더해 확인했다(넘침 0, plan §7 문구·배치 대조). 증거는 `docs/design/v2-evidence/fe-m9/`에 있다. 하위 상태(취소 중·요청 중·방장 처리 결과 안내)는 컴포넌트 시험으로만 확인했다.
 - 실기기·Safari·Firefox·VoiceOver는 1.x와 같이 미점검.
 
+
+## 17. 2.1.0 개정 — 초대 링크 QR·스켈레톤·깨워 두기 (`FE-Q1`~`FE-Q3`, 2026-11-17)
+
+- 근거: `open-questions.md` 2.18절 U-20~U-23·Q-C1~Q-C6, 방향 문서 1.2.0 DV-22·DV-23, `plan.md` §12(FD-28~FD-30). 진행 규칙 U-22(위임 진행).
+- 브랜치 `HyeonSeoMan/invite-qr-skeleton`(기준 `main` `ee51a33`).
+
+### 17.1 실행한 점검 (`apps/web`, 최종본)
+
+| 명령 | 결과 |
+| --- | --- |
+| `pnpm typecheck` | 종료 0 |
+| `pnpm lint` | 종료 0 |
+| `pnpm test` | 종료 0, 60개 파일 858개 시험 통과 |
+| `pnpm check:ac` | 종료 0, "모든 AC(91개)에 태그 시험이 있습니다." |
+| `pnpm build`(`NEXT_PUBLIC_API_BASE_URL=http://localhost:3001`) | 종료 0. 빌드 CSS에 `@media (prefers-reduced-motion:reduce){.motionReduce\:anim_none{animation:none}}`가 들어 있음 |
+| `pnpm smoke` | 종료 0 |
+| 워크플로 YAML 파싱(Ruby `YAML.load_file`) | 키 `name`·`on`·`permissions`·`concurrency`·`jobs` |
+| 워크플로와 같은 `curl` 명령을 로컬에서 실행 | `status=200`(서버가 깨어 있을 때 0.24초) |
+
+### 17.2 시험 변경
+
+- 새 시험: `room-info.test.tsx` "초대 링크 QR" 3개(진행 중 표시·값 일치·순서·axe, 종료 방 숨김, 이미지 요청 없음). `record-button.test.tsx` 3개(첫 로딩 스켈레톤 모양·행 수 고정·axe, 동작 줄이기 클래스, 연결 시 스켈레톤·`aria-busy` 없음).
+- **바꾼 시험 1개**: `record-button.test.tsx` "끊김 중에는 모든 구역이 바탕 위 제목만 남고 카드가 없다" → "제목과 값 없는 스켈레톤 카드만 남는다". 이유: U-21이 방향 문서 1.1.0 §5.1(카드·스켈레톤 없음)을 대체했다. 카드 안에 스켈레톤 하나만 있고, 글자 내용이 빈 문자열이고, `aria-hidden`·`aria-busy`인지를 단언한다. 서버 값이 없다는 뜻은 유지된다.
+- QR 값 확인 방법: SVG를 해독하지 않고, 같은 설정으로 그린 기준 QR의 모듈 path와 같은지(초대 링크), 다른 링크와는 다른지를 비교한다. 실제 카메라 스캔은 하지 않았다.
+
+### 17.3 실제 Chrome 확인 (375px)
+
+시험 렌더 결과(시드 방, `RoomPage`와 끊김 상태의 `RoomLayout`)를 빌드 CSS와 합쳐 헤드리스 Chrome에서 375px iframe으로 찍었다. 배포 DB는 쓰지 않았다.
+
+- `docs/design/v2-evidence/fe-q/qr-375.png`: 초대 링크 → 복사 → QR(160px) → 안내 문단, 가로 넘침 없음.
+- `docs/design/v2-evidence/fe-q/skeleton-375.png`: 구역마다 제목 + 스켈레톤 카드(방 정보 막대, 목록 3행, 거래 입력 폼).
+
+### 17.4 하지 못한 점검
+
+- 휴대폰 카메라로 실제 QR 스캔, 실기기·Safari·Firefox·VoiceOver.
+- 실제 앱에서 콜드 스타트 중 첫 로딩 스켈레톤(서버가 깨어 있어 재현하지 못했다).
+- GitHub 예약 실행: `main` 병합 뒤에만 동작하므로 병합 전에는 확인할 수 없다. 병합 뒤 `workflow_dispatch`로 한 번 실행해 확인한다.
+- 콜드 스타트 시간 자체는 이번에도 측정하지 못했다.

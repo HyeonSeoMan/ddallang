@@ -4,6 +4,7 @@ import { type ReactNode, useId } from "react";
 import { css } from "styled-system/css";
 import { useAtomValue } from "jotai";
 import { BagIcon, BookIcon, CoinIcon, HouseIcon, PencilIcon, PeopleIcon } from "@/ui/icons";
+import { SectionSkeleton, type SkeletonShape } from "@/ui/skeleton";
 import { canMutateAtom, dataVisibleAtom, readOnlySelfAtom } from "./state";
 import { ServerDataGate } from "./server-data-gate";
 
@@ -30,6 +31,16 @@ const SECTION_ICONS: Record<RoomSectionId, (props: { size?: number }) => ReactNo
   participants: PeopleIcon,
 };
 
+/** 데이터 영역이 가려질 때의 스켈레톤 모양(FD-29, DV-23). */
+const SKELETON_SHAPES: Record<RoomSectionId, SkeletonShape> = {
+  info: "lines",
+  balances: "rows",
+  settlement: "rows",
+  entry: "form",
+  transactions: "rows",
+  participants: "rows",
+};
+
 /**
  * 구역 제목은 항상 보이고, 본문은 `ServerDataGate` 아래에만 그린다. 제목은 카드 밖 회색 바탕 위에 있고(DV-13)
  * 본문이 그 아래 흰 카드다(그림자 없음, FD-18).
@@ -53,10 +64,10 @@ export function RoomSection({
   const readOnly = useAtomValue(readOnlySelfAtom);
   const heading = visible ? title : ROOM_SECTION_TITLES[id];
   const SectionIcon = SECTION_ICONS[id];
-  // 구역 구조는 바꾸지 않는다(FD-12). 본문이 없는 구역은 바탕 위 제목만 남고 카드가 없다(방향 문서 §5.1):
-  // 끊김 중(가려진 이유는 연결 배너가 알린다), 그리고 게임이 끝나 거래 입력 폼이 없는 거래 입력 구역(S2 §9).
-  // 조회 전용 본인은 비활성화된 폼이 있으므로 카드를 그린다(FD-26).
-  const compact = !visible || (id === "entry" && !canMutate && !readOnly);
+  // 구역 구조는 바꾸지 않는다(FD-12). 첫 로딩·끊김 중에는 카드 안에 값 없는 스켈레톤을 그린다(FD-29, 가려진 이유는
+  // 연결 배너가 알린다). 데이터가 보이는데 게임이 끝나 거래 입력 폼이 없는 거래 입력 구역은 바탕 위 제목만 남고
+  // 카드가 없다(S2 §9, 방향 문서 §5.1). 조회 전용 본인은 비활성화된 폼이 있으므로 카드를 그린다(FD-26).
+  const compact = visible && id === "entry" && !canMutate && !readOnly;
   return (
     <section
       aria-labelledby={headingId}
@@ -64,6 +75,7 @@ export function RoomSection({
       // 구역 사이 28px, 첫 구역(연결 배너 바로 뒤 포함)은 12px(DV-13, 시안 `.sec-head`).
       className={css({ mt: "7", _firstOfType: { mt: "3" } })}
       data-compact={compact ? "true" : undefined}
+      aria-busy={visible ? undefined : true}
     >
       <h2
         id={headingId}
@@ -76,7 +88,7 @@ export function RoomSection({
         <ServerDataGate>{children}</ServerDataGate>
       ) : (
         <div className={css({ mt: "3", p: "5", bgColor: "paper", borderRadius: "lg" })}>
-          <ServerDataGate>{children}</ServerDataGate>
+          {visible ? <ServerDataGate>{children}</ServerDataGate> : <SectionSkeleton shape={SKELETON_SHAPES[id]} />}
         </div>
       )}
       {after ? <ServerDataGate>{after}</ServerDataGate> : null}

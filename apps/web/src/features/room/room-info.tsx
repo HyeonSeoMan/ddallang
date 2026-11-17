@@ -1,12 +1,14 @@
 "use client";
 
 import { useAtomValue } from "jotai";
+import { QRCodeSVG } from "qrcode.react";
 import { useId } from "react";
 import { css, cx } from "styled-system/css";
 import { useCopyFeedback } from "@/lib/use-copy-feedback";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { fieldFrameClass } from "@/ui/text-field";
+import { colors } from "@/ui/tokens";
 import { snapshotAtom } from "./state";
 
 export function inviteLink(inviteCode: string): string {
@@ -15,7 +17,7 @@ export function inviteLink(inviteCode: string): string {
 
 /**
  * 방 정보 영역(FE-S1-3, S1 §4.4·§9): 방 이름·정산 단위·진행 상태, 내 닉네임과 방장 여부,
- * 초대 링크 표시와 복사. 방 정보를 바꾸는 UI는 없다(AC-ROOM-003-1). 서버 유래 값이므로
+ * 초대 링크 표시와 복사, 진행 중이면 초대 링크 QR(FD-28). 방 정보를 바꾸는 UI는 없다(AC-ROOM-003-1). 서버 유래 값이므로
  * `ServerDataGate` 아래에서만 그려진다.
  */
 export function RoomInfo() {
@@ -62,6 +64,25 @@ export function RoomInfo() {
         <p aria-live="polite" className={css({ color: "inkMuted", fontSize: "sm", fontWeight: "medium" })}>
           {status}
         </p>
+        {/* 종료 뒤에는 새로 입장할 수 없어(OQ-043) 찍어도 들어올 수 없으므로 QR을 숨긴다(Q-C3). */}
+        {ended ? null : (
+          <div className={css({ display: "flex", flexDirection: "column", gap: "2", alignItems: "flex-start" })}>
+            <QRCodeSVG
+              value={link}
+              size={160}
+              level="M"
+              marginSize={4}
+              fgColor={colors.ink}
+              bgColor={colors.paper}
+              role="img"
+              aria-label="초대 링크 QR 코드"
+              data-testid="invite-qr"
+            />
+            <p className={css({ color: "inkMuted", fontSize: "sm", fontWeight: "medium" })}>
+              휴대폰 카메라로 찍으면 초대 링크가 열립니다.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

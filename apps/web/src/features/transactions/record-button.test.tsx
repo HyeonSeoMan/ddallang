@@ -105,14 +105,61 @@ describe("구역 모양 (FD-12·FD-18)", () => {
     expect(balances.className).not.toMatch(/bg-c_paper/);
   });
 
-  it("끊김 중에는 모든 구역이 바탕 위 제목만 남고 카드가 없다(방향 문서 §5.1, S5 §6.5)", () => {
+  // 2.1.0(U-21, FD-29): 1.x의 "제목만 남고 카드 없음"을 "카드 안 스켈레톤만"으로 바꿨다. 서버 값이 없다는 단언은 유지한다.
+  it("끊김 중에는 모든 구역이 제목과 값 없는 스켈레톤 카드만 남는다(방향 문서 1.2.0 §5.1, S5 §6.5)", () => {
     mount();
     act(() => store.set(setConnectionAtom, "disconnected"));
     const sections = Array.from(document.querySelectorAll<HTMLElement>("section[data-section]"));
     expect(sections).toHaveLength(Object.keys(ROOM_SECTION_TITLES).length);
     for (const section of sections) {
-      expect(Array.from(section.children).map((el) => el.tagName)).toEqual(["H2"]);
+      expect(Array.from(section.children).map((el) => el.tagName)).toEqual(["H2", "DIV"]);
+      const card = section.children[1]!;
+      expect(card.children).toHaveLength(1);
+      expect(card.firstElementChild).toHaveAttribute("data-skeleton");
+      expect(card.firstElementChild).toHaveAttribute("aria-hidden", "true");
+      expect(card.textContent).toBe("");
+      expect(section).toHaveAttribute("aria-busy", "true");
     }
+  });
+
+  it("첫 로딩(스냅샷 없음, 스트림 연결 전)에도 구역마다 스켈레톤 카드를 보인다(FD-29, U-21)", async () => {
+    const { container } = renderApp(
+      <main>
+        <RoomLayout slots={{ entry: <TransactionForm /> }} floating={<RecordTransactionButton />} />
+      </main>,
+      store,
+    );
+    const shapes = Array.from(document.querySelectorAll("section[data-section]")).map((section) => [
+      section.getAttribute("data-section"),
+      section.querySelector("[data-skeleton]")?.getAttribute("data-skeleton"),
+    ]);
+    expect(shapes).toEqual([
+      ["info", "lines"],
+      ["balances", "rows"],
+      ["settlement", "rows"],
+      ["entry", "form"],
+      ["transactions", "rows"],
+      ["participants", "rows"],
+    ]);
+    // 목록 모양은 행 수가 고정이다(이전 값의 정보가 없다, RK-F29).
+    for (const rows of document.querySelectorAll('[data-skeleton="rows"]')) {
+      expect(rows.firstElementChild!.children).toHaveLength(3);
+    }
+    expect(recordLink()).not.toBeInTheDocument();
+    await expectNoA11yViolations(container);
+  });
+
+  it("스켈레톤 막대는 동작 줄이기 설정에서 깜빡이지 않는다(FD-29)", () => {
+    renderApp(<RoomLayout />, store);
+    const bar = document.querySelector('[data-skeleton="lines"] > div > div')!;
+    expect(bar.className.split(" ")).toContain("anim_pulse");
+    expect(bar.className.split(" ").some((name) => /^mo.*reduce.*:anim_none$/i.test(name))).toBe(true);
+  });
+
+  it("연결되어 데이터가 보이면 스켈레톤과 `aria-busy`가 없다(FD-29)", () => {
+    mount();
+    expect(document.querySelector("[data-skeleton]")).toBeNull();
+    expect(document.querySelector("section[aria-busy]")).toBeNull();
   });
 
   it("구역 제목 아이콘은 집·코인·주머니·연필·장부·얼굴 둘이다(FD-18 (3))", () => {

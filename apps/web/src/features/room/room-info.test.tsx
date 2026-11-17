@@ -88,7 +88,7 @@ describe("초대 링크 QR (FD-28, U-20)", () => {
     return paths[paths.length - 1]?.getAttribute("d") ?? "";
   }
 
-  it("진행 중이면 초대 링크 아래에 그 링크를 담은 QR과 안내를 보인다", async () => {
+  it("초대 링크 아래에 그 링크를 담은 QR과 안내를 보인다", async () => {
     seedRoom(store);
     const { container } = renderApp(<main><RoomInfo /></main>, store);
     const qr = screen.getByRole("img", { name: "초대 링크 QR 코드" });
@@ -117,11 +117,12 @@ describe("초대 링크 QR (FD-28, U-20)", () => {
     await expectNoA11yViolations(container);
   });
 
-  it("게임이 끝난 방에서는 QR과 안내를 숨기고 초대 링크와 복사는 남긴다(Q-C3, OQ-043)", () => {
+  // 2.1.1(U-24): Q-C3(종료 방 QR 숨김)을 사용자 결정으로 대체했다. 숨김 단언을 표시 단언으로 바꿨다.
+  it("게임이 끝난 방에서도 초대 링크·복사와 QR·안내가 함께 보인다(U-24)", () => {
     seedRoom(store, { status: "ENDED" });
     renderApp(<RoomInfo />, store);
-    expect(screen.queryByRole("img", { name: "초대 링크 QR 코드" })).not.toBeInTheDocument();
-    expect(screen.queryByText("휴대폰 카메라로 찍으면 초대 링크가 열립니다.")).not.toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "초대 링크 QR 코드" })).toBeInTheDocument();
+    expect(screen.getByText("휴대폰 카메라로 찍으면 초대 링크가 열립니다.")).toBeInTheDocument();
     expect(screen.getByLabelText("초대 링크")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "초대 링크 복사" })).toBeInTheDocument();
   });

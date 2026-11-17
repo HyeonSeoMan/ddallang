@@ -442,7 +442,7 @@ FE-M1 → FE-M2 → FE-M3 → FE-M4 → FE-M5 → FE-M6 → FE-M7 → FE-M8 → 
 
 ## 12. 2.1.0 개정 — 초대 링크 QR·스켈레톤·콜드 스타트 (U-20~U-23)
 
-- 근거: `open-questions.md` 2.18절 U-20~U-23과 Claude 결정 Q-C1~Q-C6, 방향 문서 1.2.0 DV-22·DV-23. 진행 규칙은 U-22(위임 진행: G3·G4 묶음 Claude 독립 검수 최대 3회, 통과하면 Claude가 PR·병합)다.
+- 근거: `open-questions.md` 2.18절 U-20~U-23과 Claude 결정 Q-C1~Q-C7, 방향 문서 1.2.0 DV-22·DV-23. 진행 규칙은 U-22(위임 진행: G3·G4 묶음 Claude 독립 검수 최대 3회, 통과하면 Claude가 PR·병합)다.
 - Spec·AC는 바꾸지 않는다. 새 AC를 만들지 않으며 `ac-matrix.md`도 그대로다.
 
 ### 12.1 새 결정 (FD-28~FD-30)
@@ -450,7 +450,7 @@ FE-M1 → FE-M2 → FE-M3 → FE-M4 → FE-M5 → FE-M6 → FE-M7 → FE-M8 → 
 | ID | 결정 | 근거 | 영향 |
 | --- | --- | --- | --- |
 | FD-28 | **초대 링크 QR.** `RoomInfo`의 초대 링크 묶음에서 상태 문단 아래에 `qrcode.react`의 `QRCodeSVG`로 QR을 그린다. 값은 입력란과 같은 `inviteLink(room.inviteCode)`이고, 크기 160px, 오류 정정 M, 여백 4모듈, 전경 `ink`·배경 `paper`(DV-22)다. SVG에 `role="img"`와 `aria-label="초대 링크 QR 코드"`를 붙이고, 그 아래 안내 문단을 둔다. `room.status = ENDED`이면 QR과 안내를 그리지 않는다(Q-C3). 브라우저 안에서 그리며 네트워크 요청이 없다(FD-13) | U-20, Q-C1~Q-C4 | 새 런타임 의존성 `qrcode.react` 4.2.0(§2.1에 더하지 않는다. §2.1은 개발 의존성 표다. 이 표 FD-28이 기록 위치다) |
-| FD-29 | **스켈레톤.** `RoomSection`에서 데이터 영역이 보이지 않을 때(`dataVisibleAtom = false`: 첫 로딩·끊김·이전 세대 스냅샷) 제목만 남기던 컴팩트 모양 대신, 흰 카드 안에 구역별 고정 모양의 `SectionSkeleton`(`src/ui/skeleton.tsx`)을 그린다(DV-23). 자식(서버 유래 본문)과 `after`(게임 종료)는 지금처럼 게이트 아래라 그리지 않는다. 데이터가 보일 때 폼이 없는 거래 입력 구역의 컴팩트 모양은 그대로다. 자리 표시는 `aria-hidden`, 구역 `section`에 `aria-busy="true"`. 단, 연결 단계가 `inaccessible`(401·404, 재시도 없음)이면 스켈레톤·`aria-busy` 없이 바탕 위 제목만 남긴다(Q-C7). 깜빡임은 `pulse`이고 `_motionReduce`에서 끈다. 서버 값을 쓰지 않으므로 FD-3·S5 §6.5의 표시 금지는 그대로다 | U-21, Q-C5 | `room-layout.tsx`의 `compact` 계산과 끊김 시험(구역 카드 없음 단언)을 바꾼다. 바꾼 시험은 이유와 함께 증거에 적는다 |
+| FD-29 | **스켈레톤.** `RoomSection`에서 데이터 영역이 보이지 않을 때(`dataVisibleAtom = false`: 첫 로딩·끊김·이전 세대 스냅샷) 제목만 남기던 컴팩트 모양 대신, 흰 카드 안에 구역별 고정 모양의 `SectionSkeleton`(`src/ui/skeleton.tsx`)을 그린다(DV-23). 자식(서버 유래 본문)과 `after`(게임 종료)는 지금처럼 게이트 아래라 그리지 않는다. 데이터가 보일 때 폼이 없는 거래 입력 구역의 컴팩트 모양은 그대로다. 자리 표시는 `aria-hidden`, 구역 `section`에 `aria-busy="true"`. 단, 연결 단계가 `inaccessible`(401·404, 재시도 없음)이면 스켈레톤·`aria-busy` 없이 바탕 위 제목만 남긴다(Q-C7). 깜빡임은 `pulse`이고 `_motionReduce`에서 끈다. 서버 값을 쓰지 않으므로 FD-3·S5 §6.5의 표시 금지는 그대로다 | U-21, Q-C5, Q-C7 | `room-layout.tsx`의 `compact` 계산과 끊김 시험(구역 카드 없음 단언)을 바꾼다. 바꾼 시험은 이유와 함께 증거에 적는다 |
 | FD-30 | **배포 백엔드 깨워 두기.** `.github/workflows/keep-api-awake.yml`이 10분마다(`*/10 * * * *`, 수동 실행 가능) `https://ddallang-api.onrender.com/health`에 `curl`로 GET을 보낸다(시간 제한 90초, 재시도 2회, 실패해도 다음 주기에 다시). 비밀값·인증이 없다. FD-19(문서 로드 시 깨우기)는 그대로 둔다 | U-23, Q-C6 | 앱 코드 변경 없음. 예약 실행은 `main`에 병합된 뒤부터 동작한다 |
 
 ### 12.2 위험

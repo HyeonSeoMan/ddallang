@@ -61,6 +61,7 @@ describe("고정 거래 기록하기 링크 (U-6, 페이지 분리)", () => {
     act(() => store.set(setConnectionAtom, "disconnected"));
     expect(screen.getByRole("heading", { level: 2, name: "거래 입력" })).toBeInTheDocument();
     expect(screen.queryByRole("group", { name: "지급자" })).not.toBeInTheDocument();
+    expect(document.querySelector('[data-section="entry"] [data-skeleton="form"]')).toBeInTheDocument();
   });
 
   it("연결이 끊기면 링크와 여백이 사라진다(복구 뒤 표시는 스냅샷 세대가 정한다, 이 시험 범위 밖)", () => {

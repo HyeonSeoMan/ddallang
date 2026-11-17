@@ -1,6 +1,7 @@
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createStore } from "jotai";
+import { QRCodeSVG } from "qrcode.react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { expectNoA11yViolations } from "@/test/a11y";
 import { mockClipboard } from "@/test/clipboard";
@@ -77,5 +78,57 @@ describe("방 정보 영역", () => {
     await userEvent.click(screen.getByRole("button", { name: "초대 링크 복사" }));
     await waitFor(() => expect(screen.getAllByText(/복사하지 못했습니다/)).toHaveLength(1));
     expect(screen.queryByText("초대 링크를 복사했습니다.")).not.toBeInTheDocument();
+  });
+});
+
+describe("초대 링크 QR (FD-28, U-20)", () => {
+  function pathOf(svg: Element | null): string {
+    // `QRCodeSVG`는 배경 path와 모듈 path 두 개를 그린다. 모듈 path(마지막)가 담긴 값에 따라 달라진다.
+    const paths = svg?.querySelectorAll("path") ?? [];
+    return paths[paths.length - 1]?.getAttribute("d") ?? "";
+  }
+
+  it("진행 중이면 초대 링크 아래에 그 링크를 담은 QR과 안내를 보인다", async () => {
+    seedRoom(store);
+    const { container } = renderApp(<main><RoomInfo /></main>, store);
+    const qr = screen.getByRole("img", { name: "초대 링크 QR 코드" });
+    expect(qr.tagName.toLowerCase()).toBe("svg");
+    expect(qr).toHaveAttribute("width", "160");
+    expect(screen.getByText("휴대폰 카메라로 찍으면 초대 링크가 열립니다.")).toBeInTheDocument();
+
+    // 담긴 값이 입력란의 초대 링크와 같다: 같은 설정으로 그린 기준 QR과 모듈이 같고, 다른 링크와는 다르다.
+    const link = (screen.getByLabelText("초대 링크") as HTMLInputElement).value;
+    const reference = (value: string) => {
+      const { container: c, unmount } = render(
+        <QRCodeSVG value={value} size={160} level="M" marginSize={4} />,
+      );
+      const d = pathOf(c.querySelector("svg"));
+      unmount();
+      return d;
+    };
+    expect(pathOf(qr)).toBe(reference(link));
+    expect(pathOf(qr)).not.toBe(reference(`${link}x`));
+
+    // 초대 링크 입력란 → 복사 버튼 → QR 순서(Q-C2).
+    const input = screen.getByLabelText("초대 링크");
+    const button = screen.getByRole("button", { name: "초대 링크 복사" });
+    expect(input.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(button.compareDocumentPosition(qr) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    await expectNoA11yViolations(container);
+  });
+
+  it("게임이 끝난 방에서는 QR과 안내를 숨기고 초대 링크와 복사는 남긴다(Q-C3, OQ-043)", () => {
+    seedRoom(store, { status: "ENDED" });
+    renderApp(<RoomInfo />, store);
+    expect(screen.queryByRole("img", { name: "초대 링크 QR 코드" })).not.toBeInTheDocument();
+    expect(screen.queryByText("휴대폰 카메라로 찍으면 초대 링크가 열립니다.")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("초대 링크")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "초대 링크 복사" })).toBeInTheDocument();
+  });
+
+  it("QR은 브라우저 안에서 그리며 이미지 요청(외부 주소)이 없다", () => {
+    seedRoom(store);
+    const { container } = renderApp(<RoomInfo />, store);
+    expect(container.querySelector("img, image, [src], [href]")).toBeNull();
   });
 });

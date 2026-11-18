@@ -454,7 +454,7 @@ FE-M1 → FE-M2 → FE-M3 → FE-M4 → FE-M5 → FE-M6 → FE-M7 → FE-M8 → 
 | --- | --- | --- | --- |
 | FD-28 | **초대 링크 QR.** `RoomInfo`의 초대 링크 묶음에서 상태 문단 아래에 `qrcode.react`의 `QRCodeSVG`로 QR을 그린다. 값은 입력란과 같은 `inviteLink(room.inviteCode)`이고, 크기 160px, 오류 정정 M, 여백 4모듈, 전경 `ink`·배경 `paper`(DV-22)다. SVG에 `role="img"`와 `aria-label="초대 링크 QR 코드"`를 붙이고, 그 아래 안내 문단을 둔다. 진행 상태와 무관하게 링크 복사와 QR을 항상 함께 그린다(2.1.1, U-24. 2.1.0의 종료 시 숨김(Q-C3)을 대체). 브라우저 안에서 그리며 네트워크 요청이 없다(FD-13) | U-20, U-24, Q-C1·Q-C2·Q-C4 | 새 런타임 의존성 `qrcode.react` 4.2.0(§2.1에 더하지 않는다. §2.1은 개발 의존성 표다. 이 표 FD-28이 기록 위치다) |
 | FD-29 | **스켈레톤.** `RoomSection`에서 데이터 영역이 보이지 않을 때(`dataVisibleAtom = false`: 첫 로딩·끊김·이전 세대 스냅샷) 제목만 남기던 컴팩트 모양 대신, 흰 카드 안에 구역별 고정 모양의 `SectionSkeleton`(`src/ui/skeleton.tsx`)을 그린다(DV-23). 자식(서버 유래 본문)과 `after`(게임 종료)는 지금처럼 게이트 아래라 그리지 않는다. 데이터가 보일 때 폼이 없는 거래 입력 구역의 컴팩트 모양은 그대로다. 자리 표시는 `aria-hidden`, 구역 `section`에 `aria-busy="true"`. 단, 연결 단계가 `inaccessible`(401·404, 재시도 없음)이면 스켈레톤·`aria-busy` 없이 바탕 위 제목만 남긴다(Q-C7). 깜빡임은 `pulse`이고 `_motionReduce`에서 끈다. 서버 값을 쓰지 않으므로 FD-3·S5 §6.5의 표시 금지는 그대로다 | U-21, Q-C5, Q-C7 | `room-layout.tsx`의 `compact` 계산과 끊김 시험(구역 카드 없음 단언)을 바꾼다. 바꾼 시험은 이유와 함께 증거에 적는다 |
-| FD-30 | **배포 백엔드 깨워 두기(2.1.3, U-26).** 외부 예약 서비스 **cron-job.org**의 작업 `ddallang keep-awake`(사용자 계정, 저장소 밖)가 **월~금 08:00~17:50 KST에 10분마다**(`*/10 8-17 * * 1-5`, 시간대 Asia/Seoul) `GET https://ddallang-api.onrender.com/health`를 보낸다. 시간 제한 30초(무료 최대), 인증·비밀값 없음. 서버가 잠들어 있으면 하루 첫 요청은 시간 제한으로 실패로 찍힐 수 있지만 요청이 닿아 서버가 깬다. FD-19(문서 로드 시 깨우기)는 그대로다. 2.1.0~2.1.2의 GitHub Actions 워크플로(`.github/workflows/keep-api-awake.yml`)는 예약 실행이 거의 돌지 않아(증거 §17.8) 지웠다 | U-23, U-25, U-26 | 앱 코드 변경 없음. 설정은 cron-job.org 화면에만 있으므로 값은 `open-questions.md` U-26과 이 행이 기록 위치다 |
+| FD-30 | **배포 백엔드 깨워 두기(2.1.3, U-26).** 외부 예약 서비스 **cron-job.org**의 작업 `ddallang keep-awake`(사용자 계정, 저장소 밖)가 **월~금 08:00~17:50 KST에 10분마다**(`*/10 8-17 * * 1-5`, 시간대 Asia/Seoul) `GET https://ddallang-api.onrender.com/health`를 보낸다. 시간 제한 30초(무료 최대), 인증·비밀값 없음. 서버가 잠들어 있으면 하루 첫 요청은 시간 제한으로 실패로 찍힐 수 있지만 요청이 닿아 서버가 깰 것으로 본다(미확인, 증거 §17.8). FD-19(문서 로드 시 깨우기)는 그대로다. 2.1.0~2.1.2의 GitHub Actions 워크플로(`.github/workflows/keep-api-awake.yml`)는 예약 실행이 거의 돌지 않아(증거 §17.8) 지웠다 | U-23, U-25, U-26 | 앱 코드 변경 없음. 설정은 cron-job.org 화면에만 있으므로 값은 `open-questions.md` U-26과 이 행이 기록 위치다 |
 
 ### 12.2 위험
 
@@ -468,5 +468,5 @@ FE-M1 → FE-M2 → FE-M3 → FE-M4 → FE-M5 → FE-M6 → FE-M7 → FE-M8 → 
 
 - 기본 게이트 6종(`typecheck`·`lint`·`build`·`test`·`check:ac`·`smoke`)을 최종본에서 실행한다.
 - 새 시험: QR이 진행 상태와 무관하게 보이고(2.1.1, U-24. 2.1.0은 종료된 방에서 숨김) 값이 초대 링크와 같음, 접근 가능한 이름. 스켈레톤이 첫 로딩·끊김에 보이고 서버 값이 없음, 연결되면 사라짐, `aria-busy`, axe 통과.
-- 워크플로는 YAML 문법과 `curl` 명령을 로컬에서 확인한다. 실제 예약 실행은 병합 뒤 GitHub에서 확인하며, 못 보면 못 봤다고 기록한다.
+- (2.1.3에서 대체: 워크플로를 지우고 cron-job.org로 옮겼다. 확인은 증거 §17.8) 워크플로는 YAML 문법과 `curl` 명령을 로컬에서 확인한다. 실제 예약 실행은 병합 뒤 GitHub에서 확인하며, 못 보면 못 봤다고 기록한다.
 - 실제 Chrome(375px)에서 QR·스켈레톤을 확인한다. 실기기 스캔·Safari·Firefox·VoiceOver는 못 하면 기록한다.

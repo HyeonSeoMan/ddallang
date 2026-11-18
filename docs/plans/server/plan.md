@@ -338,8 +338,12 @@ BE-M1 → BE-M2 → BE-M3 → BE-M4 → BE-M5 → BE-M6 → BE-M7 → BE-M8 → 
 
 | ID | 결정 | 근거 | 영향 |
 | --- | --- | --- | --- |
-| PD-29 | **모든 표에 RLS를 켜고 정책은 두지 않는다**(마이그레이션 `20261118000000_enable_rls`). 앱 연결은 표 소유자라 RLS를 우회하므로 동작은 그대로이고, FORCE는 쓰지 않는다. `_prisma_migrations`는 있을 때만, Supabase 역할 `anon`·`authenticated`가 있으면 표 권한을 회수한다. **새 표를 만드는 마이그레이션은 같은 마이그레이션 안에서 RLS를 켠다**(`test/db/rls.spec.ts`가 모든 표의 RLS를 확인해 빠지면 실패한다) | Supabase 경고, Data API 끄기만으로는 다시 켜질 때 노출된다(심층 방어) | 기존 시험 1개의 단언을 고쳤다: `v2-migration.spec.ts` "마지막 마이그레이션이 v2" → "v2가 적용 목록에 있음"(전체 목록 일치 단언은 그대로). 이유: v2 뒤에 새 마이그레이션이 붙었다 |
+| PD-29 | **모든 표에 RLS를 켜고 정책은 두지 않는다**(마이그레이션 `20261118000000_enable_rls`). 앱 연결이 표 소유자이면 RLS를 우회하므로 동작은 그대로다(**전제, 배포 전 확인 필요: RK-R1**). FORCE는 쓰지 않는다. `_prisma_migrations`는 있을 때만, Supabase 역할 `anon`·`authenticated`가 있으면 지금 표의 권한과, 이 연결 역할이 앞으로 이 스키마에 만드는 표의 기본 권한을 회수한다. **새 표를 만드는 마이그레이션은 같은 마이그레이션 안에서 RLS를 켠다**(`test/db/rls.spec.ts`가 모든 표의 RLS를 확인해 빠지면 실패한다) | Supabase 경고, Data API 끄기만으로는 다시 켜질 때 노출된다(심층 방어) | 기존 시험 1개의 단언을 고쳤다: `v2-migration.spec.ts` "마지막 마이그레이션이 v2" → "v2가 적용 목록에 있음"(전체 목록 일치 단언은 그대로). 이유: v2 뒤에 새 마이그레이션이 붙었다 |
+
+| ID | 위험 | 근거 | 완화 |
+| --- | --- | --- | --- |
+| RK-R1 | **앱 연결 역할이 표 소유자가 아니면** 배포(컨테이너 시작 때 `migrate deploy`) 직후부터 앱의 모든 조회가 오류 없이 0행을 받고 쓰기는 42501로 실패한다. `/health`는 DB를 쓰지 않아 이 장애를 잡지 못한다 | PD-29 | **배포 전**: Supabase SQL 편집기에서 `SELECT DISTINCT tableowner FROM pg_tables WHERE schemaname = 'public';`와 `SELECT current_user;`(같은 `postgres` 역할로 접속)로 소유자가 앱 연결 사용자(`postgres.<ref>` → `postgres`)와 같은지 확인한다. 다르면 배포하지 않는다. **배포 뒤**: 방 조회·쓰기 요청으로 확인한다. **되돌리기**: SQL 편집기에서 8개 표에 `ALTER TABLE "<표>" DISABLE ROW LEVEL SECURITY;`를 실행한다(`_prisma_migrations` 기록은 그대로 두고, 고친 마이그레이션은 새 번호로 만든다) |
 
 | ID | 제목 | 내용 | 완료 기준 |
 | --- | --- | --- | --- |
-| BE-R1 | RLS 마이그레이션·배포 확인 | 마이그레이션, `test/db/rls.spec.ts`(모든 표 RLS·FORCE 없음, 소유자 읽기·쓰기, 비소유 역할 0행·쓰기 거부, Supabase 역할 권한 회수를 트랜잭션 안에서 확인), 로컬 임시 DB에 `prisma migrate deploy` 적용 확인. 배포 뒤 운영 `/health`·방 조회·쓰기와 Supabase 보안 경고 해소 확인 | typecheck·lint·build·test 통과(2026-11-18: 60개 파일 718개 통과), 로컬 `migrate deploy`에서 8개 표 `rls=true force=false`. 운영 확인은 배포 승인 뒤 |
+| BE-R1 | RLS 마이그레이션·배포 확인 | 마이그레이션, `test/db/rls.spec.ts`(모든 표 RLS·FORCE 없음, 소유자 읽기·쓰기, 비소유 역할 0행·쓰기 거부, Supabase 역할 권한 회수를 트랜잭션 안에서 확인), 로컬 임시 DB에 `prisma migrate deploy` 적용 확인. 배포 전 RK-R1 소유자 확인, 배포 뒤 운영 `/health`·방 조회·쓰기와 Supabase 보안 경고 해소 확인 | typecheck·lint·build·test 통과(2026-11-18: 60개 파일 718개 통과), 로컬 `migrate deploy`에서 8개 표 `rls=true force=false`, 새 표의 기본 권한 회수 시험. 시험은 시험 DB 계정이 superuser라고 전제한다(역할 생성·`SET ROLE`). 운영 확인은 배포 승인 뒤 |

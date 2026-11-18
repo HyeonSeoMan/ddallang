@@ -338,11 +338,11 @@ BE-M1 → BE-M2 → BE-M3 → BE-M4 → BE-M5 → BE-M6 → BE-M7 → BE-M8 → 
 
 | ID | 결정 | 근거 | 영향 |
 | --- | --- | --- | --- |
-| PD-29 | **모든 표에 RLS를 켜고 정책은 두지 않는다**(마이그레이션 `20261118000000_enable_rls`). 앱 연결이 표 소유자이면 RLS를 우회하므로 동작은 그대로다(**전제, 배포 전 확인 필요: RK-R1**). FORCE는 쓰지 않는다. `_prisma_migrations`는 있을 때만, Supabase 역할 `anon`·`authenticated`가 있으면 지금 표의 권한과, 이 연결 역할이 앞으로 이 스키마에 만드는 표의 기본 권한을 회수한다. **새 표를 만드는 마이그레이션은 같은 마이그레이션 안에서 RLS를 켠다**(`test/db/rls.spec.ts`가 모든 표의 RLS를 확인해 빠지면 실패한다) | Supabase 경고, Data API 끄기만으로는 다시 켜질 때 노출된다(심층 방어) | 기존 시험 1개의 단언을 고쳤다: `v2-migration.spec.ts` "마지막 마이그레이션이 v2" → "v2가 적용 목록에 있음"(전체 목록 일치 단언은 그대로). 이유: v2 뒤에 새 마이그레이션이 붙었다 |
+| PD-29 | **모든 표에 RLS를 켜고 정책은 두지 않는다**(마이그레이션 `20261118000000_enable_rls`). 앱 연결이 표 소유자이면 RLS를 우회하므로 동작은 그대로다(**전제, 배포 전 확인 필요: RK-R1**). FORCE는 쓰지 않는다. `_prisma_migrations`는 있을 때만, Supabase 역할 `anon`·`authenticated`가 있으면 지금 표의 권한과, 이 연결 역할이 앞으로 이 스키마에 만드는 표의 기본 권한을 회수한다. 다른 역할(`supabase_admin`)이 준 기본 권한과 `service_role`(비밀 키 필요, RLS 우회)은 남는다. 앱 표는 모두 `postgres`가 만들고, 모든 표에 RLS가 켜져 있고 Data API가 꺼져 있어 받아들인다. **새 표를 만드는 마이그레이션은 같은 마이그레이션 안에서 RLS를 켠다**(`test/db/rls.spec.ts`가 모든 표의 RLS를 확인해 빠지면 실패한다) | Supabase 경고, Data API 끄기만으로는 다시 켜질 때 노출된다(심층 방어) | 기존 시험 1개의 단언을 고쳤다: `v2-migration.spec.ts` "마지막 마이그레이션이 v2" → "v2가 적용 목록에 있음"(전체 목록 일치 단언은 그대로). 이유: v2 뒤에 새 마이그레이션이 붙었다 |
 
 | ID | 위험 | 근거 | 완화 |
 | --- | --- | --- | --- |
-| RK-R1 | **앱 연결 역할이 표 소유자가 아니면** 배포(컨테이너 시작 때 `migrate deploy`) 직후부터 앱의 모든 조회가 오류 없이 0행을 받고 쓰기는 42501로 실패한다. `/health`는 DB를 쓰지 않아 이 장애를 잡지 못한다 | PD-29 | **배포 전**: Supabase SQL 편집기에서 `SELECT DISTINCT tableowner FROM pg_tables WHERE schemaname = 'public';`와 `SELECT current_user;`(같은 `postgres` 역할로 접속)로 소유자가 앱 연결 사용자(`postgres.<ref>` → `postgres`)와 같은지 확인한다. 다르면 배포하지 않는다. **배포 뒤**: 방 조회·쓰기 요청으로 확인한다. **되돌리기**: SQL 편집기에서 8개 표에 `ALTER TABLE "<표>" DISABLE ROW LEVEL SECURITY;`를 실행한다(`_prisma_migrations` 기록은 그대로 두고, 고친 마이그레이션은 새 번호로 만든다) |
+| RK-R1 | **앱 연결 역할이 표 소유자가 아니면** 마이그레이션(`ALTER TABLE … ENABLE ROW LEVEL SECURITY`는 소유자만 실행 가능)이 실패해 배포가 실패할 가능성이 크다. 드물게(소유 역할의 구성원이지만 상속하지 않는 경우 등) 마이그레이션은 통과하고 앱의 모든 조회가 오류 없이 0행을 받고 쓰기는 42501로 실패할 수 있다. `/health`는 DB를 쓰지 않아 이 장애를 잡지 못한다 | PD-29 | **배포 전**: Supabase SQL 편집기에서 `SELECT DISTINCT tableowner FROM pg_tables WHERE schemaname = 'public';`와 `SELECT current_user;`로 표 소유자를 보고, Render 환경변수 `DATABASE_URL`의 **사용자 이름 부분만**(비밀번호·전체 값은 출력하지 않는다) `postgres.<ref>`인지 확인한다(pooler 사용자 `postgres.<ref>`는 역할 `postgres`로 연결된다). 소유자가 `postgres`이고 사용자 이름이 `postgres.<ref>`이면 같다. 다르면 배포하지 않는다. **배포 뒤**: 방 조회·쓰기 요청으로 확인한다. **되돌리기**: SQL 편집기에서 8개 표에 `ALTER TABLE "<표>" DISABLE ROW LEVEL SECURITY;`를 실행한다(`_prisma_migrations` 기록은 그대로 두고, 고친 마이그레이션은 새 번호로 만든다) |
 
 | ID | 제목 | 내용 | 완료 기준 |
 | --- | --- | --- | --- |

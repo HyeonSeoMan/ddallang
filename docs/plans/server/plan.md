@@ -347,3 +347,10 @@ BE-M1 → BE-M2 → BE-M3 → BE-M4 → BE-M5 → BE-M6 → BE-M7 → BE-M8 → 
 | ID | 제목 | 내용 | 완료 기준 |
 | --- | --- | --- | --- |
 | BE-R1 | RLS 마이그레이션·배포 확인 | 마이그레이션, `test/db/rls.spec.ts`(모든 표 RLS·FORCE 없음, 소유자 읽기·쓰기, 비소유 역할 0행·쓰기 거부, Supabase 역할 권한 회수를 트랜잭션 안에서 확인), 로컬 임시 DB에 `prisma migrate deploy` 적용 확인. 배포 전 RK-R1 소유자 확인, 배포 뒤 운영 `/health`·방 조회·쓰기와 Supabase 보안 경고 해소 확인 | typecheck·lint·build·test 통과(2026-11-18: 60개 파일 718개 통과), 로컬 `migrate deploy`에서 8개 표 `rls=true force=false`, 새 표의 기본 권한 회수 시험. 시험은 시험 DB 계정이 superuser라고 전제한다(역할 생성·`SET ROLE`). 운영 확인은 배포 승인 뒤 |
+
+**BE-R1 운영 반영 결과 (2026-11-18)**
+- 배포 전 확인(RK-R1): Supabase SQL 편집기 `SELECT DISTINCT tableowner …` → `postgres` 1행. Session pooler 사용자 `postgres.pcgxlzultpcxjtettdoy`, Render `DATABASE_URL` 사용자 이름 일치(사용자 확인, 값은 출력하지 않음). Security Advisor는 Data API를 끈 뒤 Errors·Warnings 0.
+- 사용자 배포 승인 뒤 `ddallang-server` `main` 병합·push `301bd1d`(13:02 KST). Render Auto-Deploy 성공(Live, 소요 1분 53초).
+- `_prisma_migrations`: `20261118000000_enable_rls` `finished_at` 2026-11-18 04:03:39 UTC. public 표 8개 모두 `rls = true`, `force = false`.
+- 앱 동작(13:10 KST, 운영): 방 생성 201, 방 조회 200, 참여자 추가 201, 거래 201, 손익 200(+1,000 / −1,000), 거래 목록 200(1건). 시험 방 "RLS 점검"이 운영 DB에 남아 있다.
+- 남은 것: 없음. 되돌리기는 RK-R1 절차.

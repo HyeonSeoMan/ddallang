@@ -797,3 +797,38 @@ Codex 5시간 한도가 소진되어 첫 묶음은 인계 규칙으로 Claude가
 - **효과 확인**: 12:25:04 KST에 마지막으로 직접 요청(0.42초)한 뒤 요청을 보내지 않고 12:46:00 KST에 한 번 요청했다: **200·0.41초**. 15분 무요청이면 잠드는데 21분 뒤에도 깨어 있었으므로 12:30·12:40 실행이 깨운 것으로 본다(같은 시간 GitHub 예약 실행 0건). 다른 방문자 요청이 있었을 가능성은 배제하지 못했다. cron-job.org 실행 기록 화면은 보지 않았다.
 - `.github/workflows/keep-api-awake.yml`를 지웠다. 하지 못한 점검: 하루 첫 실행(08:00)이 잠든 서버를 깨우는지(내일 아침 확인), 장기 안정성.
 - 검수(U-22, Claude 독립 검수, 서버 BE-R1과 함께): 1/3 REVISE(X1-01 MEDIUM 배포 전 소유자 확인·되돌리기 없음, LOW 9건) → 모두 반영. 2/3 **PASS**(LOW 3건: tasks 머리글, 남는 기본 권한 기록, RK-R1 장애 모습·사용자 확인) → 모두 반영.
+
+## 18. 2.2.0 개정 — 홈 소개·첫 방문 온보딩 (`FE-O1`, 2026-11-24)
+
+- 근거: `open-questions.md` 2.19절 U-27~U-29·O-C1~O-C6, 방향 문서 1.3.0 DV-24·DV-25, `plan.md` §13(FD-31·FD-32). 진행 규칙 U-29(위임 진행).
+- 브랜치 `HyeonSeoMan/home-onboarding`(기준 `main` `e15cc75`).
+
+### 18.1 실행한 점검 (`apps/web`)
+
+| 명령 | 결과 |
+| --- | --- |
+| `typecheck` | 종료 0 |
+| `lint` | 종료 0 (첫 실행은 홈 컴포넌트의 `localStorage` 직접 접근으로 FD-4 규칙 위반 2건 → 저장소 접근을 `src/lib/identity/onboarding.ts`로 옮겨 해결) |
+| `test` | 종료 0, 61개 파일 867개 시험 통과 |
+| `check:ac` | 종료 0, "모든 AC(91개)에 태그 시험이 있습니다." |
+| `build`(`NEXT_PUBLIC_API_BASE_URL=http://localhost:3001`) | 종료 0 |
+| `smoke` | 종료 0 |
+
+### 18.2 시험 변경
+
+- 새 시험: `src/features/home/home-guide.test.tsx` 9개(plan §13.3 목록).
+- 바꾼 시험 없음. `not-provided.test.tsx`(AC-ROOM-002-2·3)는 첫 방문이라 온보딩이 열린 홈을 그대로 검사하며 통과한다. `ConfirmDialog` 시험도 Tab 가둠을 `trapTab`으로 옮긴 뒤 그대로 통과한다.
+
+### 18.3 실제 Chrome 확인 (375px)
+
+빌드본(`next start`)을 헤드리스 Chrome 375px·2배율로 열어 CDP로 조작했다. 백엔드는 쓰지 않았다(홈은 서버 호출 없이 그려진다).
+
+- 저장소를 비우고 열면 온보딩 첫 장 "모임의 돈·점수를 함께 기록해요"가 열린다. `다음` 두 번 → `시작하기`로 닫으면 `ddallang:onboarding-seen = "1"`, 새로고침하면 열리지 않는다. 두 상태 모두 가로 넘침 없음.
+- `docs/design/v2-evidence/fe-o/onboarding-1-375.png`·`onboarding-2-375.png`·`onboarding-3-375.png`: 세 장.
+- `docs/design/v2-evidence/fe-o/home-375.png`: 닫은 뒤 홈 전체(한 줄 소개 → 방 만들기 → 이렇게 써요 3단계 → 다시 보기).
+
+### 18.4 하지 못한 점검
+
+- 실기기·Safari·Firefox·VoiceOver(장 바뀜 알림이 실제로 읽히는지 포함).
+- 배포본 확인은 병합·Vercel 배포 뒤에 한다.
+

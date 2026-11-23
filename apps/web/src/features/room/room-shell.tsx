@@ -6,7 +6,7 @@ import { type ReactNode, useEffect, useRef } from "react";
 import { css } from "styled-system/css";
 import { ConnectionBanner } from "@/features/realtime/connection-banner";
 import { RoomHeader, roomBasePath, roomPagePath } from "./room-header";
-import { RoomOnboarding } from "./room-onboarding";
+import { ROOM_SLIDE_PAGES, RoomOnboarding } from "./room-onboarding";
 import { dataVisibleAtom, snapshotAtom } from "./state";
 
 /**
@@ -33,14 +33,21 @@ function EndedRedirect({ inviteCode, pathname }: { inviteCode: string; pathname:
   return null;
 }
 
-/** 방 온보딩의 장에 맞춰 뒤 페이지를 옮긴다(U-31). 기록이 쌓이지 않게 `replace`로 옮긴다. 라우터가 있을 때만 그린다. */
+/**
+ * 방 온보딩의 장에 맞춰 뒤 페이지를 옮긴다(U-31). 기록이 쌓이지 않게 `replace`로 옮긴다. 라우터가 있을 때만 그린다.
+ * 이동은 서버 왕복 뒤에야 `pathname`에 반영되므로, 장을 빠르게 넘겨도 건너뛰지 않게 마지막으로 요청한 주소와 비교한다.
+ * 첫 장은 새로 연 것이므로 지금 경로와 비교한다(다시 보기로 다시 열 때 이전 요청이 남아 있어도 현황으로 옮긴다).
+ */
 function RoutedRoomOnboarding({ inviteCode, pathname }: { inviteCode: string; pathname: string }) {
   const router = useRouter();
+  const lastTarget = useRef<string | null>(null);
   return (
     <RoomOnboarding
       onShowPage={(page) => {
         const target = roomPagePath(inviteCode, page);
-        if (target !== pathname) router.replace(target);
+        const current = page === ROOM_SLIDE_PAGES[0] ? pathname : (lastTarget.current ?? pathname);
+        lastTarget.current = target;
+        if (target !== current) router.replace(target);
       }}
     />
   );

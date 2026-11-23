@@ -222,4 +222,37 @@ describe("방 온보딩과 페이지 (U-31)", () => {
     expect(screen.getByRole("dialog", { name: "현황에서 손익을 봐요" })).toBeInTheDocument();
     expect(nav.replace).not.toHaveBeenCalled();
   });
+
+  it("이동이 반영되기 전에 장을 빠르게 넘겨도 장마다 옮긴다(경로가 늦게 바뀌는 경우, 검수 T1-01)", async () => {
+    const user = userEvent.setup();
+    installFakeStorage();
+    nav.pathname = `${BASE}/room`; // 라우터가 아직 아무 이동도 반영하지 않은 채로 둔다
+    mount(<RoomShell inviteCode={INVITE_CODE}>본문</RoomShell>);
+    for (let i = 0; i < 3; i += 1) await user.click(screen.getByRole("button", { name: "다음" }));
+    expect(nav.replace.mock.calls).toEqual([[BASE], [`${BASE}/record`], [`${BASE}/settlement`], [`${BASE}/room`]]);
+  });
+
+  it("다시 열면 첫 장에서 다시 현황으로 옮긴다(이전에 요청한 주소가 남아 있어도)", async () => {
+    const user = userEvent.setup();
+    installFakeStorage();
+    nav.pathname = BASE;
+    let redraw = () => undefined as void;
+    function Routed() {
+      const [, setTick] = useState(0);
+      redraw = () => setTick((tick) => tick + 1);
+      return <RoomShell inviteCode={INVITE_CODE}>본문</RoomShell>;
+    }
+    mount(
+      <>
+        <Routed />
+        <RoomPage />
+      </>,
+    );
+    await user.click(screen.getByRole("button", { name: "건너뛰기" })); // 현황에서 닫았다
+    expect(nav.replace).not.toHaveBeenCalled();
+    nav.pathname = `${BASE}/room`; // 사용자가 방 페이지로 옮겼다
+    act(() => redraw());
+    await user.click(screen.getByRole("button", { name: "방 사용법 다시 보기" }));
+    expect(nav.replace.mock.calls).toEqual([[BASE]]);
+  });
 });

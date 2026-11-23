@@ -12,6 +12,7 @@ import { TransactionForm } from "@/features/transactions/transaction-form";
 import { TransactionsSection } from "@/features/transactions/transactions-section";
 import { RoomInfo } from "./room-info";
 import { RoomSections } from "./room-layout";
+import { RoomOnboardingButton } from "./room-onboarding";
 import { snapshotAtom } from "./state";
 
 /**
@@ -61,13 +62,14 @@ export function SettlementPage() {
   );
 }
 
-/** 방: 방 정보(초대 링크), (방장에게 대기 요청이 있으면) 이어받기 요청, 참여자(FD-24: 참여자 구역 위). */
+/** 방: 방 정보(초대 링크), (방장에게 대기 요청이 있으면) 이어받기 요청, 참여자(FD-24: 참여자 구역 위), 방 사용법 다시 보기(FD-33). */
 export function RoomPage() {
   return (
     <>
       <RoomSections only={["info"]} slots={{ info: <RoomInfo /> }} />
       <ClaimRequestsSection />
       <RoomSections only={["participants"]} slots={{ participants: <ParticipantsSection /> }} />
+      <RoomOnboardingButton />
     </>
   );
 }

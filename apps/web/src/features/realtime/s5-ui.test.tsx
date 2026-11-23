@@ -8,7 +8,7 @@ import { AllPages } from "@/test/all-pages";
 import { connectionAtom, sessionAtom, snapshotAtom } from "@/features/room/state";
 import { transactionDraftsAtom } from "@/features/transactions/transaction-form";
 import { installFakeLocks } from "@/test/fake-locks";
-import { installFakeStorage } from "@/test/fake-storage";
+import { installFakeStorage, skipRoomOnboarding } from "@/test/fake-storage";
 import * as fixtures from "@/test/fixtures";
 import { apiUrl, errorResponse } from "@/test/handlers";
 import { server } from "@/test/msw-server";
@@ -25,7 +25,9 @@ let store: ReturnType<typeof createStore>;
 const visible = () => store.get(connectionAtom) === "connected" && store.get(snapshotAtom) !== null;
 
 beforeEach(() => {
-  installFakeStorage().setItem(`ddallang:identity:${INVITE_CODE}`, KEY);
+  const storage = installFakeStorage();
+  storage.setItem(`ddallang:identity:${INVITE_CODE}`, KEY);
+  skipRoomOnboarding(storage);
   installFakeLocks();
   backend = createFakeBackend();
   server.use(...backend.handlers);

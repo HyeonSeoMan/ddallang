@@ -6,7 +6,9 @@ import { expectNoA11yViolations } from "@/test/a11y";
 import { installFakeLocks } from "@/test/fake-locks";
 import { type FakeStorage, installFakeStorage } from "@/test/fake-storage";
 import { renderApp } from "@/test/render";
-import { ONBOARDING_SEEN_KEY } from "@/lib/identity";
+import { ONBOARDING_SEEN_KEYS } from "@/lib/identity";
+
+const ONBOARDING_SEEN_KEY = ONBOARDING_SEEN_KEYS.home;
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => null }));
 
@@ -44,6 +46,12 @@ describe("홈 소개와 사용 순서 (U-27, DV-24)", () => {
 });
 
 describe("첫 방문 소개 (U-28, DV-25)", () => {
+  it("방 온보딩을 본 브라우저라도 홈 소개는 따로 열린다(U-30)", () => {
+    storage.setItem(ONBOARDING_SEEN_KEYS.room, "1");
+    renderApp(<HomePage />);
+    expect(screen.getByRole("dialog", { name: "모임의 돈·점수를 함께 기록해요" })).toBeInTheDocument();
+  });
+
   it("처음 홈을 열면 소개가 열리고 세 장을 넘긴 뒤 시작하기로 닫으며 본 것으로 남긴다", async () => {
     const user = userEvent.setup();
     renderApp(<HomePage />);

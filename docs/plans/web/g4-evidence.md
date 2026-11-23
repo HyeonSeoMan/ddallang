@@ -798,37 +798,44 @@ Codex 5시간 한도가 소진되어 첫 묶음은 인계 규칙으로 Claude가
 - `.github/workflows/keep-api-awake.yml`를 지웠다. 하지 못한 점검: 하루 첫 실행(08:00)이 잠든 서버를 깨우는지(내일 아침 확인), 장기 안정성.
 - 검수(U-22, Claude 독립 검수, 서버 BE-R1과 함께): 1/3 REVISE(X1-01 MEDIUM 배포 전 소유자 확인·되돌리기 없음, LOW 9건) → 모두 반영. 2/3 **PASS**(LOW 3건: tasks 머리글, 남는 기본 권한 기록, RK-R1 장애 모습·사용자 확인) → 모두 반영.
 
-## 18. 2.2.0 개정 — 홈 소개·첫 방문 온보딩 (`FE-O1`, 2026-11-24)
+## 18. 2.2.0 개정 — 홈 소개·홈 온보딩·방 온보딩 (`FE-O1`·`FE-O2`, 2026-11-24)
 
-- 근거: `open-questions.md` 2.19절 U-27~U-29·O-C1~O-C6, 방향 문서 1.3.0 DV-24·DV-25, `plan.md` §13(FD-31·FD-32). 진행 규칙 U-29(위임 진행).
-- 브랜치 `HyeonSeoMan/home-onboarding`(기준 `main` `e15cc75`).
+- 근거: `open-questions.md` 2.19절 U-27~U-30·O-C1~O-C10, 방향 문서 1.3.0 DV-24~DV-26, `plan.md` §13(FD-31~FD-33). 진행 규칙 U-29(위임 진행).
+- 브랜치 `HyeonSeoMan/home-onboarding`(기준 `main` `e15cc75`). 첫 커밋 `06608b7`은 홈만(FE-O1), 사용자 지시 U-30(검수 1/3 진행 중)으로 방 온보딩(FE-O2)을 더했다.
 
-### 18.1 실행한 점검 (`apps/web`)
+### 18.1 실행한 점검 (`apps/web`, 최종본)
 
 | 명령 | 결과 |
 | --- | --- |
-| `typecheck` | 종료 0 |
-| `lint` | 종료 0 (첫 실행은 홈 컴포넌트의 `localStorage` 직접 접근으로 FD-4 규칙 위반 2건 → 저장소 접근을 `src/lib/identity/onboarding.ts`로 옮겨 해결) |
-| `test` | 종료 0, 61개 파일 867개 시험 통과 |
-| `check:ac` | 종료 0, "모든 AC(91개)에 태그 시험이 있습니다." |
-| `build`(`NEXT_PUBLIC_API_BASE_URL=http://localhost:3001`) | 종료 0 |
-| `smoke` | 종료 0 |
+| `pnpm typecheck` | 종료 0 |
+| `pnpm lint` | 종료 0, 경고 0 (첫 구현에서 홈 컴포넌트의 `localStorage` 직접 접근으로 FD-4 규칙 위반 2건 → 저장소 접근을 `src/lib/identity/onboarding.ts`로 옮겨 해결. `srOnly` 공용화 뒤 남은 미사용 import 경고 1건 제거) |
+| `pnpm test` | 종료 0, 62개 파일 874개 시험 통과 |
+| `pnpm check:ac` | 종료 0, "모든 AC(91개)에 태그 시험이 있습니다." |
+| `pnpm build`(`NEXT_PUBLIC_API_BASE_URL=http://localhost:3001`) | 종료 0 |
+| `pnpm smoke` | 종료 0 |
+
+방 온보딩을 처음 붙였을 때 전체 시험이 10분 넘게 끝나지 않았다. 파일별로 나눠 돌려 원인을 찾았다: 온보딩과 확인 대화상자가 함께 열리면 서로 포커스를 되찾으며 `Maximum call stack size exceeded`(제품 버그, O-C10으로 수정), 그리고 방 화면 시험 5개 파일에서 온보딩이 화면·포커스를 덮음(아래 시험 준비 변경).
 
 ### 18.2 시험 변경
 
-- 새 시험: `src/features/home/home-guide.test.tsx` 9개(plan §13.3 목록).
-- 바꾼 시험 없음. `not-provided.test.tsx`(AC-ROOM-002-2·3)는 첫 방문이라 온보딩이 열린 홈을 그대로 검사하며 통과한다. `ConfirmDialog` 시험도 Tab 가둠을 `trapTab`으로 옮긴 뒤 그대로 통과한다.
+- 새 시험: `src/features/home/home-guide.test.tsx` 9개(방 표시와 독립 1개 포함), `src/features/room/room-onboarding.test.tsx` 6개.
+- **시험 준비 변경(단언 그대로)**: `claim-requests-section`·`s5-ui`·`access-lost`·`inactive-self`·`s5-two-clients` 시험의 준비 단계에 `skipRoomOnboarding(storage)`(새 도우미, `src/test/fake-storage.ts`)를 더해 "방 온보딩을 본 브라우저"로 만든다. 이 시험들은 온보딩이 아닌 방 화면 동작을 본다.
+- **바꾼 단언 1개**: `s5-two-clients.test.tsx` [AC-SYS-002-4] "신원 키 외에 저장된 것이 없다" `storage.keys()` = `[신원 키]` → `[신원 키, 방 온보딩 표시]`(시험 준비가 넣은 키). 정확한 목록 비교는 그대로이고 `setItem`이 불리지 않는다는 단언(초안을 쓰지 않음)도 그대로다.
+- `not-provided.test.tsx`(AC-ROOM-002-2·3)는 홈 온보딩이 열린 첫 방문 홈을 그대로 검사하며 통과한다. `ConfirmDialog` 시험도 Tab 가둠을 `trapTab`으로 옮긴 뒤 그대로 통과한다.
 
 ### 18.3 실제 Chrome 확인 (375px)
 
-빌드본(`next start`)을 헤드리스 Chrome 375px·2배율로 열어 CDP로 조작했다. 백엔드는 쓰지 않았다(홈은 서버 호출 없이 그려진다).
-
-- 저장소를 비우고 열면 온보딩 첫 장 "모임의 돈·점수를 함께 기록해요"가 열린다. `다음` 두 번 → `시작하기`로 닫으면 `ddallang:onboarding-seen = "1"`, 새로고침하면 열리지 않는다. 두 상태 모두 가로 넘침 없음.
-- `docs/design/v2-evidence/fe-o/onboarding-1-375.png`·`onboarding-2-375.png`·`onboarding-3-375.png`: 세 장.
-- `docs/design/v2-evidence/fe-o/home-375.png`: 닫은 뒤 홈 전체(한 줄 소개 → 방 만들기 → 이렇게 써요 3단계 → 다시 보기).
+- 홈: 빌드본(`next start`)을 헤드리스 Chrome 375px·2배율로 열어 CDP로 조작했다. 백엔드는 쓰지 않았다. 저장소를 비우고 열면 홈 온보딩 첫 장이 열리고, `다음` 두 번 → `시작하기`로 닫으면 `ddallang:onboarding-seen = "1"`, 새로고침하면 열리지 않는다. 가로 넘침 없음. `docs/design/v2-evidence/fe-o/onboarding-1-375.png`~`onboarding-3-375.png`(세 장, 첫 장 문구는 R1-04 반영 전 "포커, 마작" 판), `home-375.png`(닫은 뒤 홈 전체).
+- 방: 시험 렌더 결과(시드 방, `RoomPage` + `RoomOnboarding`)를 빌드 CSS와 합쳐 헤드리스 Chrome 375px iframe으로 찍었다(§17.3과 같은 방식). `room-1-375.png`·`room-2-375.png`·`room-4-375.png`(1·2·4장), `room-page-375.png`(닫은 뒤 `방` 페이지, 맨 아래 `방 사용법 다시 보기`).
 
 ### 18.4 하지 못한 점검
 
 - 실기기·Safari·Firefox·VoiceOver(장 바뀜 알림이 실제로 읽히는지 포함).
-- 배포본 확인은 병합·Vercel 배포 뒤에 한다.
+- 실제 백엔드와 연결한 방에서 방 온보딩이 열리는 순간(시험과 시드 렌더로만 확인). 배포본 확인은 병합·Vercel 배포 뒤에 한다.
+- 온보딩과 확인 대화상자가 실제 브라우저에서 겹칠 때의 그리기 순서(RK-F33).
 
+### 18.5 검수 (U-29: Claude 독립 검수, 최대 3회)
+
+| 회차 | 판정 | 지적 | 처리 |
+| --- | --- | --- | --- |
+| 1/3 (커밋 `06608b7`, 홈만) | **PASS** | LOW 4건: R1-01 증거의 새 시험 수(9 → 실제 8), R1-02 FD-4 줄이 새 키·실패 처리 예외를 가리키지 않음, R1-03 `srOnly` 중복 정의, R1-04 "포커, 마작"과 "돈"이 함께 나와 도박 서비스로 읽힐 수 있음 | 넷 다 반영: 시험 수는 이번 판에서 다시 셈(홈 9개 = 8 + 독립 1), FD-4 영향 칸에 상호 참조, `src/ui/sr-only.ts`로 공용화, 문구를 "보드게임이나 카드게임"으로(O-C3). 이후 U-30으로 방 온보딩을 더해 2/3을 받는다 |

@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, type ReactNode, useCallback, useContext, useMemo, useState } from "react";
-import { css } from "styled-system/css";
+import { srOnly } from "./sr-only";
 
 export interface AnnounceOptions {
   /** 긴급 안내(`aria-live="assertive"`). 기본은 `polite`. */
@@ -16,15 +16,6 @@ interface Message {
   text: string;
   seq: number;
 }
-
-const srOnly = css({
-  position: "absolute",
-  width: "1px",
-  height: "1px",
-  overflow: "hidden",
-  clip: "rect(0 0 0 0)",
-  whiteSpace: "nowrap",
-});
 
 /** `aria-live` 알림 영역. 같은 문구를 다시 알려도 읽히도록 매번 새 노드로 바꾼다. */
 export function AnnouncerProvider({ children }: { children: ReactNode }) {

@@ -6,6 +6,7 @@ import { type ReactNode, useEffect, useRef } from "react";
 import { css } from "styled-system/css";
 import { ConnectionBanner } from "@/features/realtime/connection-banner";
 import { RoomHeader, roomBasePath } from "./room-header";
+import { RoomOnboarding } from "./room-onboarding";
 import { dataVisibleAtom, snapshotAtom } from "./state";
 
 /**
@@ -47,6 +48,7 @@ export function RoomShell({ inviteCode, children }: { inviteCode: string; childr
         <ConnectionBanner />
         {children}
       </div>
+      <RoomOnboarding />
     </>
   );
 }

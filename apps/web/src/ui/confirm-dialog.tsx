@@ -1,9 +1,10 @@
 "use client";
 
-import { type KeyboardEvent, useEffect, useId, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 import { css } from "styled-system/css";
 import { Button } from "./button";
+import { trapTab } from "./focus-trap";
 
 export interface ConfirmDialogProps {
   open: boolean;
@@ -16,8 +17,6 @@ export interface ConfirmDialogProps {
   onConfirm: () => void;
   onCancel: () => void;
 }
-
-const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /**
  * 접근성 확인 대화상자(FD-11). `role="dialog"`, `aria-modal`, 포커스 가둠, 닫을 때 포커스 복귀,
@@ -80,25 +79,6 @@ export function ConfirmDialog({
 
   if (!open) return null;
 
-  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== "Tab") return;
-    const focusable = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? []);
-    if (focusable.length === 0) {
-      event.preventDefault();
-      return;
-    }
-    const first = focusable[0]!;
-    const last = focusable[focusable.length - 1]!;
-    const active = document.activeElement;
-    if (event.shiftKey && (active === first || !dialogRef.current?.contains(active))) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && (active === last || !dialogRef.current?.contains(active))) {
-      event.preventDefault();
-      first.focus();
-    }
-  };
-
   return createPortal(
     <div
       className={css({
@@ -119,7 +99,7 @@ export function ConfirmDialog({
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
         tabIndex={-1}
-        onKeyDown={onKeyDown}
+        onKeyDown={(event) => trapTab(event, dialogRef.current)}
         className={css({ bg: "paper", color: "ink", borderRadius: "lg", p: "6", maxW: "md", w: "full", boxShadow: "float" })}
       >
         <h2 id={titleId} className={css({ fontSize: "xl", fontWeight: "bold", mb: "2" })}>

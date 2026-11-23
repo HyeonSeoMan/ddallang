@@ -8,7 +8,7 @@ import { dataVisibleAtom, setConnectionAtom } from "@/features/room/state";
 import { expectNoA11yViolations } from "@/test/a11y";
 import { AllPages } from "@/test/all-pages";
 import { installFakeLocks } from "@/test/fake-locks";
-import { installFakeStorage } from "@/test/fake-storage";
+import { installFakeStorage, skipRoomOnboarding } from "@/test/fake-storage";
 import * as fixtures from "@/test/fixtures";
 import { apiUrl, errorResponse } from "@/test/handlers";
 import { server } from "@/test/msw-server";
@@ -23,6 +23,7 @@ let backend: FakeBackend;
 
 beforeEach(() => {
   const storage = installFakeStorage();
+  skipRoomOnboarding(storage);
   installFakeLocks();
   backend = createFakeBackend();
   server.use(...backend.handlers);

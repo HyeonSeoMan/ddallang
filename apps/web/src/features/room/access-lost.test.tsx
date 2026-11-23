@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { dataVisibleAtom, snapshotAtom } from "@/features/room/state";
 import { AllPages } from "@/test/all-pages";
 import { installFakeLocks } from "@/test/fake-locks";
-import { type FakeStorage, installFakeStorage } from "@/test/fake-storage";
+import { type FakeStorage, installFakeStorage, skipRoomOnboarding } from "@/test/fake-storage";
 import * as fixtures from "@/test/fixtures";
 import { apiUrl, errorResponse } from "@/test/handlers";
 import { server } from "@/test/msw-server";
@@ -29,6 +29,7 @@ let backend: FakeBackend;
 
 beforeEach(() => {
   storage = installFakeStorage();
+  skipRoomOnboarding(storage);
   installFakeLocks();
   backend = createFakeBackend();
   server.use(...backend.handlers);

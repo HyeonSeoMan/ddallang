@@ -9,13 +9,14 @@ import { connectionAtom, sessionAtom, snapshotAtom } from "@/features/room/state
 import { UNKNOWN_AFTER_RECOVERY, UNKNOWN_RESULT } from "@/features/transactions/messages";
 import { primeServerClock } from "@/test/clock-prime";
 import { installFakeLocks } from "@/test/fake-locks";
-import { installFakeStorage, type FakeStorage } from "@/test/fake-storage";
+import { installFakeStorage, skipRoomOnboarding, type FakeStorage } from "@/test/fake-storage";
 import * as fixtures from "@/test/fixtures";
 import { server } from "@/test/msw-server";
 import { renderApp } from "@/test/render";
 import { INVITE_CODE } from "@/test/room-seed";
 import { createFakeBackend, type FakeBackend } from "@/test/stateful-server";
 import { connectionPhaseAtom } from "./state";
+import { ONBOARDING_SEEN_KEYS } from "@/lib/identity";
 
 const KEY = "w".repeat(43);
 
@@ -85,6 +86,7 @@ const balanceOf = (c: Client, nickname: string) =>
 
 beforeEach(async () => {
   storage = installFakeStorage();
+  skipRoomOnboarding(storage);
   storage.setItem(`ddallang:identity:${INVITE_CODE}`, KEY);
   installFakeLocks();
   backend = createFakeBackend();
@@ -224,7 +226,8 @@ describe("두 접속자 통합 (FE-S5-5, 가짜 서버·스트림)", () => {
     await user.type(first.ui.getByLabelText("사유 (선택)"), "초안");
     await user.type(first.ui.getByLabelText("참여자 닉네임"), "초안닉");
     expect(setItem).not.toHaveBeenCalled(); // 입력 초안은 메모리에만 있다
-    expect(storage.keys()).toEqual([`ddallang:identity:${INVITE_CODE}`]); // 신원 키 외에 저장된 것이 없다
+    // 신원 키와 시험 준비가 넣은 방 온보딩 표시 외에 저장된 것이 없다
+    expect(storage.keys().sort()).toEqual([`ddallang:identity:${INVITE_CODE}`, ONBOARDING_SEEN_KEYS.room].sort());
     first.unmount();
 
     const second = mountClient(); // 새로고침에 해당: 새 앱 상태

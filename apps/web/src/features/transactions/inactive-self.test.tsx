@@ -13,7 +13,7 @@ import { AllPages } from "@/test/all-pages";
 import { choiceNames, choose } from "@/test/choice";
 import { primeServerClock } from "@/test/clock-prime";
 import { installFakeLocks } from "@/test/fake-locks";
-import { installFakeStorage } from "@/test/fake-storage";
+import { installFakeStorage, skipRoomOnboarding } from "@/test/fake-storage";
 import * as fixtures from "@/test/fixtures";
 import { apiUrl, errorResponse } from "@/test/handlers";
 import { server } from "@/test/msw-server";
@@ -30,7 +30,9 @@ let store: ReturnType<typeof createStore>;
 
 beforeEach(() => {
   store = createStore();
-  installFakeStorage().setItem(`ddallang:identity:${INVITE_CODE}`, KEY);
+  const storage = installFakeStorage();
+  storage.setItem(`ddallang:identity:${INVITE_CODE}`, KEY);
+  skipRoomOnboarding(storage);
 });
 
 describe("방장 참여자 행 (FD-26, P-4)", () => {

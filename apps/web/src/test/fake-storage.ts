@@ -1,4 +1,5 @@
 import { vi } from "vitest";
+import { ONBOARDING_SEEN_KEYS } from "@/lib/identity/onboarding";
 
 export interface FakeStorageOptions {
   /** 쓰기 시 예외(용량 초과·접근 차단). */
@@ -50,4 +51,12 @@ export function installFakeStorage(options?: FakeStorageOptions): FakeStorage {
   const storage = new FakeStorage(options);
   vi.stubGlobal("localStorage", storage);
   return storage;
+}
+
+/**
+ * 방 온보딩(FD-33)을 이미 본 브라우저로 만든다. 온보딩이 아닌 방 화면 동작을 보는 시험이 쓴다
+ * (처음 방에 들어온 브라우저라 온보딩 대화상자가 화면과 포커스를 덮지 않게).
+ */
+export function skipRoomOnboarding(storage: Storage): void {
+  storage.setItem(ONBOARDING_SEEN_KEYS.room, "1");
 }

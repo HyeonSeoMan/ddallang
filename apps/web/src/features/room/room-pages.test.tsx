@@ -1,10 +1,12 @@
 // 페이지 분리(FD-12 개정): 헤더 탭, 페이지별 구성, 종료 방 이동. 새 AC는 없고 기존 AC·동작은 AllPages 시험이 지킨다.
 import { act, screen, within } from "@testing-library/react";
 import { createStore } from "jotai";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import userEvent from "@testing-library/user-event";
 import { choiceGroup } from "@/test/choice";
 import { expectNoA11yViolations } from "@/test/a11y";
+import { installFakeStorage, skipRoomOnboarding } from "@/test/fake-storage";
 import { renderApp } from "@/test/render";
 import { INVITE_CODE, seedRoom } from "@/test/room-seed";
 import { pageOfPath, RoomHeader, roomBasePath } from "./room-header";
@@ -25,6 +27,8 @@ beforeEach(() => {
   store = createStore();
   nav.pathname = BASE;
   nav.replace.mockClear();
+  // 방 온보딩을 본 브라우저로 둔다. 온보딩의 페이지 이동은 아래 "방 온보딩과 페이지"가 따로 본다.
+  skipRoomOnboarding(installFakeStorage());
 });
 
 function mount(ui: ReactNode, options: Parameters<typeof seedRoom>[1] = {}) {
@@ -179,5 +183,76 @@ describe("종료된 방 이동 (S2 §9, FD-12 개정)", () => {
     nav.pathname = null;
     mount(shell, { status: "ENDED" });
     expect(nav.replace).not.toHaveBeenCalled();
+  });
+});
+
+describe("방 온보딩과 페이지 (U-31)", () => {
+  it("장을 넘기면 뒤 페이지가 현황 → 기록 → 정산 → 방 순으로 바뀌고, 닫으면 그 페이지에 머문다", async () => {
+    const user = userEvent.setup();
+    installFakeStorage();
+    nav.pathname = `${BASE}/settlement`; // 정산 페이지에서 처음 들어와도 첫 장은 현황이다
+    // 라우터가 옮긴 경로로 다시 그린다(실제 앱에서는 레이아웃이 그대로 남고 경로만 바뀐다).
+    let redraw = () => undefined as void;
+    function Routed() {
+      const [, setTick] = useState(0);
+      redraw = () => setTick((tick) => tick + 1);
+      return <RoomShell inviteCode={INVITE_CODE}>본문</RoomShell>;
+    }
+    mount(<Routed />);
+    const dialog = screen.getByRole("dialog", { name: "현황에서 손익을 봐요" });
+    expect(nav.replace.mock.calls).toEqual([[BASE]]);
+
+    const pages = [`${BASE}/record`, `${BASE}/settlement`, `${BASE}/room`];
+    for (const page of pages) {
+      nav.pathname = nav.replace.mock.calls.at(-1)![0];
+      act(() => redraw());
+      await user.click(within(dialog).getByRole("button", { name: "다음" }));
+      expect(nav.replace.mock.calls.at(-1)).toEqual([page]);
+    }
+    const calls = nav.replace.mock.calls.length;
+    await user.click(within(dialog).getByRole("button", { name: "시작하기" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(nav.replace.mock.calls).toHaveLength(calls);
+  });
+
+  it("이미 그 페이지에 있으면 옮기지 않는다", () => {
+    installFakeStorage();
+    nav.pathname = BASE;
+    mount(<RoomShell inviteCode={INVITE_CODE}>본문</RoomShell>);
+    expect(screen.getByRole("dialog", { name: "현황에서 손익을 봐요" })).toBeInTheDocument();
+    expect(nav.replace).not.toHaveBeenCalled();
+  });
+
+  it("이동이 반영되기 전에 장을 빠르게 넘겨도 장마다 옮긴다(경로가 늦게 바뀌는 경우, 검수 T1-01)", async () => {
+    const user = userEvent.setup();
+    installFakeStorage();
+    nav.pathname = `${BASE}/room`; // 라우터가 아직 아무 이동도 반영하지 않은 채로 둔다
+    mount(<RoomShell inviteCode={INVITE_CODE}>본문</RoomShell>);
+    for (let i = 0; i < 3; i += 1) await user.click(screen.getByRole("button", { name: "다음" }));
+    expect(nav.replace.mock.calls).toEqual([[BASE], [`${BASE}/record`], [`${BASE}/settlement`], [`${BASE}/room`]]);
+  });
+
+  it("다시 열면 첫 장에서 다시 현황으로 옮긴다(이전에 요청한 주소가 남아 있어도)", async () => {
+    const user = userEvent.setup();
+    installFakeStorage();
+    nav.pathname = BASE;
+    let redraw = () => undefined as void;
+    function Routed() {
+      const [, setTick] = useState(0);
+      redraw = () => setTick((tick) => tick + 1);
+      return <RoomShell inviteCode={INVITE_CODE}>본문</RoomShell>;
+    }
+    mount(
+      <>
+        <Routed />
+        <RoomPage />
+      </>,
+    );
+    await user.click(screen.getByRole("button", { name: "건너뛰기" })); // 현황에서 닫았다
+    expect(nav.replace).not.toHaveBeenCalled();
+    nav.pathname = `${BASE}/room`; // 사용자가 방 페이지로 옮겼다
+    act(() => redraw());
+    await user.click(screen.getByRole("button", { name: "방 사용법 다시 보기" }));
+    expect(nav.replace.mock.calls).toEqual([[BASE]]);
   });
 });

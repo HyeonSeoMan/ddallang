@@ -26,6 +26,11 @@ const TABS: readonly Tab[] = [
 
 export const roomBasePath = (inviteCode: string) => `/invite/${encodeURIComponent(inviteCode)}`;
 
+/** 페이지의 주소. 방 온보딩이 장마다 해당 페이지로 옮길 때 쓴다(FD-33). */
+export function roomPagePath(inviteCode: string, key: RoomPageKey): string {
+  return `${roomBasePath(inviteCode)}${TABS.find((tab) => tab.key === key)!.suffix}`;
+}
+
 /** 현재 경로가 어느 페이지인지. 경로를 모르면(시험·초기 렌더) 현황이다. */
 export function pageOfPath(pathname: string | null, inviteCode: string): RoomPageKey {
   if (!pathname) return "status";

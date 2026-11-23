@@ -809,7 +809,7 @@ Codex 5시간 한도가 소진되어 첫 묶음은 인계 규칙으로 Claude가
 | --- | --- |
 | `pnpm typecheck` | 종료 0 |
 | `pnpm lint` | 종료 0, 경고 0 (첫 구현에서 홈 컴포넌트의 `localStorage` 직접 접근으로 FD-4 규칙 위반 2건 → 저장소 접근을 `src/lib/identity/onboarding.ts`로 옮겨 해결. `srOnly` 공용화 뒤 남은 미사용 import 경고 1건 제거) |
-| `pnpm test` | 종료 0, 62개 파일 874개 시험 통과 |
+| `pnpm test` | 종료 0, 62개 파일 875개 시험 통과 |
 | `pnpm check:ac` | 종료 0, "모든 AC(91개)에 태그 시험이 있습니다." |
 | `pnpm build`(`NEXT_PUBLIC_API_BASE_URL=http://localhost:3001`) | 종료 0 |
 | `pnpm smoke` | 종료 0 |
@@ -818,7 +818,7 @@ Codex 5시간 한도가 소진되어 첫 묶음은 인계 규칙으로 Claude가
 
 ### 18.2 시험 변경
 
-- 새 시험: `src/features/home/home-guide.test.tsx` 9개(방 표시와 독립 1개 포함), `src/features/room/room-onboarding.test.tsx` 6개.
+- 새 시험: `src/features/home/home-guide.test.tsx` 9개(방 표시와 독립 1개 포함), `src/features/room/room-onboarding.test.tsx` 7개(확인 대화상자가 먼저인 순서 1개는 검수 2/3 R2-02로 더함).
 - **시험 준비 변경(단언 그대로)**: `claim-requests-section`·`s5-ui`·`access-lost`·`inactive-self`·`s5-two-clients` 시험의 준비 단계에 `skipRoomOnboarding(storage)`(새 도우미, `src/test/fake-storage.ts`)를 더해 "방 온보딩을 본 브라우저"로 만든다. 이 시험들은 온보딩이 아닌 방 화면 동작을 본다.
 - **바꾼 단언 1개**: `s5-two-clients.test.tsx` [AC-SYS-002-4] "신원 키 외에 저장된 것이 없다" `storage.keys()` = `[신원 키]` → `[신원 키, 방 온보딩 표시]`(시험 준비가 넣은 키). 정확한 목록 비교는 그대로이고 `setItem`이 불리지 않는다는 단언(초안을 쓰지 않음)도 그대로다.
 - `not-provided.test.tsx`(AC-ROOM-002-2·3)는 홈 온보딩이 열린 첫 방문 홈을 그대로 검사하며 통과한다. `ConfirmDialog` 시험도 Tab 가둠을 `trapTab`으로 옮긴 뒤 그대로 통과한다.
@@ -839,3 +839,4 @@ Codex 5시간 한도가 소진되어 첫 묶음은 인계 규칙으로 Claude가
 | 회차 | 판정 | 지적 | 처리 |
 | --- | --- | --- | --- |
 | 1/3 (커밋 `06608b7`, 홈만) | **PASS** | LOW 4건: R1-01 증거의 새 시험 수(9 → 실제 8), R1-02 FD-4 줄이 새 키·실패 처리 예외를 가리키지 않음, R1-03 `srOnly` 중복 정의, R1-04 "포커, 마작"과 "돈"이 함께 나와 도박 서비스로 읽힐 수 있음 | 넷 다 반영: 시험 수는 이번 판에서 다시 셈(홈 9개 = 8 + 독립 1), FD-4 영향 칸에 상호 참조, `src/ui/sr-only.ts`로 공용화, 문구를 "보드게임이나 카드게임"으로(O-C3). 이후 U-30으로 방 온보딩을 더해 2/3을 받는다 |
+| 2/3 (커밋 `6fb4256`, 홈·방) | **PASS** | LOW 3건: R2-01 저절로 연 방 온보딩이 끊김 등으로 닫힐 때와 다시 보기로 연 것의 차이가 문서에 없음, R2-02 양보 시험이 온보딩 먼저 순서만 다룸, R2-03 O-C2의 "세 장뿐"·O-C4의 키 하나 표기 | 셋 다 반영: O-C7에 동작 기록, 반대 순서 시험 추가와 RK-F33 보완, O-C2·O-C4 문구 수정. 반영분이 문서와 시험 1개뿐이라 3/3은 받지 않았다 |

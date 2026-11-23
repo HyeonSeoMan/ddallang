@@ -2,7 +2,7 @@ import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createStore } from "jotai";
 import { useState } from "react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ONBOARDING_SEEN_KEYS } from "@/lib/identity";
 import { expectNoA11yViolations } from "@/test/a11y";
 import { type FakeStorage, installFakeStorage } from "@/test/fake-storage";
@@ -138,6 +138,38 @@ describe("방 온보딩 (U-30, DV-26)", () => {
 
     await user.keyboard("{Escape}");
     expect(screen.queryByText("저절로 뜬 확인 대화상자")).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "현황에서 손익을 봐요" })).toBeInTheDocument();
+    expect(storage.getItem(ONBOARDING_SEEN_KEYS.room)).toBeNull();
+  });
+
+  it("확인 대화상자가 먼저 열려 있을 때 온보딩이 열려도 포커스를 뺏지 않고 Esc는 확인 대화상자의 취소로만 간다", async () => {
+    const user = userEvent.setup();
+    const onCancel = vi.fn();
+    const store = createStore();
+    seedRoom(store);
+    store.set(setConnectionAtom, "disconnected");
+    renderApp(
+      <main>
+        <ConfirmDialog
+          open
+          title="확인"
+          description="먼저 뜬 확인 대화상자"
+          confirmLabel="확인"
+          onConfirm={() => undefined}
+          onCancel={onCancel}
+        />
+        <RoomOnboarding />
+      </main>,
+      store,
+    );
+    expect(screen.getByRole("button", { name: "취소" })).toHaveFocus();
+    act(() => {
+      seedRoom(store);
+    });
+    expect(screen.getByRole("dialog", { name: "현황에서 손익을 봐요" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "취소" })).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(onCancel).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("dialog", { name: "현황에서 손익을 봐요" })).toBeInTheDocument();
     expect(storage.getItem(ONBOARDING_SEEN_KEYS.room)).toBeNull();
   });

@@ -18,7 +18,16 @@ export interface OnboardingSlide {
  * `aria-modal`, 포커스 가둠, 닫을 때 포커스 복귀를 지키고(다른 대화상자가 뜨면 그쪽에 양보한다), `Esc`·`건너뛰기`·마지막 장의 `시작하기`가 모두 닫기다.
  * 바깥 클릭으로는 닫히지 않는다. 장이 바뀌면 제목·본문을 알림 영역으로 읽힌다.
  */
-export function OnboardingDialog({ slides, onClose }: { slides: readonly OnboardingSlide[]; onClose: () => void }) {
+export function OnboardingDialog({
+  slides,
+  onClose,
+  onSlideChange,
+}: {
+  slides: readonly OnboardingSlide[];
+  onClose: () => void;
+  /** 보이는 장이 바뀔 때(처음 열 때 0 포함) 부른다. */
+  onSlideChange?: (index: number) => void;
+}) {
   const titleId = useId();
   const bodyId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -29,6 +38,13 @@ export function OnboardingDialog({ slides, onClose }: { slides: readonly Onboard
   useEffect(() => {
     latestClose.current = onClose;
   });
+  const latestSlideChange = useRef(onSlideChange);
+  useEffect(() => {
+    latestSlideChange.current = onSlideChange;
+  });
+  useEffect(() => {
+    latestSlideChange.current?.(index);
+  }, [index]);
 
   useEffect(() => {
     const previouslyFocused = document.activeElement as HTMLElement | null;

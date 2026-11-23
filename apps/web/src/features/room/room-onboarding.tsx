@@ -7,6 +7,7 @@ import { hasSeenOnboarding, markOnboardingSeen } from "@/lib/identity";
 import { Button } from "@/ui/button";
 import { BagIcon, CoinIcon, HouseIcon, PencilIcon } from "@/ui/icons";
 import { OnboardingDialog, type OnboardingSlide } from "@/ui/onboarding-dialog";
+import type { RoomPageKey } from "./room-header";
 import { canMutateAtom } from "./state";
 
 /** 방 온보딩: 방 화면 사용법(DV-26). 장마다 헤더 탭 하나(현황·기록·정산·방)를 지금 쓰는 순서대로 설명한다. */
@@ -33,14 +34,19 @@ const ROOM_SLIDES: readonly OnboardingSlide[] = [
   },
 ];
 
+/** 장마다 보여 줄 페이지(U-31). `ROOM_SLIDES`와 같은 순서다. */
+export const ROOM_SLIDE_PAGES: readonly RoomPageKey[] = ["status", "record", "settlement", "room"];
+
 /** `방 사용법 다시 보기`가 연 상태. 방 화면 틀(`RoomShell`)의 `RoomOnboarding`이 읽는다. */
 const roomOnboardingRequestedAtom = atom(false);
 
 /**
  * 방 온보딩(U-30, FD-33). 이 브라우저에서 처음으로 **기록할 수 있는 방**(데이터가 보이고 진행 중이며 본인이 활성,
  * `canMutate`)을 보면 한 번 연다. 끝난 방·조회 전용·연결 전에는 저절로 열지 않는다. 방마다가 아니라 브라우저에 한 번이다.
+ * 장이 바뀌면 `onShowPage`로 그 장이 설명하는 페이지를 알린다(U-31: 뒤 화면이 현황 → 기록 → 정산 → 방으로 함께 바뀐다).
+ * 닫으면 그 페이지에 머문다.
  */
-export function RoomOnboarding() {
+export function RoomOnboarding({ onShowPage }: { onShowPage?: (page: RoomPageKey) => void }) {
   const canMutate = useAtomValue(canMutateAtom);
   const [requested, setRequested] = useAtom(roomOnboardingRequestedAtom);
   const [dismissed, setDismissed] = useState(() => hasSeenOnboarding("room"));
@@ -48,6 +54,7 @@ export function RoomOnboarding() {
   return (
     <OnboardingDialog
       slides={ROOM_SLIDES}
+      onSlideChange={(index) => onShowPage?.(ROOM_SLIDE_PAGES[index]!)}
       onClose={() => {
         markOnboardingSeen("room");
         setDismissed(true);

@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useRef } from "react";
 import { css } from "styled-system/css";
 import { ConnectionBanner } from "@/features/realtime/connection-banner";
-import { RoomHeader, roomBasePath } from "./room-header";
+import { RoomHeader, roomBasePath, roomPagePath } from "./room-header";
 import { RoomOnboarding } from "./room-onboarding";
 import { dataVisibleAtom, snapshotAtom } from "./state";
 
@@ -33,6 +33,19 @@ function EndedRedirect({ inviteCode, pathname }: { inviteCode: string; pathname:
   return null;
 }
 
+/** 방 온보딩의 장에 맞춰 뒤 페이지를 옮긴다(U-31). 기록이 쌓이지 않게 `replace`로 옮긴다. 라우터가 있을 때만 그린다. */
+function RoutedRoomOnboarding({ inviteCode, pathname }: { inviteCode: string; pathname: string }) {
+  const router = useRouter();
+  return (
+    <RoomOnboarding
+      onShowPage={(page) => {
+        const target = roomPagePath(inviteCode, page);
+        if (target !== pathname) router.replace(target);
+      }}
+    />
+  );
+}
+
 /**
  * 방 화면의 공통 틀(레이아웃). 헤더 탭·연결 배너를 한 번만 그리고 현재 페이지(`children`)를 그 아래에 둔다.
  * 실시간 연결과 방 스냅샷은 이 틀 위(`InviteScreen`)에 있어 페이지를 옮겨도 다시 연결하지 않는다(S5 §4.1의 연결 한도).
@@ -48,7 +61,7 @@ export function RoomShell({ inviteCode, children }: { inviteCode: string; childr
         <ConnectionBanner />
         {children}
       </div>
-      <RoomOnboarding />
+      {pathname ? <RoutedRoomOnboarding inviteCode={inviteCode} pathname={pathname} /> : <RoomOnboarding />}
     </>
   );
 }

@@ -173,4 +173,14 @@ describe("방 온보딩 (U-30, DV-26)", () => {
     expect(screen.getByRole("dialog", { name: "현황에서 손익을 봐요" })).toBeInTheDocument();
     expect(storage.getItem(ONBOARDING_SEEN_KEYS.room)).toBeNull();
   });
+
+  it("장이 바뀔 때마다 그 장의 페이지를 알린다: 현황 → 기록 → 정산 → 방 (U-31)", async () => {
+    const user = userEvent.setup();
+    const store = createStore();
+    seedRoom(store);
+    const onShowPage = vi.fn();
+    renderApp(<RoomOnboarding onShowPage={onShowPage} />, store);
+    for (let i = 0; i < 3; i += 1) await user.click(screen.getByRole("button", { name: "다음" }));
+    expect(onShowPage.mock.calls.map(([page]) => page)).toEqual(["status", "record", "settlement", "room"]);
+  });
 });

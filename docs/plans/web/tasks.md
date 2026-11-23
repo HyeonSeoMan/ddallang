@@ -1,6 +1,7 @@
 # 프론트엔드 Tasks — `apps/web` (G3)
 
-- 문서 버전: **2.2.0 (사용자 결정 U-27·U-28·U-30 반영, 2026-11-24)**. §O(`FE-O1`·`FE-O2`)를 더한다. 기존 Task의 내용·AC 매핑은 바꾸지 않는다. 근거: `plan.md` §13.
+- 문서 버전: **2.2.1 (사용자 결정 U-31 반영, 2026-11-24)**. §O에 `FE-O3`을 더한다.
+- 2.2.0: **2.2.0 (사용자 결정 U-27·U-28·U-30 반영, 2026-11-24)**. §O(`FE-O1`·`FE-O2`)를 더한다. 기존 Task의 내용·AC 매핑은 바꾸지 않는다. 근거: `plan.md` §13.
 - 2.1.3: **2.1.3 (사용자 결정 U-24·U-26 반영, 2026-11-18)**. FE-Q1(2.1.1, 종료 방에서도 QR)과 FE-Q3(2.1.3, 깨우기를 cron-job.org로)의 내용을 고쳤다. 그 밖은 2.1.0 그대로다.
 - 2.1.0: **2.1.0 (사용자 결정 U-20~U-23, 2026-11-17)**. §N(`FE-Q1`~`FE-Q3`)을 더한다. 기존 Task의 내용·AC 매핑은 바꾸지 않는다. 근거: `plan.md` §12.
 - 2.0.0: **2.0.0 확정** (사용자 승인 2026-11-16, 검수 PASS 없음). Spec v0.3.0 반영 개정 Task를 §M(`FE-M1`~`FE-M9`)에 더한다. 기준 Spec은 S1~S5 v0.3.0(`plan.md` §1.1). §A~§L은 1.x(Spec v0.2.x) 기록이며 구현이 끝났다. 둘이 어긋나면 §M과 `plan.md` §11.3이 우선한다. 모든 화면 Task의 공통 완료 기준(OQ-033 D)은 §M에도 적용한다
@@ -181,3 +182,4 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | FE-O1 | 홈 소개·사용 순서·홈 온보딩 | Q3 | FD-31·FD-32, DV-24·DV-25 | 홈 한 줄 소개, `HomeGuide`, 공용 `OnboardingDialog`, `src/lib/identity/onboarding.ts`, `trapTab` | plan §13.3 홈 시험 통과, 기존 `not-provided`·확인 대화상자 시험 그대로 통과 | M |
 | FE-O2 | 방 온보딩 | O1 | FD-33, DV-26 | `RoomOnboarding`·`RoomOnboardingButton`, 다른 대화상자에 양보(O-C10), 방 화면 시험 준비의 `skipRoomOnboarding`, 실제 Chrome 확인, `g4-evidence.md` §18 | plan §13.3 방 시험 통과, 기존 방 화면 시험 단언 그대로 통과, 게이트 6종, 증거 절 | M |
+| FE-O3 | 방 온보딩 장마다 페이지 이동 | O2 | FD-33(2.2.1), DV-26(1.3.1) | `onSlideChange`, `ROOM_SLIDE_PAGES`, `roomPagePath`, `RoutedRoomOnboarding`, `room-pages` 시험 준비에 `skipRoomOnboarding`, `g4-evidence.md` §18.6 | plan §13.3 2.2.1 시험 통과, 기존 단언 그대로 통과, 게이트 6종 | M |
